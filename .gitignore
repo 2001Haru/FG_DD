@@ -1,3 +1,24 @@
 note.txt
 
 *.md
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+data/
+datasets/
+outputs/
+runs/
+wandb/
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -216,7 +216,7 @@ if __name__ == '__main__':
     imsize = 224
     patch_num = 5
     num_crop = 5
-    src_dir = os.path.join("..", "Datasets", dataset_name)  # Replace with your path
-    save_dir = os.path.join("..", "Datasets", "patches", dataset_name, "2")  # Replace with your path
-    ckpt_path = os.path.join("..", "Datasets", "pretrained_models", dataset_name, model_name + ".pth")  # Replace with your path
+    src_dir = "/linxi/dataset/FD2/CUB_imsize224"  # Replace with your path
+    save_dir = "/linxi/dataset/FD2/patches/CUB_imsize224/2"  # Replace with your path
+    ckpt_path = "/linxi/dataset/FD2/pretrained_models/CUB_imsize224/ResNet18.pth"  # Replace with your path
     make_patch(model_name, ckpt_path, ncls, src_dir, ipc, mean_norm, std_norm, patch_num, num_crop, imsize, save_dir)

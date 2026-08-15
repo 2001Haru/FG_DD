@@ -11,7 +11,7 @@ import torchvision.transforms as transforms
 from torch.optim.lr_scheduler import LambdaLR
 from torchvision.transforms import InterpolationMode
 from utils_validate import AverageMeter, accuracy, get_parameters, load_val_loader, result_append, draw_result
-# It is imported for you to access and modify the PyTorch source code (via Ctrl+Click), more details in README.md
+# Used by the repository-local FKD compatibility patch below.
 from torch.utils.data._utils.fetch import _MapDatasetFetcher
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -20,6 +20,36 @@ from models import *
 from models.utils_models import load_model, batch_augment
 from relabel.utils_fkd import (ComposeWithCoords, ImageFolder_FKD_MIX, RandomHorizontalFlipWithRes,
                                RandomResizedCropWithCoords, mix_aug)
+
+
+# CV-DD requires a customized map fetcher for FKD loading, but modifying the
+# installed PyTorch package makes the repository environment-dependent. Apply
+# the same behavior locally so each DataLoader worker loads its batch-specific
+# crop/mix configuration before fetching the corresponding images.
+_original_map_dataset_fetch = _MapDatasetFetcher.fetch
+
+
+def _fd2_map_dataset_fetch(self, possibly_batched_index):
+    if not (hasattr(self.dataset, "mode") and self.dataset.mode == 'fkd_load'):
+        return _original_map_dataset_fetch(self, possibly_batched_index)
+
+    mix_index, mix_lam, mix_bbox, soft_label = self.dataset.load_batch_config(
+        possibly_batched_index[0]
+    )
+    if self.auto_collation:
+        if hasattr(self.dataset, "__getitems__") and self.dataset.__getitems__:
+            data = self.dataset.__getitems__(possibly_batched_index)
+        else:
+            data = [self.dataset[idx] for idx in possibly_batched_index]
+    else:
+        data = self.dataset[possibly_batched_index]
+
+    return self.collate_fn(data), mix_index.cpu(), mix_lam, mix_bbox, soft_label.cpu()
+
+
+if not getattr(_MapDatasetFetcher.fetch, "_fd2_fkd_patch", False):
+    _fd2_map_dataset_fetch._fd2_fkd_patch = True
+    _MapDatasetFetcher.fetch = _fd2_map_dataset_fetch
 
 
 def get_args():

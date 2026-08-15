@@ -18,7 +18,7 @@ import gc
 
 def recover(task_info):
     num_call, targets, recover_model_name_list, M_list, cal_ratio_list, device, transform, aug, args = task_info
-    print(f"currently processing label from {targets[0].item()} to {targets[-1].item()}")
+    print(f"currently processing label from {targets[0].item()} to {targets[-1].item()}", flush=True)
     targets = targets.to(device)
     number_distilled_time, id_number_distilled_time, delta_time = 0, 0, 0
     # Visualization
@@ -29,7 +29,8 @@ def recover(task_info):
 
     recover_model_list, BN_hooks, weight_list, model_sources, recover_cal_list, feature_centers \
         = utils_re.load_recover_model_cal(recover_model_name_list, M_list, args, device)
-    print(f"---The recover models are changed to {', '.join(model_name for model_name in recover_model_name_list)}")
+    print(f"---The recover models are changed to {', '.join(model_name for model_name in recover_model_name_list)}",
+          flush=True)
     last_feature_hooks, syning_features, syned_intra_attentions = {}, {}, {}
     for model_name, model_source, model in zip(recover_model_name_list, model_sources, recover_model_list):
         module = get_module(model_name, model_source, model)
@@ -142,6 +143,10 @@ def recover(task_info):
         # Visualization
         if iteration % save_every == 0 or iteration == total_iteration - 1: 
             end_time = time.time()
+            elapsed_since_log = end_time - start_time
+            iterations_since_log = 1 if iteration == 0 else min(save_every, iteration)
+            seconds_per_iteration = elapsed_since_log / iterations_since_log
+            eta_seconds = seconds_per_iteration * (total_iteration - iteration - 1)
             print(
                 f"-------ipcID:{num_call},class:{targets[0].item()}_{targets[-1].item()},iteration:{iteration}-------")
             print("total loss:", loss.item()) 
@@ -170,7 +175,9 @@ def recover(task_info):
                               model_FC_loss, model_SC_loss, SC_loss_thresholds, total_loss_plt,
                               iteration_plt)
 
-            print(f'time for previous iterations: {end_time - start_time}')
+            print(f'time for previous iterations: {elapsed_since_log:.1f}s; '
+                  f'average: {seconds_per_iteration:.3f}s/iter; '
+                  f'task ETA: {eta_seconds / 60:.1f}min', flush=True)
             start_time = time.time()
         
     print(f"Average time for distill {args.class_num} images ({args.input_size}) of ipcID({num_call}) = {delta_time / id_number_distilled_time} s")
@@ -213,9 +220,16 @@ def get_images_parallel(args, device, num_call, is_first_ipc):
                 continue
         tasks_info.append([num_call, targets, recover_model_name_list, M_list, cal_ratio_list, device, transform, aug, args])
 
-    print(f"recover_base start: {args.subprocess_num} processes, {len(tasks_info)} tasks")
-    with torch.multiprocessing.Pool(processes=args.subprocess_num) as pool:
-        pool.map(recover, tasks_info)
+    print(f"recover_base start: {args.subprocess_num} processes, {len(tasks_info)} tasks", flush=True)
+    if args.subprocess_num == 1:
+        # Avoid spawning a redundant process around a single GPU task. Besides
+        # reducing startup overhead, this keeps progress output visible when it
+        # is redirected to a log file by the launcher.
+        for task_info in tasks_info:
+            recover(task_info)
+    else:
+        with torch.multiprocessing.Pool(processes=args.subprocess_num) as pool:
+            pool.map(recover, tasks_info)
     gc.collect()
     torch.cuda.empty_cache()
 

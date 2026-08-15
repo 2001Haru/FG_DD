@@ -31,10 +31,19 @@ def worker_init(worker_id, base_seed, rank):
 
 # load CIFAR-100 dataset
 def load_dataset(rank, args, mode="train"):
+    # Fine-grained datasets contain images with different native resolutions.
+    # DataLoader's default collate function can only stack tensors with the
+    # same shape, so make the spatial size explicit instead of assuming that
+    # the dataset was pre-resized on disk.
+    resize_to_input = transforms.Resize(
+        (args.input_size, args.input_size),
+        antialias=True,
+    )
+
     # Define the transformation of the dataset
     if mode == "train":
         transform_train = transforms.Compose([
-            # transforms.RandomCrop(args.input_size, padding=4),
+            resize_to_input,
             transforms.RandomHorizontalFlip(),
             transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
             transforms.RandomRotation(15),
@@ -42,11 +51,17 @@ def load_dataset(rank, args, mode="train"):
             transforms.Normalize(args.mean_norm, args.std_norm)
         ])
     else:
-        transform_train = transforms.Compose([transforms.ToTensor(),
-                                              transforms.Normalize(args.mean_norm, args.std_norm)])
+        transform_train = transforms.Compose([
+            resize_to_input,
+            transforms.ToTensor(),
+            transforms.Normalize(args.mean_norm, args.std_norm),
+        ])
 
-    transform_test = transforms.Compose([transforms.ToTensor(),
-                                         transforms.Normalize(args.mean_norm, args.std_norm)])
+    transform_test = transforms.Compose([
+        resize_to_input,
+        transforms.ToTensor(),
+        transforms.Normalize(args.mean_norm, args.std_norm),
+    ])
 
     val_dir = os.path.join(args.dataset_dir, 'test')
     train_dir = os.path.join(args.dataset_dir, 'train')

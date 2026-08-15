@@ -355,6 +355,9 @@ def load_val_loader(args):
     elif args.dataset_name in ("CUB_imsize64", "CUB_imsize224", "A_imsize64", "A_imsize224",
                                "SC_imsize64", "SC_imsize224"):
         transform_test = transforms.Compose([
+            # Official fine-grained datasets keep their native, variable
+            # resolutions. Enforce the experiment resolution before batching.
+            transforms.Resize((args.input_size, args.input_size), antialias=True),
             transforms.ToTensor(),
             transforms.Normalize(mean=args.mean_norm, std=args.std_norm)
         ])

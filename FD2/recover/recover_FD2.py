@@ -35,10 +35,11 @@ def recover(task_info):
         module = get_module(model_name, model_source, model)
         last_feature_hooks[model_name] = LastFeatureHook(module)
         syned_intra_attentions[model_name] = []  
-    if args.SC and num_call != args.ipc_start:
+    if args.SC and num_call != args.sc_reference_start:
         for target in targets:
             syned_intra_imgs_path = os.path.join(f"{args.syn_data_path}", f"new{target:03d}")
-            syned_intra_imgs_name = [f"class{target:03d}_id{ipc_idx:03d}.jpg" for ipc_idx in range(args.ipc_start, num_call)]
+            syned_intra_imgs_name = [f"class{target:03d}_id{ipc_idx:03d}.jpg"
+                                     for ipc_idx in range(args.sc_reference_start, num_call)]
             syned_intra_imgs = []
             for syned_intra_img_name in syned_intra_imgs_name:
                 syned_intra_img = read_image(os.path.join(syned_intra_imgs_path, syned_intra_img_name))
@@ -99,7 +100,7 @@ def recover(task_info):
                 intra_fc_loss = intra_feature_center_dist(feature_matrix, targets, feature_center, 'l2', 'down')
                 inter_fc_loss = inter_feature_center_dist(feature_matrix, targets, feature_center, 'l2', 'up')
                 fc_lis.append(args.IntraFC_ratio * intra_fc_loss + (1.0 - args.IntraFC_ratio) * inter_fc_loss)
-            if args.SC and num_call != args.ipc_start: 
+            if args.SC and num_call != args.sc_reference_start:
                 SC_loss_now_model = torch.tensor(0.0, device=device)
                 for i, target in enumerate(targets):
                     SC_loss_now_cls = features_dist(syned_intra_attentions[model_name][i],
@@ -125,7 +126,7 @@ def recover(task_info):
                               + args.r_bn * loss_BN_lis[idx])
             if args.FC:
                 loss = loss + weight * args.FC_ratio * fc_lis[idx]
-            if args.SC and num_call != args.ipc_start:
+            if args.SC and num_call != args.sc_reference_start:
                 if SC_lis[idx].item() < args.SC_loss_threshold:
                     pass
                 else:
@@ -150,13 +151,13 @@ def recover(task_info):
                       f"{model_name}_cal:{ce_lis_cal[i].item()}\n"
                       f"BN loss:{loss_BN_lis[i]}")
                 if args.FC: print(f"FC_loss: {fc_lis[i].item()}\n")
-                if args.SC and num_call != args.ipc_start: print(f"SC_loss: {SC_lis[i].item()}\n")
+                if args.SC and num_call != args.sc_reference_start: print(f"SC_loss: {SC_lis[i].item()}\n")
 
             if args.matplotlib:
                 iteration_plt.append(iteration)
                 # Draw recover base loss
                 total_loss_plt.append(loss.item())
-                if args.SC and num_call != args.ipc_start:
+                if args.SC and num_call != args.sc_reference_start:
                     SC_loss_thresholds.append(args.SC_loss_threshold)
                 (model_CE_loss_cal, model_CE_loss_backbone, model_BN_loss, model_total_loss, model_FC_loss,
                  model_SC_loss) \
@@ -194,17 +195,22 @@ def get_images_parallel(args, device, num_call, is_first_ipc):
     transform = transforms.Compose([transforms.ConvertImageDtype(torch.float),
                                     transforms.Normalize(mean=args.mean_norm, std=args.std_norm)])
     aug = transforms.Compose([transforms.RandomResizedCrop(args.input_size), transforms.RandomHorizontalFlip()])
-    targets_all = torch.arange(args.ncls, dtype=torch.long)  
-
     pairs = list(zip(args.model_choice, args.M, args.cal_ratio))
     sample_pairs = random.sample(pairs, args.selected_size)
     recover_model_name_list, M_list, cal_ratio_list = zip(*sample_pairs)
 
-    start_index = args.start_index if is_first_ipc else 0  
+    start_index = max(args.class_start, args.start_index if is_first_ipc else args.class_start)
+    end_index = args.class_end
+    targets_all = torch.arange(start_index, end_index, dtype=torch.long)
 
     tasks_info = []
-    for start_label in range(start_index, args.ncls, args.class_num):
-        targets = targets_all[start_label:min(start_label + args.class_num, args.ncls)]
+    for offset in range(0, len(targets_all), args.class_num):
+        targets = targets_all[offset:min(offset + args.class_num, len(targets_all))]
+        if args.skip_completed:
+            output_paths = [synthetic_image_path(args, target.item(), num_call) for target in targets]
+            if all(os.path.isfile(path) for path in output_paths):
+                print(f"skip completed ipcID:{num_call},class:{targets[0].item()}_{targets[-1].item()}")
+                continue
         tasks_info.append([num_call, targets, recover_model_name_list, M_list, cal_ratio_list, device, transform, aug, args])
 
     print(f"recover_base start: {args.subprocess_num} processes, {len(tasks_info)} tasks")
@@ -212,6 +218,11 @@ def get_images_parallel(args, device, num_call, is_first_ipc):
         pool.map(recover, tasks_info)
     gc.collect()
     torch.cuda.empty_cache()
+
+
+def synthetic_image_path(args, class_id, ipc_id):
+    return os.path.join(args.syn_data_path, f"new{class_id:03d}",
+                        f"class{class_id:03d}_id{ipc_id:03d}.jpg")
 
 
 def save_images(args, images, targets, ipc_id):
@@ -224,11 +235,13 @@ def save_images(args, images, targets, ipc_id):
         dir_path = os.path.join(args.syn_data_path, f"new{class_id:03d}")
         os.makedirs(dir_path, exist_ok=True)
         # place_to_store = dir_path + '/class{:03d}_id{:03d}.jpg'.format(class_id, ipc_id)
-        place_to_store = os.path.join(dir_path, f"class{class_id:03d}_id{ipc_id:03d}.jpg")
+        place_to_store = synthetic_image_path(args, class_id, ipc_id)
 
         image_np = images[id].data.cpu().numpy().transpose((1, 2, 0))
         pil_image = Image.fromarray((image_np * 255).astype(np.uint8))
-        pil_image.save(place_to_store)
+        temporary_path = f"{place_to_store}.tmp.{os.getpid()}"
+        pil_image.save(temporary_path, format="JPEG")
+        os.replace(temporary_path, place_to_store)
 
 
 def parse_args():
@@ -245,6 +258,12 @@ def parse_args():
                         help='whether or not to apply data augmentation')
     parser.add_argument('--start_index', type=int, default=0,
                         help='start index of the class to recover')
+    parser.add_argument('--class_start', type=int, default=0,
+                        help='inclusive first class for this worker')
+    parser.add_argument('--class_end', type=int, default=None,
+                        help='exclusive last class for this worker; defaults to all classes')
+    parser.add_argument('--skip_completed', action='store_true',
+                        help='skip a class batch when all of its output images already exist')
     # Committee Related Configs
     parser.add_argument('--pretrained_model_type', type=str, required=True, choices=['offline', 'online'],
                         help='Offline: the models are pre-trained and stored in the model pool directory\
@@ -307,6 +326,8 @@ def parse_args():
     # IPC (Image Per Class) Related Configs
     parser.add_argument("--ipc_start", default=0, type=int, help="start index of IPC")
     parser.add_argument("--ipc_end", default=50, type=int, help="end index of IPC")
+    parser.add_argument('--sc_reference_start', type=int, default=None,
+                        help='first IPC used as the SC reference; defaults to ipc_start')
     args = parser.parse_args()
 
 
@@ -345,6 +366,17 @@ def parse_args():
                                         'Densenet121': None}
     else:
         raise ValueError('dataset not supported')
+
+    if args.class_end is None:
+        args.class_end = args.ncls
+    if not 0 <= args.class_start < args.class_end <= args.ncls:
+        raise ValueError(
+            f"invalid class range [{args.class_start}, {args.class_end}) for {args.ncls} classes"
+        )
+    if args.sc_reference_start is None:
+        args.sc_reference_start = args.ipc_start
+    if not args.ipc_start <= args.ipc_end:
+        raise ValueError('ipc_start must not be greater than ipc_end')
 
     return args
 

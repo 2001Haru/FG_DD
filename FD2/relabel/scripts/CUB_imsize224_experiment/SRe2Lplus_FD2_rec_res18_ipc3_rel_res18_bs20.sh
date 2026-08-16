@@ -12,7 +12,7 @@ mkdir -p "$SCRIPT_DIR"/logs
 Log_NAME=SRe2Lplus_FD2_${REC_NAME}_ipc${ipc}_${REL_NAME}_bs${bs}_09FC05_01SC4
 WORLD_SIZE=1 \
 RANK=0 \
-CUDA_VISIBLE_DEVICES=0 \
+CUDA_VISIBLE_DEVICES="${GPU_ID:-0}" \
 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:False \
 python "$PARENT_DIR"/relabel_FD2.py \
     --syn_data_path "${Generated_Path}/generated_data/syn_data/SRe2Lplus_FD2_${Dataset_Name}_09FC05_01SC4/${REC_NAME}_ipc${ipc}" \

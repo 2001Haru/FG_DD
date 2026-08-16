@@ -10,7 +10,7 @@ GPU_RESNET18="${GPU_RESNET18:-0}"
 GPU_RESNET50="${GPU_RESNET50:-1}"
 WORKERS_PER_RUN="${WORKERS_PER_RUN:-2}"
 EPOCHS="${EPOCHS:-400}"
-IPC=5
+IPC="${IPC:-5}"
 BATCH_SIZE=20
 REC_NAME="rec_res18"
 REL_NAME="rel_res18"
@@ -18,7 +18,7 @@ REL_NAME="rel_res18"
 SYN_DIR="${Generated_Data_Path}/syn_data/SRe2Lplus_FD2_${Dataset_Name}_09FC05_01SC4/${REC_NAME}_ipc${IPC}"
 FKD_DIR="${Generated_Data_Path}/new_labels/SRe2Lplus_FD2_${Dataset_Name}_09FC05_01SC4/${REC_NAME}_ipc${IPC}_${REL_NAME}_bs${BATCH_SIZE}_ipc${IPC}"
 OUTPUT_DIR="${Generated_Data_Path}/validate_output"
-LOG_DIR="${SCRIPT_DIR}/logs/validate_2gpu"
+LOG_DIR="${SCRIPT_DIR}/logs/validate_ipc${IPC}_2gpu"
 mkdir -p "$OUTPUT_DIR" "$LOG_DIR"
 
 fail() {
@@ -35,9 +35,13 @@ epoch_count="$(find "$FKD_DIR" -mindepth 1 -maxdepth 1 -type d -name 'epoch_*' |
 batch_count="$(find "$FKD_DIR" -type f -name 'batch_*.tar' | wc -l)"
 val_count="$(find "$val_dir" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) | wc -l)"
 
-(( syn_count == 1000 )) || fail "found $syn_count synthetic JPGs, expected 1000"
+expected_images=$((200 * IPC))
+(( syn_count == expected_images )) || fail "found $syn_count synthetic JPGs, expected $expected_images"
 (( epoch_count >= EPOCHS )) || fail "found $epoch_count FKD epochs, need at least $EPOCHS"
-expected_batches=$((EPOCHS * 50))
+if (( expected_images % BATCH_SIZE != 0 )); then
+    fail "$expected_images images are not divisible by batch size $BATCH_SIZE"
+fi
+expected_batches=$((EPOCHS * expected_images / BATCH_SIZE))
 (( batch_count >= expected_batches )) || fail "found $batch_count FKD batches, need at least $expected_batches"
 (( val_count > 0 )) || fail "no validation images found under $val_dir"
 

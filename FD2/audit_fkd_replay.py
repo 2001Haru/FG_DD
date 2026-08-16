@@ -4,7 +4,8 @@ from types import SimpleNamespace
 
 import torch
 import torchvision.transforms as transforms
-from torch.utils.data import BatchSampler, RandomSampler
+from torch.utils.data import BatchSampler, DataLoader, RandomSampler
+from torchvision.datasets import ImageFolder
 from torchvision.transforms import InterpolationMode
 
 from models.utils_models import load_model
@@ -17,8 +18,20 @@ from relabel.utils_fkd import (
 )
 
 
-CUB_MEAN = [0.4857, 0.4994, 0.4326]
-CUB_STD = [0.2260, 0.2215, 0.2595]
+DATASET_CONFIGS = {
+    "CUB_imsize224": {
+        "ncls": 200,
+        "mean": [0.4857, 0.4994, 0.4326],
+        "std": [0.2260, 0.2215, 0.2595],
+        "checkpoints": ["ResNet18_M8_5e-1cal.pth", "ResNet18_M8_5e-01cal.pth"],
+    },
+    "A_imsize224": {
+        "ncls": 100,
+        "mean": [0.4865, 0.5177, 0.5425],
+        "std": [0.2124, 0.2051, 0.2375],
+        "checkpoints": ["ResNet18_M32_3e-1cal.pth", "ResNet18_M32_0.3cal.pth"],
+    },
+}
 
 
 def parse_args():
@@ -28,6 +41,10 @@ def parse_args():
     parser.add_argument("--syn-data-path", required=True)
     parser.add_argument("--fkd-path", required=True)
     parser.add_argument("--model-pool-dir", required=True)
+    parser.add_argument("--dataset-name", default="CUB_imsize224", choices=DATASET_CONFIGS)
+    parser.add_argument("--teacher-checkpoint", default=None)
+    parser.add_argument("--val-dir", default=None,
+                        help="optional real test directory for a standard global Top-1 check")
     parser.add_argument("--batch-size", type=int, default=20)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--epochs", type=int, nargs="+", default=[0, 1, 50, 399])
@@ -35,12 +52,11 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_teacher(model_pool_dir, device):
+def load_teacher(args, config):
+    model_pool_dir, device = Path(args.model_pool_dir), args.device
     model_pool_dir = Path(model_pool_dir)
-    checkpoint_candidates = [
-        model_pool_dir / "ResNet18_M8_5e-1cal.pth",
-        model_pool_dir / "ResNet18_M8_5e-01cal.pth",
-    ]
+    checkpoint_candidates = ([Path(args.teacher_checkpoint)] if args.teacher_checkpoint else
+                             [model_pool_dir / name for name in config["checkpoints"]])
     checkpoint_path = next(
         (path for path in checkpoint_candidates if path.is_file()), None
     )
@@ -54,7 +70,7 @@ def load_teacher(model_pool_dir, device):
 
     errors = []
     for source in ("CVDD", "torchvision"):
-        model = load_model("ResNet18", 200, source, False, False)
+        model = load_model("ResNet18", config["ncls"], source, False, False)
         try:
             model.load_state_dict(checkpoint["ResNet18"])
         except RuntimeError as exc:
@@ -65,7 +81,7 @@ def load_teacher(model_pool_dir, device):
     raise RuntimeError("teacher checkpoint matches neither architecture:\n" + "\n".join(errors))
 
 
-def build_dataset(args):
+def build_dataset(args, config):
     return ImageFolder_FKD_MIX(
         fkd_path=args.fkd_path,
         mode="fkd_load",
@@ -81,18 +97,19 @@ def build_dataset(args):
                 ),
                 RandomHorizontalFlipWithRes(),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=CUB_MEAN, std=CUB_STD),
+                transforms.Normalize(mean=config["mean"], std=config["std"]),
             ]
         ),
     )
 
 
 @torch.no_grad()
-def synthetic_teacher_accuracy(dataset, teacher, device):
+def synthetic_teacher_accuracy(dataset, teacher, device, config):
     # The recovered files are already 224x224. This test deliberately avoids
     # random crop and CutMix and checks their basic class semantics.
     plain = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize(mean=CUB_MEAN, std=CUB_STD)]
+        [transforms.Resize((224, 224), antialias=True), transforms.ToTensor(),
+         transforms.Normalize(mean=config["mean"], std=config["std"])]
     )
     teacher.eval()
     correct = 0
@@ -101,6 +118,29 @@ def synthetic_teacher_accuracy(dataset, teacher, device):
         chunk = dataset.samples[start : start + 64]
         images = torch.stack([plain(dataset.loader(path)) for path, _ in chunk]).to(device)
         targets = torch.tensor([target for _, target in chunk], device=device)
+        correct += teacher(images).argmax(1).eq(targets).sum().item()
+        total += targets.numel()
+    return 100.0 * correct / total
+
+
+@torch.no_grad()
+def real_teacher_accuracy(val_dir, teacher, device, config):
+    transform = transforms.Compose([
+        transforms.Resize((224, 224), antialias=True),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=config["mean"], std=config["std"]),
+    ])
+    dataset = ImageFolder(val_dir, transform=transform)
+    if len(dataset.classes) != config["ncls"]:
+        raise RuntimeError(
+            f"real test set has {len(dataset.classes)} classes, expected {config['ncls']}"
+        )
+    loader = DataLoader(dataset, batch_size=64, shuffle=False, num_workers=4, pin_memory=True)
+    teacher.eval()
+    correct = total = 0
+    for images, targets in loader:
+        images = images.to(device, non_blocking=True)
+        targets = targets.to(device, non_blocking=True)
         correct += teacher(images).argmax(1).eq(targets).sum().item()
         total += targets.numel()
     return 100.0 * correct / total
@@ -158,20 +198,26 @@ def audit_epoch(dataset, teacher, device, epoch, indices):
 
 def main():
     args = parse_args()
+    config = DATASET_CONFIGS[args.dataset_name]
     if args.device.startswith("cuda") and not torch.cuda.is_available():
         raise RuntimeError("CUDA was requested but is unavailable")
 
-    dataset = build_dataset(args)
-    if len(dataset.classes) != 200:
-        raise RuntimeError(f"synthetic dataset has {len(dataset.classes)} classes, expected 200")
+    dataset = build_dataset(args, config)
+    if len(dataset.classes) != config["ncls"]:
+        raise RuntimeError(
+            f"synthetic dataset has {len(dataset.classes)} classes, expected {config['ncls']}"
+        )
     counts = torch.bincount(torch.tensor(dataset.targets), minlength=len(dataset.classes))
     print(
         f"Synthetic set: {len(dataset)} images, {len(dataset.classes)} classes, "
         f"per-class min/max={counts.min().item()}/{counts.max().item()}"
     )
 
-    teacher = load_teacher(args.model_pool_dir, args.device)
-    plain_accuracy = synthetic_teacher_accuracy(dataset, teacher, args.device)
+    teacher = load_teacher(args, config)
+    if args.val_dir:
+        real_accuracy = real_teacher_accuracy(args.val_dir, teacher, args.device, config)
+        print(f"Teacher Top1 on real test images: {real_accuracy:.2f}%")
+    plain_accuracy = synthetic_teacher_accuracy(dataset, teacher, args.device, config)
     print(f"Teacher Top1 on full recovered images: {plain_accuracy:.2f}%")
 
     selected_epochs = sorted(set(args.epochs))

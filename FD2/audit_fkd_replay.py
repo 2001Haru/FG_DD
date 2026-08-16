@@ -36,9 +36,20 @@ def parse_args():
 
 
 def load_teacher(model_pool_dir, device):
-    checkpoint_path = Path(model_pool_dir) / "ResNet18_M8_5e-01cal.pth"
-    if not checkpoint_path.is_file():
-        raise FileNotFoundError(f"teacher checkpoint not found: {checkpoint_path}")
+    model_pool_dir = Path(model_pool_dir)
+    checkpoint_candidates = [
+        model_pool_dir / "ResNet18_M8_5e-1cal.pth",
+        model_pool_dir / "ResNet18_M8_5e-01cal.pth",
+    ]
+    checkpoint_path = next(
+        (path for path in checkpoint_candidates if path.is_file()), None
+    )
+    if checkpoint_path is None:
+        attempted = "\n  ".join(str(path) for path in checkpoint_candidates)
+        raise FileNotFoundError(
+            "teacher checkpoint not found; attempted:\n  " + attempted
+        )
+    print(f"Teacher checkpoint: {checkpoint_path}")
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
 
     errors = []

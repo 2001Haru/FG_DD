@@ -12,6 +12,8 @@ WORKERS_PER_RUN="${WORKERS_PER_RUN:-2}"
 EPOCHS="${EPOCHS:-400}"
 IPC="${IPC:-3}"
 STUDENT_INIT="${STUDENT_INIT:-random}"
+GRAD_ACCUM_STEPS="${GRAD_ACCUM_STEPS:-2}"
+COS_ETA="${COS_ETA:-2.0}"
 BATCH_SIZE=20
 REC_NAME=rec_res18
 REL_NAME=rel_res18
@@ -34,7 +36,8 @@ case "$STUDENT_INIT" in
         ;;
 esac
 
-LOG_DIR="${SCRIPT_DIR}/logs/validate_ipc${IPC}_${INIT_TAG}_2gpu"
+PROTOCOL_TAG="ga${GRAD_ACCUM_STEPS}_eta${COS_ETA//./p}"
+LOG_DIR="${SCRIPT_DIR}/logs/validate_ipc${IPC}_${INIT_TAG}_${PROTOCOL_TAG}_2gpu"
 mkdir -p "$OUTPUT_DIR" "$LOG_DIR"
 
 fail() { echo "Preflight failed: $*" >&2; exit 1; }
@@ -54,7 +57,7 @@ expected_batches=$((EPOCHS * expected_images / BATCH_SIZE))
 
 run_validation() {
     local gpu="$1" model="$2" log_file="$3"
-    local val_name="val_${model}_${INIT_TAG}"
+    local val_name="val_${model}_${INIT_TAG}_${PROTOCOL_TAG}"
     local exp_name="SRe2Lplus_FD2_${REC_NAME}_ipc${IPC}_${REL_NAME}_bs${BATCH_SIZE}_${val_name}_09FC05_01SC4"
     CUDA_VISIBLE_DEVICES="$gpu" \
     PYTHONPATH="$FD2_DIR${PYTHONPATH:+:$PYTHONPATH}" \
@@ -74,9 +77,9 @@ run_validation() {
         --batch_size "$BATCH_SIZE" \
         --epochs "$EPOCHS" \
         --dataset_name "$Dataset_Name" \
-        --gradient_accumulation_steps 2 \
+        --gradient_accumulation_steps "$GRAD_ACCUM_STEPS" \
         --mix_type cutmix \
-        --cos --eta 2.0 \
+        --cos --eta "$COS_ETA" \
         --workers "$WORKERS_PER_RUN" \
         --temperature 20 \
         --lr 1e-3 \
@@ -91,7 +94,7 @@ trap cleanup INT TERM
 
 log18="$LOG_DIR/resnet18.log"
 log50="$LOG_DIR/resnet50.log"
-echo "Aircraft IPC${IPC}: student_init=${STUDENT_INIT}; ResNet18 on GPU ${GPU_RESNET18}, ResNet50 on GPU ${GPU_RESNET50}"
+echo "Aircraft IPC${IPC}: student_init=${STUDENT_INIT}, grad_accum=${GRAD_ACCUM_STEPS}, eta=${COS_ETA}; ResNet18 on GPU ${GPU_RESNET18}, ResNet50 on GPU ${GPU_RESNET50}"
 run_validation "$GPU_RESNET18" ResNet18 "$log18" & pid18=$!
 run_validation "$GPU_RESNET50" ResNet50 "$log50" & pid50=$!
 pids=("$pid18" "$pid50")

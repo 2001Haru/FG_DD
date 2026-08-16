@@ -126,6 +126,10 @@ class ImageFolder_FKD_MIX(torchvision.datasets.ImageFolder):
             # self.img2batch_idx_list = torch.load('/path/to/img2batch_idx_list.tar')
             self.img2batch_idx_list = get_img2batch_idx_list(num_img=num_img, batch_size=batch_size, epochs=max_epoch)
             self.epoch = None
+            # DataLoader workers hold their own dataset copies. Keep the epoch
+            # in shared memory so persistent workers load FKD configs from the
+            # epoch selected by the training process instead of staying at 0.
+            self._shared_epoch = torch.tensor([-1], dtype=torch.int64).share_memory_()
 
     def __getitem__(self, index):
 
@@ -163,9 +167,14 @@ class ImageFolder_FKD_MIX(torchvision.datasets.ImageFolder):
         Args:
             img_idx: index of the first image in this batch
         """
-        assert self.epoch is not None
-        batch_idx = self.img2batch_idx_list[self.epoch][img_idx]
-        batch_config_path = os.path.join(self.fkd_path, 'epoch_{}'.format(self.epoch), 'batch_{}.tar'.format(batch_idx))
+        if hasattr(self, '_shared_epoch'):
+            epoch = int(self._shared_epoch.item())
+        else:
+            epoch = self.epoch
+        if epoch is None or epoch < 0:
+            raise RuntimeError('FKD epoch is not set before loading a batch config')
+        batch_idx = self.img2batch_idx_list[epoch][img_idx]
+        batch_config_path = os.path.join(self.fkd_path, 'epoch_{}'.format(epoch), 'batch_{}.tar'.format(batch_idx))
 
         # [coords, flip_status, mix_index, mix_lam, mix_bbox, soft_label]
         config = torch.load(batch_config_path, weights_only=False)
@@ -175,6 +184,8 @@ class ImageFolder_FKD_MIX(torchvision.datasets.ImageFolder):
 
     def set_epoch(self, epoch):
         self.epoch = epoch
+        if hasattr(self, '_shared_epoch'):
+            self._shared_epoch.fill_(epoch)
 
 
 def rand_bbox(size, lam):

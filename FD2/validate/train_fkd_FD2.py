@@ -164,7 +164,7 @@ def main():
 
     args.train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=(sampler is None), sampler=sampler, num_workers=args.workers,
-        pin_memory=False)
+        pin_memory=True, persistent_workers=args.workers > 0)
 
     # load validation data
     args.val_loader = load_val_loader(args)
@@ -236,11 +236,12 @@ def train(model, args, epoch=None):
         images, target, flip_status, coords_status = batch_data[0]
         mix_index, mix_lam, mix_bbox, soft_label = batch_data[1:]
         soft_label_cal, soft_label_backbone = soft_label
-        images, target = images.cuda(), target.cuda()
+        images = images.cuda(non_blocking=True)
+        target = target.cuda(non_blocking=True)
         if args.fkd_source == "backbone":
-            soft_label = soft_label_backbone.cuda().float()
+            soft_label = soft_label_backbone.cuda(non_blocking=True).float()
         elif args.fkd_source == "cal":
-            soft_label = soft_label_cal.cuda().float()
+            soft_label = soft_label_cal.cuda(non_blocking=True).float()
         images, _, _, _ = mix_aug(images, args, mix_index, mix_lam, mix_bbox)
 
         args.optimizer.zero_grad()
@@ -296,7 +297,8 @@ def validate(model, args, epoch=None):
     with (torch.no_grad()):
         for data, target in args.val_loader:
             target = target.type(torch.LongTensor)
-            data, target = data.cuda(), target.cuda()
+            data = data.cuda(non_blocking=True)
+            target = target.cuda(non_blocking=True)
             output = model(data)
             loss = loss_function(output, target)
             prec1, prec5 = accuracy(output, target, topk=(1, 5))

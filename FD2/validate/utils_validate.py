@@ -367,5 +367,7 @@ def load_val_loader(args):
     test_set = torchvision.datasets.ImageFolder(root=args.val_dir, transform=transform_test)
 
     # load dataset
-    testloader = torch.utils.data.DataLoader(test_set, batch_size=64, shuffle=False, num_workers=2, pin_memory=True)
+    testloader = torch.utils.data.DataLoader(
+        test_set, batch_size=64, shuffle=False, num_workers=args.workers,
+        pin_memory=True, persistent_workers=args.workers > 0)
     return testloader

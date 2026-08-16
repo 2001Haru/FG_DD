@@ -7,6 +7,7 @@ PARENT_DIR="$(dirname "$SCRIPT_DIR")"
 PARENT_DIR="$(dirname "$PARENT_DIR")"
 source "$SCRIPT_DIR"/constants.sh
 bs=20
+workers="${RELABEL_WORKERS:-2}"
 # Create logs directory
 mkdir -p "$SCRIPT_DIR"/logs
 Log_NAME=SRe2Lplus_FD2_${REC_NAME}_ipc${ipc}_${REL_NAME}_bs${bs}_09FC05_01SC4
@@ -21,7 +22,7 @@ python "$PARENT_DIR"/relabel_FD2.py \
     --model_choice ResNet18 \
     --M 8 \
     --cal_ratio 0.5 \
-    --workers 2 \
+    --workers "$workers" \
     --batch_size ${bs} \
     --dataset_name "${Dataset_Name}" \
     --start_epochs 0 \

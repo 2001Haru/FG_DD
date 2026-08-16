@@ -8,13 +8,13 @@ GPU0="${GPU0:-0}"
 GPU1="${GPU1:-1}"
 WORKERS_PER_GPU="${WORKERS_PER_GPU:-10}"
 DATASET=A_imsize224
-SRC_DIR="${Main_Data_Path}/${DATASET}/train"
+SRC_DIR="${Main_Data_Path}/${DATASET}"
 SAVE_DIR="${Main_Data_Path}/patches/${DATASET}/2"
 CKPT="${Main_Data_Path}/pretrained_models/${DATASET}/ResNet18_M32_3e-1cal.pth"
 LOG_DIR="$FD2_DIR/recover/scripts/A_imsize224_experiments/logs/rded_patches_2gpu"
 mkdir -p "$SAVE_DIR" "$LOG_DIR"
 
-[[ -d "$SRC_DIR" ]] || { echo "Missing Aircraft train set: $SRC_DIR" >&2; exit 1; }
+[[ -d "$SRC_DIR/train" ]] || { echo "Missing Aircraft train set: $SRC_DIR/train" >&2; exit 1; }
 [[ -f "$CKPT" ]] || { echo "Missing Aircraft teacher: $CKPT" >&2; exit 1; }
 
 run_half() {

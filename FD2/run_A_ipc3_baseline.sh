@@ -11,6 +11,7 @@ GPU_RELABEL="${GPU_RELABEL:-0}"
 GPU_RESNET18="${GPU_RESNET18:-0}"
 GPU_RESNET50="${GPU_RESNET50:-1}"
 RELABEL_WORKERS="${RELABEL_WORKERS:-8}"
+STUDENT_INIT="${STUDENT_INIT:-random}"
 SYN_ROOT="${Main_Data_Path}/generated_data/syn_data/SRe2Lplus_FD2_${DATASET}_09FC05_01SC4"
 SOURCE_DIR="${SYN_ROOT}/rec_res18_ipc5"
 TARGET_DIR="${SYN_ROOT}/rec_res18_ipc${IPC}"
@@ -41,5 +42,6 @@ batch_count="$(find "$FKD_DIR" -type f -name 'batch_*.tar' | wc -l)"
 }
 
 IPC="$IPC" EPOCHS="$EPOCHS" \
+STUDENT_INIT="$STUDENT_INIT" \
 GPU_RESNET18="$GPU_RESNET18" GPU_RESNET50="$GPU_RESNET50" \
 bash "$VALIDATE_SCRIPT"

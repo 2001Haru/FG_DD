@@ -11,6 +11,7 @@ GPU_RESNET50="${GPU_RESNET50:-1}"
 WORKERS_PER_RUN="${WORKERS_PER_RUN:-2}"
 EPOCHS="${EPOCHS:-400}"
 IPC="${IPC:-3}"
+STUDENT_INIT="${STUDENT_INIT:-random}"
 BATCH_SIZE=20
 REC_NAME=rec_res18
 REL_NAME=rel_res18
@@ -18,7 +19,22 @@ REL_NAME=rel_res18
 SYN_DIR="${Generated_Data_Path}/syn_data/SRe2Lplus_FD2_${Dataset_Name}_09FC05_01SC4/${REC_NAME}_ipc${IPC}"
 FKD_DIR="${Generated_Data_Path}/new_labels/SRe2Lplus_FD2_${Dataset_Name}_09FC05_01SC4/${REC_NAME}_ipc${IPC}_${REL_NAME}_bs${BATCH_SIZE}_ipc${IPC}"
 OUTPUT_DIR="${Generated_Data_Path}/validate_output"
-LOG_DIR="${SCRIPT_DIR}/logs/validate_ipc${IPC}_imagenet_2gpu"
+case "$STUDENT_INIT" in
+    random)
+        INIT_ARGS=()
+        INIT_TAG=random
+        ;;
+    imagenet)
+        INIT_ARGS=(--pretrained_weights --pretrained_bn)
+        INIT_TAG=imagenet
+        ;;
+    *)
+        echo "STUDENT_INIT must be 'random' or 'imagenet', got: $STUDENT_INIT" >&2
+        exit 1
+        ;;
+esac
+
+LOG_DIR="${SCRIPT_DIR}/logs/validate_ipc${IPC}_${INIT_TAG}_2gpu"
 mkdir -p "$OUTPUT_DIR" "$LOG_DIR"
 
 fail() { echo "Preflight failed: $*" >&2; exit 1; }
@@ -38,7 +54,7 @@ expected_batches=$((EPOCHS * expected_images / BATCH_SIZE))
 
 run_validation() {
     local gpu="$1" model="$2" log_file="$3"
-    local val_name="val_${model}_ImageNet"
+    local val_name="val_${model}_${INIT_TAG}"
     local exp_name="SRe2Lplus_FD2_${REC_NAME}_ipc${IPC}_${REL_NAME}_bs${BATCH_SIZE}_${val_name}_09FC05_01SC4"
     CUDA_VISIBLE_DEVICES="$gpu" \
     PYTHONPATH="$FD2_DIR${PYTHONPATH:+:$PYTHONPATH}" \
@@ -46,8 +62,7 @@ run_validation() {
     python -u "$VALIDATE_DIR/train_fkd_FD2.py" \
         --model "$model" \
         --model_source torchvision \
-        --pretrained_weights \
-        --pretrained_bn \
+        "${INIT_ARGS[@]}" \
         --fkd_source backbone \
         --ipc "$IPC" \
         --matplotlib \
@@ -76,7 +91,7 @@ trap cleanup INT TERM
 
 log18="$LOG_DIR/resnet18.log"
 log50="$LOG_DIR/resnet50.log"
-echo "Aircraft IPC${IPC}: ImageNet-initialized ResNet18 on GPU ${GPU_RESNET18}, ResNet50 on GPU ${GPU_RESNET50}"
+echo "Aircraft IPC${IPC}: student_init=${STUDENT_INIT}; ResNet18 on GPU ${GPU_RESNET18}, ResNet50 on GPU ${GPU_RESNET50}"
 run_validation "$GPU_RESNET18" ResNet18 "$log18" & pid18=$!
 run_validation "$GPU_RESNET50" ResNet50 "$log50" & pid50=$!
 pids=("$pid18" "$pid50")

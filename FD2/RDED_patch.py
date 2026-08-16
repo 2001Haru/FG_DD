@@ -344,8 +344,17 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    mean_norm = [0.4857, 0.4994, 0.4326]
-    std_norm = [0.2260, 0.2215, 0.2595]
+    dataset_norms = {
+        "CUB_imsize224": ([0.4857, 0.4994, 0.4326], [0.2260, 0.2215, 0.2595]),
+        "A_imsize224": ([0.4865, 0.5177, 0.5425], [0.2124, 0.2051, 0.2375]),
+        "SC_imsize224": ([0.4708, 0.4601, 0.4551], [0.2885, 0.2879, 0.2962]),
+    }
+    if args.dataset_name not in dataset_norms:
+        raise ValueError(
+            f"No RDED normalization registered for {args.dataset_name}. "
+            f"Supported datasets: {', '.join(dataset_norms)}"
+        )
+    mean_norm, std_norm = dataset_norms[args.dataset_name]
     make_patch(
         args.model_name,
         args.ckpt_path,

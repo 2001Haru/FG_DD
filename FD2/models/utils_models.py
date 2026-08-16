@@ -40,7 +40,7 @@ def load_model(model, ncls, source="CVDD", pretrained_weights=True, pretrained_b
         if source == 'CVDD':
             net = ResNet50(ncls)
         elif source == 'torchvision':
-            net = torchvision.models.resnet50(weights=torchvision.models.ResNet50_Weights.IMAGENET1K_V1)
+            net = torchvision.models.resnet50(weights=None)
             if pretrained_weights:
                 state_dict = torchvision.models.ResNet50_Weights.IMAGENET1K_V1.get_state_dict()
                 net = load_state_dicts(net, state_dict, pretrained_bn)

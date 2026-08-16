@@ -84,6 +84,10 @@ def get_args():
     parser.add_argument('--momentum', type=float, default=0.5, help='sgd momentum')  # checked
     parser.add_argument('--model', type=str, default='ResNet18', help='student model name')
     parser.add_argument('--model_source', type=str, default='CVDD', choices=["CVDD", "torchvision"])
+    parser.add_argument('--pretrained_weights', action='store_true',
+                        help='initialize the student with ImageNet weights (torchvision models only)')
+    parser.add_argument('--pretrained_bn', action='store_true',
+                        help='keep ImageNet BatchNorm parameters/statistics when loading pretrained weights')
     parser.add_argument('--keep_topk', type=int, default=1000, help='keep topk logits for kd loss')
     parser.add_argument('-T', '--temperature', type=float, default=3.0, help='temperature for distillation loss')
     # Visualization
@@ -172,8 +176,19 @@ def main():
     if args.model_source not in ["CVDD", "torchvision"]:
         raise ValueError(f"Now model_source only support CVDD or torchvision, your model_source is {args.model_source}")
     # load student model
-    model = load_model(args.model, args.ncls, args.model_source, False, False).cuda()
-    print(f"=> Load student model {args.model} and cal from source {args.model_source} successfully!")
+    if args.pretrained_bn and not args.pretrained_weights:
+        raise ValueError('--pretrained_bn requires --pretrained_weights')
+    model = load_model(
+        args.model,
+        args.ncls,
+        args.model_source,
+        args.pretrained_weights,
+        args.pretrained_bn,
+    ).cuda()
+    init_name = 'ImageNet weights and BN' if args.pretrained_weights and args.pretrained_bn else (
+        'ImageNet weights with reset BN' if args.pretrained_weights else 'random initialization'
+    )
+    print(f"=> Loaded student {args.model} from {args.model_source}: {init_name}")
     model.train()
     if args.sgd:
         args.optimizer = torch.optim.SGD(get_parameters(model, cal=None), lr=args.lr, momentum=args.momentum,

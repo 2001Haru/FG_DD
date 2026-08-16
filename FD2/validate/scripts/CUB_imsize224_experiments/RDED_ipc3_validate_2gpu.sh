@@ -9,6 +9,7 @@ source "$FD2_DIR/config.sh"
 GPU_RESNET18="${GPU_RESNET18:-0}"
 GPU_RESNET50="${GPU_RESNET50:-1}"
 WORKERS_PER_RUN="${WORKERS_PER_RUN:-4}"
+EPOCHS="${EPOCHS:-300}"
 PATCH_DIR="${PATCH_DIR:-${Main_Data_Path}/patches/CUB_imsize224/2}"
 VAL_DIR="${Main_Data_Path}/CUB_imsize224/test"
 MODEL_DIR="${Main_Data_Path}/pretrained_models/CUB_imsize224"
@@ -36,7 +37,7 @@ run_eval() {
         --model-pool-dir "$MODEL_DIR" \
         --model "$model" \
         --ipc 3 \
-        --epochs 300 \
+        --epochs "$EPOCHS" \
         --batch-size 20 \
         --workers "$WORKERS_PER_RUN" > "$log" 2>&1
 }
@@ -52,6 +53,7 @@ trap cleanup INT TERM
 log18="$LOG_DIR/resnet18.log"
 log50="$LOG_DIR/resnet50.log"
 echo "Starting RDED IPC3: ResNet18 on GPU $GPU_RESNET18, ResNet50 on GPU $GPU_RESNET50"
+echo "Evaluation epochs: $EPOCHS"
 echo "Logs: $log18 and $log50"
 run_eval "$GPU_RESNET18" ResNet18 "$log18" & pid18=$!
 run_eval "$GPU_RESNET50" ResNet50 "$log50" & pid50=$!

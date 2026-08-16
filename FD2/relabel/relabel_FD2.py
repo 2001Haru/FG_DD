@@ -171,60 +171,65 @@ def main_worker(args):
     sampler = torch.utils.data.RandomSampler(train_dataset, generator=generator)
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=(sampler is None), sampler=sampler,
-        num_workers=args.workers, pin_memory=True, worker_init_fn=set_worker_sharing_strategy)
-    for epoch in tqdm(range(args.start_epochs, args.end_epochs)):
-        dir_path = os.path.join(args.fkd_path, 'epoch_{}'.format(epoch))
-        os.makedirs(dir_path, exist_ok=True)
+        num_workers=args.workers, pin_memory=True, worker_init_fn=set_worker_sharing_strategy,
+        persistent_workers=args.workers > 0)
 
-        with torch.no_grad():
-            if args.model_weight is None:
-                weights = [1.0 / len(teacher_model_lis)] * len(teacher_model_lis)
-            else:
-                w, temperature = np.array([float(w) for w in args.model_weight]), 10
-                w = w / temperature
-                weights = np.exp(w) / np.sum(np.exp(w))
+    if args.model_weight is None:
+        weights = [1.0 / len(teacher_model_lis)] * len(teacher_model_lis)
+    else:
+        w, temperature = np.array([float(w) for w in args.model_weight]), 10
+        w = w / temperature
+        weights = np.exp(w) / np.sum(np.exp(w))
 
-            """Generate soft labels and save"""
-            for batch_idx, (images, target, flip_status, coords_status) in enumerate(train_loader):
-                images = images.cuda()
-                split_point = int(images.shape[0] // 2)
-                origin_images = images
-                images, mix_index, mix_lam, mix_bbox = mix_aug(images, args)
-                total_p_cal, total_p_backbone = [], []
-                for idx, (_model, _cal) in enumerate(zip(teacher_model_lis, teacher_cal_lis)):
-                    if args.eval_mode:
-                        _model.eval()
-                        _cal.eval()
-                    cat_p_cal, cat_p_backbone = [], []
-                    p_backbone = _model(origin_images[:split_point])
-                    cat_p_backbone.append(p_backbone)
-                    last_feature = last_feature_hooks[idx].feature
-                    p_raw_cal, p_eff, feature_matrix, attention_map, attention_maps = _cal(last_feature)
-                    cat_p_cal.append(p_raw_cal)
-                    p_backbone = _model(origin_images[split_point:])
-                    cat_p_backbone.append(p_backbone)
-                    last_feature = last_feature_hooks[idx].feature
-                    p_raw_cal, p_eff, feature_matrix, attention_map, attention_maps = _cal(last_feature)
-                    cat_p_cal.append(p_raw_cal)
-                    p_backbone = torch.cat(cat_p_backbone, 0) * weights[idx]
-                    p_cal = torch.cat(cat_p_cal, 0) * weights[idx]
-                    total_p_backbone.append(p_backbone)
-                    total_p_cal.append(p_cal)
-                p_backbone = torch.stack(total_p_backbone, 0)
-                p_backbone = p_backbone.sum(0)
-                p_cal = torch.stack(total_p_cal, 0)
-                p_cal = p_cal.sum(0)
-                if args.use_fp16:
-                    p_backbone, p_cal = p_backbone.half(), p_cal.half()
-                p_backbone, p_cal = p_backbone.unsqueeze(0).cpu(), p_cal.unsqueeze(0).cpu()
-                p = torch.cat([p_cal, p_backbone], dim=0)
-                batch_config = [coords_status, flip_status, mix_index, mix_lam, mix_bbox, p.cpu()]
-                batch_config_path = os.path.join(dir_path, 'batch_{}.tar'.format(batch_idx))
-                torch.save(batch_config, batch_config_path)
-                for last_feature_hook in last_feature_hooks:
-                    last_feature_hook.close()
-            gc.collect()
-            torch.cuda.empty_cache()
+    try:
+        for epoch in tqdm(range(args.start_epochs, args.end_epochs)):
+            dir_path = os.path.join(args.fkd_path, 'epoch_{}'.format(epoch))
+            os.makedirs(dir_path, exist_ok=True)
+
+            with torch.no_grad():
+                """Generate soft labels and save"""
+                for batch_idx, (images, target, flip_status, coords_status) in enumerate(train_loader):
+                    images = images.cuda(non_blocking=True)
+                    split_point = int(images.shape[0] // 2)
+                    origin_images = images
+                    images, mix_index, mix_lam, mix_bbox = mix_aug(images, args)
+                    total_p_cal, total_p_backbone = [], []
+                    for idx, (_model, _cal) in enumerate(zip(teacher_model_lis, teacher_cal_lis)):
+                        if args.eval_mode:
+                            _model.eval()
+                            _cal.eval()
+                        cat_p_cal, cat_p_backbone = [], []
+                        p_backbone = _model(origin_images[:split_point])
+                        cat_p_backbone.append(p_backbone)
+                        last_feature = last_feature_hooks[idx].feature
+                        p_raw_cal, p_eff, feature_matrix, attention_map, attention_maps = _cal(last_feature)
+                        cat_p_cal.append(p_raw_cal)
+                        p_backbone = _model(origin_images[split_point:])
+                        cat_p_backbone.append(p_backbone)
+                        last_feature = last_feature_hooks[idx].feature
+                        p_raw_cal, p_eff, feature_matrix, attention_map, attention_maps = _cal(last_feature)
+                        cat_p_cal.append(p_raw_cal)
+                        p_backbone = torch.cat(cat_p_backbone, 0) * weights[idx]
+                        p_cal = torch.cat(cat_p_cal, 0) * weights[idx]
+                        total_p_backbone.append(p_backbone)
+                        total_p_cal.append(p_cal)
+                    p_backbone = torch.stack(total_p_backbone, 0)
+                    p_backbone = p_backbone.sum(0)
+                    p_cal = torch.stack(total_p_cal, 0)
+                    p_cal = p_cal.sum(0)
+                    if args.use_fp16:
+                        p_backbone, p_cal = p_backbone.half(), p_cal.half()
+                    p_backbone, p_cal = p_backbone.unsqueeze(0).cpu(), p_cal.unsqueeze(0).cpu()
+                    p = torch.cat([p_cal, p_backbone], dim=0)
+                    batch_config = [coords_status, flip_status, mix_index, mix_lam, mix_bbox, p.cpu()]
+                    batch_config_path = os.path.join(dir_path, 'batch_{}.tar'.format(batch_idx))
+                    torch.save(batch_config, batch_config_path)
+    finally:
+        for last_feature_hook in last_feature_hooks:
+            last_feature_hook.close()
+        del train_loader
+        gc.collect()
+        torch.cuda.empty_cache()
 
 
 if __name__ == '__main__':

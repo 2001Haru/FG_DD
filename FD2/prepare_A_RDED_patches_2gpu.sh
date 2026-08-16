@@ -7,6 +7,7 @@ source "$FD2_DIR/config.sh"
 GPU0="${GPU0:-0}"
 GPU1="${GPU1:-1}"
 WORKERS_PER_GPU="${WORKERS_PER_GPU:-10}"
+REAL_IMAGES_PER_CLASS="${REAL_IMAGES_PER_CLASS:-66}"
 DATASET=A_imsize224
 SRC_DIR="${Main_Data_Path}/${DATASET}"
 SAVE_DIR="${Main_Data_Path}/patches/${DATASET}/2"
@@ -16,12 +17,17 @@ mkdir -p "$SAVE_DIR" "$LOG_DIR"
 
 [[ -d "$SRC_DIR/train" ]] || { echo "Missing Aircraft train set: $SRC_DIR/train" >&2; exit 1; }
 [[ -f "$CKPT" ]] || { echo "Missing Aircraft teacher: $CKPT" >&2; exit 1; }
+if find "$SAVE_DIR" -type f -name '*.jpg' -print -quit | grep -q .; then
+    echo "Patch directory is not empty: $SAVE_DIR" >&2
+    echo "Archive the old IPC33 patch directory before generating IPC${REAL_IMAGES_PER_CLASS} candidates." >&2
+    exit 1
+fi
 
 run_half() {
     local gpu="$1" start="$2" end="$3" log="$4"
     CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$FD2_DIR${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$FD2_DIR/RDED_patch.py" \
-        --dataset-name "$DATASET" --ncls 100 --ipc 33 --imsize 224 \
+        --dataset-name "$DATASET" --ncls 100 --ipc "$REAL_IMAGES_PER_CLASS" --imsize 224 \
         --model-name ResNet18 --model-source auto \
         --src-dir "$SRC_DIR" --save-dir "$SAVE_DIR" --ckpt-path "$CKPT" \
         --class-start "$start" --class-end "$end" \
@@ -32,6 +38,7 @@ run_half() {
 pids=()
 cleanup() { for pid in "${pids[@]:-}"; do kill -TERM "$pid" 2>/dev/null || true; done; }
 trap cleanup INT TERM
+echo "Aircraft RDED candidates: ${REAL_IMAGES_PER_CLASS} real images per class"
 run_half "$GPU0" 0 50 "$LOG_DIR/gpu${GPU0}_classes_0_50.log" & pid0=$!
 run_half "$GPU1" 50 100 "$LOG_DIR/gpu${GPU1}_classes_50_100.log" & pid1=$!
 pids=("$pid0" "$pid1")

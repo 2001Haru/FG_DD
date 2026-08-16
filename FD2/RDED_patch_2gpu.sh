@@ -11,11 +11,12 @@ WORKERS_PER_GPU="${WORKERS_PER_GPU:-8}"
 FORWARD_BATCH_SIZE="${FORWARD_BATCH_SIZE:-256}"
 GPU0="${GPU0:-0}"
 GPU1="${GPU1:-1}"
+OVERWRITE="${OVERWRITE:-0}"
 
 SRC_DIR="$Main_Data_Path/$DATASET_NAME"
-SAVE_DIR="$Main_Data_Path/patches/$DATASET_NAME/2"
+SAVE_DIR="${SAVE_DIR:-$Main_Data_Path/patches/$DATASET_NAME/2}"
 CKPT_PATH="$Main_Data_Path/pretrained_models/$DATASET_NAME/ResNet18.pth"
-LOG_DIR="$SCRIPT_DIR/logs/RDED_patch"
+LOG_DIR="${LOG_DIR:-$SCRIPT_DIR/logs/RDED_patch}"
 SPLIT_POINT=$(( (NCLS + 1) / 2 ))
 
 mkdir -p "$SAVE_DIR" "$LOG_DIR"
@@ -25,6 +26,11 @@ run_shard() {
     local class_start="$2"
     local class_end="$3"
     local log_path="$4"
+
+    local overwrite_args=()
+    if [[ "$OVERWRITE" == "1" ]]; then
+        overwrite_args+=(--overwrite)
+    fi
 
     CUDA_VISIBLE_DEVICES="$gpu" \
     python -u "$SCRIPT_DIR/RDED_patch.py" \
@@ -39,10 +45,11 @@ run_shard() {
         --class-end "$class_end" \
         --workers "$WORKERS_PER_GPU" \
         --forward-batch-size "$FORWARD_BATCH_SIZE" \
+        "${overwrite_args[@]}" \
         > "$log_path" 2>&1
 }
 
-echo "Starting RDED shards: GPU $GPU0 classes [0,$SPLIT_POINT), GPU $GPU1 classes [$SPLIT_POINT,$NCLS)"
+echo "Starting RDED shards: GPU $GPU0 classes [0,$SPLIT_POINT), GPU $GPU1 classes [$SPLIT_POINT,$NCLS), overwrite=$OVERWRITE"
 run_shard "$GPU0" 0 "$SPLIT_POINT" "$LOG_DIR/gpu${GPU0}_classes_0_${SPLIT_POINT}.log" &
 PID0=$!
 run_shard "$GPU1" "$SPLIT_POINT" "$NCLS" "$LOG_DIR/gpu${GPU1}_classes_${SPLIT_POINT}_${NCLS}.log" &

@@ -237,9 +237,13 @@ def make_patch(model_name, ckpt_path, ncls, src_dir, ipc, mean_norm, std_norm, p
     )
 
     trainset.transform = transforms.Compose([
+        # FD2 assumes that every fine-grained input has already been resized
+        # to imsize x imsize on disk. Make that assumption explicit so using
+        # the original variable-resolution CUB files is functionally
+        # equivalent to the paper's prepared CUB_imsize224 dataset.
+        transforms.Resize((imsize, imsize), antialias=True),
         transforms.ToTensor(),
         MultiRandomCrop(num_crop=num_crop, size=imsize, factor=2),
-        # transforms.Resize((64, 64)),
         transforms.Normalize(mean=mean_norm, std=std_norm),
     ])
     denormalize = transforms.Compose(

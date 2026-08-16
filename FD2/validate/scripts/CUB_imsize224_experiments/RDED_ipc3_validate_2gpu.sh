@@ -9,10 +9,10 @@ source "$FD2_DIR/config.sh"
 GPU_RESNET18="${GPU_RESNET18:-0}"
 GPU_RESNET50="${GPU_RESNET50:-1}"
 WORKERS_PER_RUN="${WORKERS_PER_RUN:-4}"
-PATCH_DIR="${Main_Data_Path}/patches/CUB_imsize224/2"
+PATCH_DIR="${PATCH_DIR:-${Main_Data_Path}/patches/CUB_imsize224/2}"
 VAL_DIR="${Main_Data_Path}/CUB_imsize224/test"
 MODEL_DIR="${Main_Data_Path}/pretrained_models/CUB_imsize224"
-LOG_DIR="$SCRIPT_DIR/logs/rded_ipc3_2gpu"
+LOG_DIR="${LOG_DIR:-$SCRIPT_DIR/logs/rded_ipc3_2gpu}"
 mkdir -p "$LOG_DIR"
 
 fail() {

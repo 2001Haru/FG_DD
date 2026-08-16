@@ -224,7 +224,8 @@ def extract_backbone_state_dict(checkpoint, model_name):
 
 def make_patch(model_name, ckpt_path, ncls, src_dir, ipc, mean_norm, std_norm, patch_num, num_crop, imsize,
                save_dir, class_start=0, class_end=None, patch_start=0, patch_end=None, workers=8,
-               forward_batch_size=256, device="cuda", model_source="auto", memory=True, overwrite=False):
+               forward_batch_size=256, device="cuda", model_source="auto", model_mode="train",
+               memory=True, overwrite=False):
     checkpoint = torch.load(ckpt_path, weights_only=True, map_location="cpu")
     state_dict = extract_backbone_state_dict(checkpoint, model_name)
     model = None
@@ -246,7 +247,23 @@ def make_patch(model_name, ckpt_path, ncls, src_dir, ipc, mean_norm, std_norm, p
 
     if device.startswith("cuda") and not torch.cuda.is_available():
         raise RuntimeError("A CUDA device was requested, but CUDA is not available")
-    model = model.to(device).eval()
+    model = model.to(device)
+    if model_mode == "train":
+        # Preserve the released RDED implementation: the classifier remains
+        # in train mode and each crop position is forwarded as one complete
+        # class batch.  BatchNorm therefore uses that crop/class batch's
+        # statistics while ranking candidates.
+        model.train()
+        selector_batch_size = ipc
+    elif model_mode == "eval":
+        model.eval()
+        selector_batch_size = forward_batch_size
+    else:
+        raise ValueError(f"Unsupported model mode: {model_mode}")
+    print(
+        f"RDED selector model_mode={model_mode}, forward_batch_size={selector_batch_size}",
+        flush=True,
+    )
     class_end = ncls if class_end is None else class_end
     patch_end = patch_num if patch_end is None else patch_end
     if not 0 <= patch_start < patch_end <= patch_num:
@@ -317,7 +334,7 @@ def make_patch(model_name, ckpt_path, ncls, src_dir, ipc, mean_norm, std_norm, p
                 labels,
                 size=imsize,
                 device=device,
-                forward_batch_size=forward_batch_size,
+                forward_batch_size=selector_batch_size,
             )
             images = mix_images(images, imsize, factor=2, mixed_img_num=1)
             save_images(save_dir, denormalize(images), class_id, img_id)
@@ -356,6 +373,10 @@ def parse_args():
     parser.add_argument("--patch-end", type=int, default=None, help="exclusive patch id")
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--forward-batch-size", type=int, default=256)
+    parser.add_argument(
+        "--model-mode", default="train", choices=["train", "eval"],
+        help="train preserves the released RDED BatchNorm/ranking semantics",
+    )
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--no-memory-cache", action="store_true", help="load images from disk in workers")
     parser.add_argument("--overwrite", action="store_true", help="regenerate completed output files")
@@ -401,6 +422,7 @@ if __name__ == '__main__':
         forward_batch_size=args.forward_batch_size,
         device=args.device,
         model_source=args.model_source,
+        model_mode=args.model_mode,
         memory=not args.no_memory_cache,
         overwrite=args.overwrite,
     )

@@ -29,6 +29,7 @@ run_half() {
     python -u "$FD2_DIR/RDED_patch.py" \
         --dataset-name "$DATASET" --ncls 100 --ipc "$REAL_IMAGES_PER_CLASS" --imsize 224 \
         --model-name ResNet18 --model-source auto \
+        --model-mode train \
         --src-dir "$SRC_DIR" --save-dir "$SAVE_DIR" --ckpt-path "$CKPT" \
         --class-start "$start" --class-end "$end" \
         --patch-num 5 --num-crop 5 --workers "$WORKERS_PER_GPU" \

@@ -197,10 +197,36 @@ def save_images(root, images, class_id, img_id):
     os.replace(temporary_path, place_to_store)
 
 
+def extract_backbone_state_dict(checkpoint, model_name):
+    """Accept both a plain backbone state dict and FD2's composite squeeze checkpoint."""
+    if not isinstance(checkpoint, dict):
+        raise TypeError(f"Unsupported checkpoint type: {type(checkpoint).__name__}")
+
+    state_dict = checkpoint
+    for key in (model_name, "backbone", "model", "state_dict"):
+        candidate = checkpoint.get(key)
+        if isinstance(candidate, dict):
+            state_dict = candidate
+            print(f"Using backbone weights from checkpoint key: {key}", flush=True)
+            break
+
+    if not state_dict or not all(torch.is_tensor(value) for value in state_dict.values()):
+        raise ValueError(
+            f"Could not find a tensor state dict for {model_name}; "
+            f"checkpoint keys are: {list(checkpoint.keys())}"
+        )
+
+    # DDP checkpoints commonly prefix every parameter with ``module.``.
+    if all(key.startswith("module.") for key in state_dict):
+        state_dict = {key[len("module."):]: value for key, value in state_dict.items()}
+    return state_dict
+
+
 def make_patch(model_name, ckpt_path, ncls, src_dir, ipc, mean_norm, std_norm, patch_num, num_crop, imsize,
                save_dir, class_start=0, class_end=None, patch_start=0, patch_end=None, workers=8,
                forward_batch_size=256, device="cuda", model_source="auto", memory=True, overwrite=False):
-    state_dict = torch.load(ckpt_path, weights_only=True)
+    checkpoint = torch.load(ckpt_path, weights_only=True, map_location="cpu")
+    state_dict = extract_backbone_state_dict(checkpoint, model_name)
     model = None
     if model_source == "auto":
         try:

@@ -45,6 +45,10 @@ expected_batches=$((EPOCHS * expected_images / BATCH_SIZE))
 (( batch_count >= expected_batches )) || fail "found $batch_count FKD batches, need at least $expected_batches"
 (( val_count > 0 )) || fail "no validation images found under $val_dir"
 
+echo "Validation setting: dataset=$Dataset_Name IPC=$IPC epochs=$EPOCHS batch_size=$BATCH_SIZE"
+echo "Synthetic data: $SYN_DIR ($syn_count images)"
+echo "FKD labels: $FKD_DIR ($epoch_count epochs, $batch_count batches)"
+
 run_validation() {
     local gpu="$1"
     local model="$2"

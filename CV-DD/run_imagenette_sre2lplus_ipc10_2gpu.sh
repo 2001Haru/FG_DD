@@ -55,7 +55,7 @@ done
 patch_count="$(find "$PATCH_DIR/medium" -type f -name '*.jpg' | wc -l)"
 test_count="$(find "$VAL_DIR" -type f | wc -l)"
 (( patch_count == NUM_CLASSES * RECOVER_IPC )) || fail "found $patch_count patches, expected 500"
-(( test_count == 13394 )) || fail "found $test_count test images, expected 13394"
+(( test_count == 3925 )) || fail "found $test_count test images, expected 3925"
 
 run_recover() {
     local gpu="$1" ipc_start="$2" ipc_end="$3" log_file="$4"

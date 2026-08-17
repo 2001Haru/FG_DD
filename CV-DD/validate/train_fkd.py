@@ -280,9 +280,18 @@ def main():
     sampler = torch.utils.data.RandomSampler(train_dataset, generator=generator)
 
 
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=(sampler is None), sampler=sampler,
-        num_workers=args.workers, pin_memory=True)
+    loader_kwargs = dict(
+        dataset=train_dataset,
+        batch_size=args.batch_size,
+        shuffle=(sampler is None),
+        sampler=sampler,
+        num_workers=args.workers,
+        pin_memory=True,
+        persistent_workers=args.workers > 0,
+    )
+    if args.workers > 0:
+        loader_kwargs['prefetch_factor'] = 2
+    train_loader = torch.utils.data.DataLoader(**loader_kwargs)
 
     # load validation data
     val_loader = load_val_loader(args)
@@ -396,9 +405,9 @@ def train(model, args, epoch=None):
         images, target, flip_status, coords_status = batch_data[0]
         mix_index, mix_lam, mix_bbox, soft_label = batch_data[1:]
 
-        images = images.cuda()
-        target = target.cuda()
-        soft_label = soft_label.cuda().float()  # convert to float32
+        images = images.cuda(non_blocking=True)
+        target = target.cuda(non_blocking=True)
+        soft_label = soft_label.cuda(non_blocking=True).float()  # convert to float32
         images, _, _, _ = mix_aug(images, args, mix_index, mix_lam, mix_bbox)
 
         optimizer.zero_grad()
@@ -463,7 +472,8 @@ def validate(model, args, epoch=None):
     with torch.no_grad():
         for data, target in args.val_loader:
             target = target.type(torch.LongTensor)
-            data, target = data.cuda(), target.cuda()
+            data = data.cuda(non_blocking=True)
+            target = target.cuda(non_blocking=True)
             
             output = model(data)
             loss = loss_function(output, target)

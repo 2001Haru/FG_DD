@@ -120,5 +120,6 @@ def load_val_loader(args):
 
     testloader = torch.utils.data.DataLoader(
         test_set, batch_size=256, shuffle=False, num_workers=args.workers,
-        pin_memory=True, persistent_workers=args.workers > 0)
+        pin_memory=True,
+        persistent_workers=getattr(args, 'persistent_workers', False) and args.workers > 0)
     return testloader

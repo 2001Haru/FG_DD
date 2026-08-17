@@ -14,6 +14,8 @@ RECOVER_ITERATIONS="${RECOVER_ITERATIONS:-4000}"
 RECOVER_BATCH_SIZE="${RECOVER_BATCH_SIZE:-100}"
 RELABEL_WORKERS="${RELABEL_WORKERS:-8}"
 VALIDATE_WORKERS="${VALIDATE_WORKERS:-8}"
+PERSISTENT_WORKERS="${PERSISTENT_WORKERS:-0}"
+TRAIN_SEED="${TRAIN_SEED:-42}"
 EPOCHS="${EPOCHS:-400}"
 IPC=3
 NUM_CLASSES=200
@@ -130,6 +132,10 @@ batch_count="$(find "$FKD_DIR" -type f -name 'batch_*.tar' | wc -l)"
 
 run_validate() {
     local gpu="$1" model="$2" log_file="$3"
+    local worker_args=()
+    if [[ "$PERSISTENT_WORKERS" == "1" ]]; then
+        worker_args+=(--persistent-workers)
+    fi
     CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT_DIR${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT_DIR/validate/train_fkd.py" \
         --model "$model" \
@@ -145,6 +151,8 @@ run_validate() {
         --mix-type cutmix \
         --cos \
         --workers "$VALIDATE_WORKERS" \
+        "${worker_args[@]}" \
+        --train-seed "$TRAIN_SEED" \
         --temperature 20 \
         --adamw-weight-decay 1e-5 \
         --val-dir "$VAL_DIR" \

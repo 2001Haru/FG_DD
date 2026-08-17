@@ -1,9 +1,11 @@
 import argparse
 import math
 import os
+import random
 import shutil
 import sys
 import time
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -75,6 +77,10 @@ def get_args():
     parser.add_argument('--epochs', type=int, default=300, help='total epoch')
     parser.add_argument('-j', '--workers', default=2, type=int,
                         help='number of data loading workers')
+    parser.add_argument('--persistent-workers', action='store_true',
+                        help='reuse DataLoader workers across epochs (off matches released CV-DD)')
+    parser.add_argument('--train-seed', type=int, default=None,
+                        help='optional seed for student initialization and runtime randomness')
     parser.add_argument('--ipc',type=int,help='number of images per class')
     parser.add_argument('--cos', default=False,
                         action='store_true', help='cosine lr scheduler')
@@ -241,6 +247,13 @@ def is_special_epoch(epoch, total_epochs):
 
 def main():
     args = get_args()
+
+    if args.train_seed is not None:
+        random.seed(args.train_seed)
+        np.random.seed(args.train_seed)
+        torch.manual_seed(args.train_seed)
+        torch.cuda.manual_seed_all(args.train_seed)
+        print(f"=> training seed: {args.train_seed}")
     
     # set up wandb
     if not args.disable_wandb:
@@ -287,7 +300,7 @@ def main():
         sampler=sampler,
         num_workers=args.workers,
         pin_memory=True,
-        persistent_workers=args.workers > 0,
+        persistent_workers=args.persistent_workers and args.workers > 0,
     )
     if args.workers > 0:
         loader_kwargs['prefetch_factor'] = 2

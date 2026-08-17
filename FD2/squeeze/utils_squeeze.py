@@ -76,14 +76,19 @@ def load_dataset(rank, args, mode="train"):
         train_sampler = None
 
     worker_init_fun = partial(worker_init, base_seed=args.base_seed, rank=rank)
+    workers = getattr(args, 'workers', 2)
+    persistent_workers = getattr(args, 'persistent_workers', False) and workers > 0
 
     # load train dataset
     trainloader = torch.utils.data.DataLoader(
-        train_set, batch_size=args.batch_size, sampler=train_sampler, shuffle=(train_sampler is None), num_workers=2,
-        worker_init_fn=worker_init_fun, pin_memory=True, drop_last=False)
+        train_set, batch_size=args.batch_size, sampler=train_sampler, shuffle=(train_sampler is None),
+        num_workers=workers, worker_init_fn=worker_init_fun, pin_memory=True, drop_last=False,
+        persistent_workers=persistent_workers)
 
     # load test dataset
-    testloader = torch.utils.data.DataLoader(test_set, batch_size=32, shuffle=False, num_workers=2, pin_memory=True)
+    testloader = torch.utils.data.DataLoader(
+        test_set, batch_size=32, shuffle=False, num_workers=workers, pin_memory=True,
+        persistent_workers=persistent_workers)
 
     return trainloader, testloader
 

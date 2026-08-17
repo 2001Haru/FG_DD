@@ -11,6 +11,7 @@ SEED="${SEED:-42}"
 ITERATIONS="${ITERATIONS:-10000}"
 RELABEL_WORKERS="${RELABEL_WORKERS:-8}"
 VALIDATE_WORKERS="${VALIDATE_WORKERS:-8}"
+SQUEEZE_WORKERS="${SQUEEZE_WORKERS:-12}"
 
 DATASET=CUB_imsize224
 NUM_CLASSES=200
@@ -38,7 +39,7 @@ fail() { echo "Preflight failed: $*" >&2; exit 1; }
 cat <<EOF
 ===== Restored CUB SRe2L++ IPC3 protocol =====
 Teacher: torchvision ResNet18, ImageNet V1+BN init, SGD
-Teacher train: epochs=51, batch=4, lr=1e-3, momentum=0.9, wd=1e-5
+Teacher train: epochs=51, batch=4, lr=1e-3, momentum=0.9, wd=1e-5, workers=$SQUEEZE_WORKERS
 Patches: RDED 2x2 composition, 29 real images/class, 5 seeded candidates/class
 Recovery: deterministic patch-id, IPC5, Adam, iterations=$ITERATIONS
 Recovery loss: CE + 1e-3 * BN, lr=1e-3, jitter=32, first_bn_multiplier=10
@@ -49,13 +50,14 @@ Seed: $SEED
 ================================================
 EOF
 
-if [[ ! -f "$TEACHER" ]]; then
+if [[ ! -f "$TEACHER" || ! -f "$TEACHER.done" ]]; then
     echo "[1/6] Training the restored plain ResNet18 teacher on GPU $GPU0"
     CUDA_VISIBLE_DEVICES="$GPU0" PYTHONPATH="$ROOT_DIR${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT_DIR/squeeze/squeeze_plain.py" \
         --dataset-dir "$DATASET_DIR" \
         --output "$TEACHER" \
         --epochs 51 --batch-size 4 --lr 1e-3 --weight-decay 1e-5 --seed "$SEED" \
+        --workers "$SQUEEZE_WORKERS" --eval-interval 10 \
         > "$LOG_DIR/squeeze_plain_resnet18.log" 2>&1
 else
     echo "[1/6] Reusing plain teacher: $TEACHER"

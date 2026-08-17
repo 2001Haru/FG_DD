@@ -12,16 +12,18 @@ ITERATIONS="${ITERATIONS:-10000}"
 RELABEL_WORKERS="${RELABEL_WORKERS:-8}"
 VALIDATE_WORKERS="${VALIDATE_WORKERS:-8}"
 SQUEEZE_WORKERS="${SQUEEZE_WORKERS:-12}"
-STUDENT_LR="${STUDENT_LR:-1e-3}"
+STUDENT_LR="${STUDENT_LR:-5e-4}"
 LR_RESNET18="${LR_RESNET18:-$STUDENT_LR}"
 LR_RESNET50="${LR_RESNET50:-$STUDENT_LR}"
 COS_ETA="${COS_ETA:-2}"
+ETA_RESNET18="${ETA_RESNET18:-$COS_ETA}"
+ETA_RESNET50="${ETA_RESNET50:-$COS_ETA}"
 
 DATASET=CUB_imsize224
 NUM_CLASSES=200
 RECOVER_IPC=5
 TARGET_IPC=3
-BATCH_SIZE=20
+BATCH_SIZE="${BATCH_SIZE:-20}"
 EPOCHS=400
 
 DATASET_DIR="$Main_Data_Path/$DATASET"
@@ -31,16 +33,17 @@ PATCH_DIR="$Main_Data_Path/patches/$DATASET/sre2lplus_plain"
 SYN_ROOT="$Main_Data_Path/generated_data/syn_data/SRe2Lplus_${DATASET}"
 SYN_IPC5="$SYN_ROOT/rec_res18_ipc5"
 SYN_IPC3="$SYN_ROOT/rec_res18_ipc3"
-FKD_DIR="$Main_Data_Path/generated_data/new_labels/SRe2Lplus_${DATASET}/rec_res18_ipc3_rel_res18_bs20_ipc3"
+FKD_DIR="$Main_Data_Path/generated_data/new_labels/SRe2Lplus_${DATASET}/rec_res18_ipc3_rel_res18_bs${BATCH_SIZE}_ipc3"
 OUTPUT_DIR="$Main_Data_Path/generated_data/validate_output"
 LOG_DIR="$ROOT_DIR/logs/CUB_sre2lplus_ipc3"
 LR18_TAG="${LR_RESNET18//./p}"
 LR18_TAG="${LR18_TAG//-/m}"
 LR50_TAG="${LR_RESNET50//./p}"
 LR50_TAG="${LR50_TAG//-/m}"
-ETA_TAG="${COS_ETA//./p}"
-EVAL_TAG18="lr${LR18_TAG}_eta${ETA_TAG}_seed${SEED}"
-EVAL_TAG50="lr${LR50_TAG}_eta${ETA_TAG}_seed${SEED}"
+ETA18_TAG="${ETA_RESNET18//./p}"
+ETA50_TAG="${ETA_RESNET50//./p}"
+EVAL_TAG18="bs${BATCH_SIZE}_lr${LR18_TAG}_eta${ETA18_TAG}_seed${SEED}"
+EVAL_TAG50="bs${BATCH_SIZE}_lr${LR50_TAG}_eta${ETA50_TAG}_seed${SEED}"
 
 mkdir -p "$TEACHER_DIR" "$SYN_ROOT" "$(dirname "$PATCH_DIR")" "$(dirname "$FKD_DIR")" "$OUTPUT_DIR" "$LOG_DIR"
 fail() { echo "Preflight failed: $*" >&2; exit 1; }
@@ -57,7 +60,7 @@ Recovery loss: CE + 1e-3 * BN, lr=1e-3, jitter=32, first_bn_multiplier=10
 Relabel: backbone BSSL, epochs=$EPOCHS, batch=$BATCH_SIZE, CutMix, fp16
 Post-eval: random torchvision R18/R50, epochs=$EPOCHS, batch=$BATCH_SIZE
 Post-eval optimizer: AdamW R18-lr=$LR_RESNET18 R50-lr=$LR_RESNET50 wd=1e-5
-Post-eval KD/schedule: T=20, eta=$COS_ETA, grad_accum=2
+Post-eval KD/schedule: T=20, R18-eta=$ETA_RESNET18 R50-eta=$ETA_RESNET50, grad_accum=2
 Seed: $SEED
 ================================================
 EOF
@@ -154,7 +157,7 @@ if (( fkd_batches == 0 )); then
         --syn-data-path "$SYN_IPC3" --teacher "$TEACHER" --fkd-path "$FKD_DIR" \
         --epochs "$EPOCHS" --batch-size "$BATCH_SIZE" --workers "$RELABEL_WORKERS" \
         --fkd-seed "$SEED" --seed "$SEED" --min-scale 0.08 --use-fp16 --mix-type cutmix \
-        > "$LOG_DIR/relabel.log" 2>&1
+        > "$LOG_DIR/relabel_bs${BATCH_SIZE}_seed${SEED}.log" 2>&1
 elif (( fkd_batches != expected_batches )); then
     fail "$FKD_DIR contains $fkd_batches batches, expected $expected_batches; archive it before rerunning"
 else
@@ -166,12 +169,14 @@ fkd_batches="$(find "$FKD_DIR" -type f -name 'batch_*.tar' | wc -l)"
 
 run_validate() {
     local gpu="$1" model="$2" log_file="$3"
-    local model_lr eval_tag
+    local model_lr model_eta eval_tag
     if [[ "$model" == "ResNet18" ]]; then
         model_lr="$LR_RESNET18"
+        model_eta="$ETA_RESNET18"
         eval_tag="$EVAL_TAG18"
     else
         model_lr="$LR_RESNET50"
+        model_eta="$ETA_RESNET50"
         eval_tag="$EVAL_TAG50"
     fi
     CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT_DIR${PYTHONPATH:+:$PYTHONPATH}" \
@@ -179,10 +184,10 @@ run_validate() {
         --model "$model" --model_source torchvision --fkd_source backbone \
         --ipc "$TARGET_IPC" \
         --project "SRe2Lplus_${DATASET}_${model}" \
-        --exp_name "SRe2Lplus_rec_res18_ipc3_rel_res18_bs20_val_${model}_${eval_tag}" \
+        --exp_name "SRe2Lplus_rec_res18_ipc3_rel_res18_bs${BATCH_SIZE}_val_${model}_${eval_tag}" \
         --original_data_path "$SYN_IPC3" --fkd_path "$FKD_DIR" --output_dir "$OUTPUT_DIR" \
         --batch_size "$BATCH_SIZE" --epochs "$EPOCHS" --dataset_name "$DATASET" \
-        --gradient_accumulation_steps 2 --mix_type cutmix --cos --eta "$COS_ETA" \
+        --gradient_accumulation_steps 2 --mix_type cutmix --cos --eta "$model_eta" \
         --workers "$VALIDATE_WORKERS" --temperature 20 --lr "$model_lr" --momentum 0.9 \
         --weight_decay 1e-5 --fkd_seed "$SEED" --train_seed "$SEED" \
         --val_dir "$DATASET_DIR/test" > "$log_file" 2>&1

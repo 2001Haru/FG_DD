@@ -1,9 +1,11 @@
 import argparse
 import math
 import os
+import random
 import shutil
 import sys
 import time
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -96,6 +98,8 @@ def get_args():
     parser.add_argument('--mix_type', default=None, type=str,
                         choices=['mixup', 'cutmix', None], help='mixup or cutmix or None')
     parser.add_argument('--fkd_seed', default=42, type=int, help='seed for batch loading sampler')
+    parser.add_argument('--train_seed', default=None, type=int,
+                        help='optional seed for student initialization and runtime randomness')
     parser.add_argument('--val_dir', required=True, type=str, help="path to the validation data")
     args = parser.parse_args()
     args.mode = 'fkd_load'
@@ -141,6 +145,13 @@ def is_special_epoch(epoch, total_epochs):
 
 def main():
     args = get_args()
+
+    if args.train_seed is not None:
+        random.seed(args.train_seed)
+        np.random.seed(args.train_seed)
+        torch.manual_seed(args.train_seed)
+        torch.cuda.manual_seed_all(args.train_seed)
+        print(f"=> training seed: {args.train_seed}")
 
     if args.matplotlib:
         os.makedirs(os.path.join("result", args.project), exist_ok=True)
@@ -250,12 +261,20 @@ def train(model, args, epoch=None):
     for batch_idx, batch_data in enumerate(args.train_loader):
         images, target, flip_status, coords_status = batch_data[0]
         mix_index, mix_lam, mix_bbox, soft_label = batch_data[1:]
-        soft_label_cal, soft_label_backbone = soft_label
+        if torch.is_tensor(soft_label) and soft_label.ndim == 3 and soft_label.shape[0] == 2:
+            soft_label_cal, soft_label_backbone = soft_label
+        else:
+            # Pure SRe2L++ stores one [B, C] backbone-logit tensor. FD2 stores
+            # [2, B, C] for CAL/backbone. Accept both without changing either
+            # on-disk format.
+            soft_label_cal, soft_label_backbone = None, soft_label
         images = images.cuda(non_blocking=True)
         target = target.cuda(non_blocking=True)
         if args.fkd_source == "backbone":
             soft_label = soft_label_backbone.cuda(non_blocking=True).float()
         elif args.fkd_source == "cal":
+            if soft_label_cal is None:
+                raise ValueError("CAL FKD was requested, but this dataset only contains backbone logits")
             soft_label = soft_label_cal.cuda(non_blocking=True).float()
         images, _, _, _ = mix_aug(images, args, mix_index, mix_lam, mix_bbox)
 

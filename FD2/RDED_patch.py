@@ -1,5 +1,6 @@
 import argparse
 import os
+import random
 import time
 import numpy as np
 from PIL import Image
@@ -380,6 +381,7 @@ def parse_args():
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--no-memory-cache", action="store_true", help="load images from disk in workers")
     parser.add_argument("--overwrite", action="store_true", help="regenerate completed output files")
+    parser.add_argument("--seed", type=int, default=42, help="seed for reproducible crop candidates")
     args = parser.parse_args()
     args.src_dir = args.src_dir or os.path.join(default_data_root, args.dataset_name)
     args.save_dir = args.save_dir or os.path.join(default_data_root, "patches", args.dataset_name, "2")
@@ -391,6 +393,11 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
+    shard_seed = args.seed + args.class_start
+    random.seed(shard_seed)
+    np.random.seed(shard_seed)
+    torch.manual_seed(shard_seed)
+    torch.cuda.manual_seed_all(shard_seed)
     dataset_norms = {
         "CUB_imsize224": ([0.4857, 0.4994, 0.4326], [0.2260, 0.2215, 0.2595]),
         "A_imsize224": ([0.4865, 0.5177, 0.5425], [0.2124, 0.2051, 0.2375]),

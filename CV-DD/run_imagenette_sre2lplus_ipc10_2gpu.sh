@@ -9,9 +9,10 @@ GPU1="${GPU1:-1}"
 GPU_RELABEL="${GPU_RELABEL:-0}"
 RECOVER_ITERATIONS="${RECOVER_ITERATIONS:-4000}"
 RELABEL_WORKERS="${RELABEL_WORKERS:-2}"
-VALIDATE_WORKERS="${VALIDATE_WORKERS:-2}"
-PERSISTENT_WORKERS="${PERSISTENT_WORKERS:-0}"
-TRAIN_SEED="${TRAIN_SEED:-}"
+VALIDATE_WORKERS="${VALIDATE_WORKERS:-8}"
+PERSISTENT_WORKERS="${PERSISTENT_WORKERS:-1}"
+TRAIN_SEED="${TRAIN_SEED:-42}"
+VALIDATE_ONLY="${VALIDATE_ONLY:-0}"
 
 DATASET=imagenet-nette
 NUM_CLASSES=10
@@ -30,6 +31,17 @@ FKD_BASE="$DATA_ROOT/generated_data/new_labels/$DATASET/sre2l"
 FKD_DIR="${FKD_BASE}_bs${BATCH_SIZE}_ipc${TARGET_IPC}"
 OUTPUT_DIR="$DATA_ROOT/generated_data/validate_output"
 LOG_DIR="$ROOT_DIR/logs/imagenette_sre2l_ipc10"
+
+if [[ "$PERSISTENT_WORKERS" == "1" ]]; then
+    LOADER_TAG=persistent
+else
+    LOADER_TAG=released
+fi
+if [[ -n "$TRAIN_SEED" ]]; then
+    RUN_TAG="${LOADER_TAG}_seed${TRAIN_SEED}"
+else
+    RUN_TAG="${LOADER_TAG}_unseeded"
+fi
 
 mkdir -p "$DATA_ROOT/offline_models" "$DATA_ROOT/patches" "$DATA_ROOT/test_data" \
          "$SYN_BASE" "$(dirname "$FKD_BASE")" "$OUTPUT_DIR" "$LOG_DIR"
@@ -84,6 +96,9 @@ run_recover() {
         --patch-diff medium > "$log_file" 2>&1
 }
 
+expected_batches=$((EPOCHS * NUM_CLASSES * TARGET_IPC / BATCH_SIZE))
+
+if [[ "$VALIDATE_ONLY" != "1" ]]; then
 echo "[1/4] Recovering official SRe2L++ IPC50 on two GPUs"
 pids=()
 cleanup() { for pid in "${pids[@]:-}"; do kill -TERM "$pid" 2>/dev/null || true; done; }
@@ -112,7 +127,6 @@ elif (( ipc10_count != NUM_CLASSES * TARGET_IPC )); then
 fi
 
 echo "[3/4] Generating official 300-epoch BSSL labels (batch size 10)"
-expected_batches=$((EPOCHS * NUM_CLASSES * TARGET_IPC / BATCH_SIZE))
 batch_count=0
 [[ -d "$FKD_DIR" ]] && batch_count="$(find "$FKD_DIR" -type f -name 'batch_*.tar' | wc -l)"
 if (( batch_count < expected_batches )); then
@@ -136,6 +150,15 @@ if (( batch_count < expected_batches )); then
 fi
 batch_count="$(find "$FKD_DIR" -type f -name 'batch_*.tar' | wc -l)"
 (( batch_count == expected_batches )) || fail "FKD labels have $batch_count batches, expected $expected_batches"
+else
+    echo "[1-3/4] VALIDATE_ONLY=1: reusing existing IPC10 images and FKD labels"
+    ipc10_count="$(find "$SYN_IPC10" -type f -name '*.jpg' | wc -l)"
+    (( ipc10_count == NUM_CLASSES * TARGET_IPC )) || \
+        fail "IPC10 has $ipc10_count images, expected $((NUM_CLASSES * TARGET_IPC))"
+    batch_count="$(find "$FKD_DIR" -type f -name 'batch_*.tar' | wc -l)"
+    (( batch_count == expected_batches )) || \
+        fail "FKD labels have $batch_count batches, expected $expected_batches"
+fi
 
 run_validate() {
     local gpu="$1" model="$2" log_file="$3"
@@ -146,7 +169,7 @@ run_validate() {
     python -u "$ROOT_DIR/validate/train_fkd.py" \
         --model "$model" \
         --ipc "$TARGET_IPC" \
-        --exp-name "sre2l_ipc10_${model}_released_loader" \
+        --exp-name "sre2l_ipc10_${model}_${RUN_TAG}" \
         --original-data-path "$SYN_IPC10" \
         --fkd-path "$FKD_DIR" \
         --output-dir "$OUTPUT_DIR" \
@@ -163,9 +186,9 @@ run_validate() {
         "${optional_args[@]}" > "$log_file" 2>&1
 }
 
-echo "[4/4] Validating released random-init ResNet18/50 protocol"
-run_validate "$GPU0" ResNet18 "$LOG_DIR/validate_resnet18.log" & pid0=$!
-run_validate "$GPU1" ResNet50 "$LOG_DIR/validate_resnet50.log" & pid1=$!
+echo "[4/4] Validating ResNet18/50: loader=$LOADER_TAG, workers=$VALIDATE_WORKERS, seed=${TRAIN_SEED:-unset}"
+run_validate "$GPU0" ResNet18 "$LOG_DIR/validate_resnet18_${RUN_TAG}.log" & pid0=$!
+run_validate "$GPU1" ResNet50 "$LOG_DIR/validate_resnet50_${RUN_TAG}.log" & pid1=$!
 pids=("$pid0" "$pid1")
 status0=0; status1=0
 wait "$pid0" || status0=$?
@@ -175,11 +198,12 @@ trap - INT TERM
 (( status0 == 0 && status1 == 0 )) || fail "validation failed: ResNet18=$status0 ResNet50=$status1"
 
 for model in resnet18 resnet50; do
-    log_file="$LOG_DIR/validate_${model}.log"
+    log_file="$LOG_DIR/validate_${model}_${RUN_TAG}.log"
     best="$(grep 'TEST Iter' "$log_file" | sed -E 's/.*Top-1 err = ([0-9.]+).*/\1/' | awk 'BEGIN { best=-1 } { acc=100-$1; if (acc>best) best=acc } END { if (best>=0) printf "%.2f", best }')"
     echo "$model best Top1: ${best:-N/A}"
     grep 'TEST Iter' "$log_file" | tail -n 1 || true
 done
 
-echo "Published SRe2L++ targets: ResNet18=62.4, ResNet50=57.4"
+echo "Repository snapshot targets (stale/v1): ResNet18=62.4, ResNet50=57.4"
+echo "Current arXiv v2 targets: ResNet18=73.7, ResNet50=72.6"
 echo "ImageNette IPC10 experiment completed. Logs: $LOG_DIR"

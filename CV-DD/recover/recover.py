@@ -37,6 +37,18 @@ def get_images(args, hook_for_display, device, num_call, is_first_ipc):
     for kk in range(start_index, args.ncls, batch_size):
         start_label = kk
         end_label = min(kk+batch_size, args.ncls)
+        if args.skip_completed:
+            completed = all(
+                os.path.isfile(os.path.join(
+                    args.syn_data_path,
+                    'new{:03d}'.format(class_id),
+                    'class{:03d}_id{:03d}.jpg'.format(class_id, num_call),
+                ))
+                for class_id in range(start_label, end_label)
+            )
+            if completed:
+                print(f"labels {start_label} to {end_label}: already complete, skipping", flush=True)
+                continue
         print(f"currently processing label from {start_label} to {end_label}")
         targets = targets_all[kk:min(kk+batch_size, args.ncls)].to(device)
 
@@ -218,6 +230,8 @@ def parse_args():
                         help='whether to store synthetic data')
     parser.add_argument('--store-initialised-images', action='store_true',
                         help='whether to store the initialised images when using patches initialisation')
+    parser.add_argument('--skip-completed', action='store_true',
+                        help='skip class batches whose output images already exist')
     # Optimization Related Configs
     parser.add_argument('--batch-size', type=int,
                         default=100, help='number of images to optimize at the same time')
@@ -234,7 +248,7 @@ def parse_args():
     # Initialisation Related Configs
     parser.add_argument('--initialisation-method',type=str, default="Guassian", choices=["Guassian", "Patches"],
                         help='initialisation method for the synthetic data')
-    parser.add_argument('--patch-diff',type=str, default="medium", choices=["easy", "medium", "hard"],
+    parser.add_argument('--patch-diff',type=str, default="medium", choices=["easy", "medium", "hard", "2"],
                         help="the difficulty of the patches")
     #IPC (Image Per Class) Related Configs
     parser.add_argument("--ipc-start", default=0, type=int, help="start index of IPC")
@@ -291,6 +305,15 @@ def parse_args():
         args.jitter = 4
         args.input_size = 64
         args.model_prior_weight_dict = {'ResNet18':46.5, 'ResNet50':28.3, 'ShuffleNetV2':43.6, 'MobileNetV2':44.8, 'Densenet121':41.5}
+
+    elif args.dataset_name == 'CUB_imsize224':
+        args.mean_norm = [0.4857, 0.4994, 0.4326]
+        args.std_norm = [0.2260, 0.2215, 0.2595]
+        args.ncls = 200
+        args.jitter = 32
+        args.input_size = 224
+        # Only the single-teacher SRe2L++ setting is used by the CUB runner.
+        args.model_prior_weight_dict = {'ResNet18': 72.5}
         
     else:
         raise ValueError('dataset not supported')

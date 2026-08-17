@@ -9,7 +9,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 import torchvision.models as models
-import wandb
+try:
+    import wandb
+except ImportError:
+    wandb = None
 from torch.optim.lr_scheduler import LambdaLR
 from torchvision.transforms import InterpolationMode
 from utils_validate import AverageMeter, accuracy, get_parameters, load_val_loader, load_small_dataset_model
@@ -22,6 +25,31 @@ from models import *
 from relabel.utils_fkd import (ComposeWithCoords, ImageFolder_FKD_MIX,
                                RandomHorizontalFlipWithRes,
                                RandomResizedCropWithCoords, mix_aug)
+
+_original_map_dataset_fetch = _MapDatasetFetcher.fetch
+
+
+def _cvdd_fkd_map_dataset_fetch(self, possibly_batched_index):
+    """Repository-local equivalent of CV-DD's documented PyTorch patch."""
+    if not (hasattr(self.dataset, "mode") and self.dataset.mode == 'fkd_load'):
+        return _original_map_dataset_fetch(self, possibly_batched_index)
+
+    mix_index, mix_lam, mix_bbox, soft_label = self.dataset.load_batch_config(
+        possibly_batched_index[0]
+    )
+    if self.auto_collation:
+        if hasattr(self.dataset, "__getitems__") and self.dataset.__getitems__:
+            data = self.dataset.__getitems__(possibly_batched_index)
+        else:
+            data = [self.dataset[idx] for idx in possibly_batched_index]
+    else:
+        data = self.dataset[possibly_batched_index]
+    return self.collate_fn(data), mix_index.cpu(), mix_lam, mix_bbox, soft_label.cpu()
+
+
+if not getattr(_MapDatasetFetcher.fetch, "_cvdd_fkd_patch", False):
+    _cvdd_fkd_map_dataset_fetch._cvdd_fkd_patch = True
+    _MapDatasetFetcher.fetch = _cvdd_fkd_map_dataset_fetch
 
 
 def get_args():
@@ -70,6 +98,8 @@ def get_args():
                         default='RankDD', help='wandb project name')
     parser.add_argument('--wandb-api-key', type=str,
                         default=None, help='wandb api key')
+    parser.add_argument('--disable-wandb', action='store_true',
+                        help='disable external logging for local/offline runs')
     parser.add_argument('--mix-type', default=None, type=str,
                         choices=['mixup', 'cutmix', None], help='mixup or cutmix or None')
     parser.add_argument('--fkd_seed', default=42, type=int,
@@ -189,6 +219,13 @@ def get_args():
             elif args.ipc == 50:
                 args.adamw_lr = 0.0005
             args.eta = 2
+    elif args.dataset_name == 'CUB_imsize224':
+        args.mean_norm = [0.4857, 0.4994, 0.4326]
+        args.std_norm = [0.2260, 0.2215, 0.2595]
+        args.ncls = 200
+        args.input_size = 224
+        args.adamw_lr = 0.001
+        args.eta = 2
     else:
         raise ValueError('dataset not supported')
     
@@ -206,9 +243,12 @@ def main():
     args = get_args()
     
     # set up wandb
-    wandb.login(key=args.wandb_api_key)
-    wandb.init(project=args.wandb_project, entity="CVDD", dir="./")
-    wandb.run.name = args.exp_name
+    if not args.disable_wandb:
+        if wandb is None:
+            raise RuntimeError("wandb is not installed; pass --disable-wandb for an offline run")
+        wandb.login(key=args.wandb_api_key)
+        wandb.init(project=args.wandb_project, entity="CVDD", dir="./")
+        wandb.run.name = args.exp_name
 
     if not torch.cuda.is_available():
         raise Exception("need gpu to train!")
@@ -318,7 +358,8 @@ def main():
             else:
                 top1 = 0
                 
-        wandb.log(wandb_metrics)
+        if not args.disable_wandb:
+            wandb.log(wandb_metrics)
 
         scheduler.step()
 
@@ -466,4 +507,5 @@ if __name__ == "__main__":
     import multiprocessing as mp
     mp.set_start_method('spawn')
     main()
-    wandb.finish()
+    if wandb is not None and wandb.run is not None:
+        wandb.finish()

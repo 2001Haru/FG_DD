@@ -135,6 +135,12 @@ def main():
         args.ncls = 100
         args.jitter = 32
         args.input_size = 224
+    elif args.dataset_name == 'CUB_imsize224':
+        args.mean_norm = [0.4857, 0.4994, 0.4326]
+        args.std_norm = [0.2260, 0.2215, 0.2595]
+        args.ncls = 200
+        args.jitter = 32
+        args.input_size = 224
     else:
         raise ValueError('dataset not supported')
     

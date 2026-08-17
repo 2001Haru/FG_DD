@@ -263,7 +263,7 @@ def get_img2batch_idx_list(num_img = 50000, batch_size = 1024, seed=42, epochs=3
     return img2batch_idx_list
  
 def load_model(args, model_name):
-    if args.dataset_name == 'imagenet100' or args.dataset_name == 'imagenet-nette' or args.dataset_name == 'imagenet1k':
+    if args.dataset_name in ('imagenet100', 'imagenet-nette', 'imagenet1k', 'CUB_imsize224'):
         if model_name == 'ResNet18':
             model = models.resnet18(weights=None)
         model.fc = nn.Linear(model.fc.in_features, args.ncls) 
@@ -323,6 +323,8 @@ def load_model(args, model_name):
         model.load_state_dict(checkpoint["model"])
     else:
         state_dict = torch.load(model_weight_path, weights_only=True)
+        if isinstance(state_dict, dict) and model_name in state_dict:
+            state_dict = state_dict[model_name]
         model.load_state_dict(state_dict)
     
     return model

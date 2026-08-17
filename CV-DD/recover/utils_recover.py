@@ -245,7 +245,7 @@ def load_recover_model(recover_model_name_list, args, device):
     weight_list = []
     for curr_recover_model_name in recover_model_name_list:
         if args.pretrained_model_type == 'offline':
-            if args.dataset_name == 'imagenet100' or args.dataset_name == 'imagenet-nette' or args.dataset_name == 'imagenet1k':
+            if args.dataset_name in ('imagenet100', 'imagenet-nette', 'imagenet1k', 'CUB_imsize224'):
                 # code for imagenet100
                 if curr_recover_model_name == 'ResNet18':
                     curr_recover_model = models.resnet18(weights=None)
@@ -269,6 +269,8 @@ def load_recover_model(recover_model_name_list, args, device):
                     raise ValueError('Model not supported')
                 curr_recover_model_weight_path = os.path.join(args.model_pool_dir, curr_recover_model_name + '.pth')
                 state_dict = torch.load(curr_recover_model_weight_path, weights_only=True)
+                if isinstance(state_dict, dict) and curr_recover_model_name in state_dict:
+                    state_dict = state_dict[curr_recover_model_name]
                 curr_recover_model.load_state_dict(state_dict)
             # load process for cifar100, cifar10, and tinyimagenet
             else:

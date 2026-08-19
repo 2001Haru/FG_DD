@@ -1,0 +1,92 @@
+import argparse
+import os
+import random
+import sys
+from pathlib import Path
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+from PIL import Image
+from torchvision import datasets, transforms
+
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+from models import ResNet18  # noqa: E402
+
+MEAN = [0.5071, 0.4867, 0.4408]
+STD = [0.2675, 0.2565, 0.2761]
+
+
+def main():
+    parser = argparse.ArgumentParser("Generate balanced RDED medium patches for CIFAR hierarchy experiments")
+    parser.add_argument("--data-dir", required=True)
+    parser.add_argument("--teacher", required=True)
+    parser.add_argument("--num-classes", type=int, required=True)
+    parser.add_argument("--patches-per-class", type=int, required=True)
+    parser.add_argument("--candidate-images", type=int, default=100)
+    parser.add_argument("--crops-per-image", type=int, default=5)
+    parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--seed", type=int, default=42)
+    args = parser.parse_args()
+
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed_all(args.seed)
+    device = torch.device("cuda")
+    dataset = datasets.ImageFolder(os.path.join(args.data_dir, "train"))
+    if len(dataset.classes) != args.num_classes:
+        raise RuntimeError("teacher/data class count mismatch")
+    by_class = [[] for _ in range(args.num_classes)]
+    for path, target in dataset.samples:
+        by_class[target].append(path)
+
+    model = ResNet18(args.num_classes)
+    model.load_state_dict(torch.load(args.teacher, map_location="cpu", weights_only=True), strict=True)
+    model.to(device).eval()
+    normalize = transforms.Normalize(MEAN, STD)
+    cropper = transforms.RandomResizedCrop(16, ratio=(1.0, 1.0), antialias=True)
+
+    for class_id, paths in enumerate(by_class):
+        class_dir = Path(args.output_dir) / f"{class_id:05d}"
+        class_dir.mkdir(parents=True, exist_ok=True)
+        for patch_id in range(args.patches_per_class):
+            target_path = class_dir / f"class{class_id:05d}_id{patch_id:05d}.jpg"
+            if target_path.is_file():
+                continue
+            rng = random.Random(args.seed + class_id * 10000 + patch_id)
+            selected_paths = rng.sample(paths, min(args.candidate_images, len(paths)))
+            candidates = []
+            for path in selected_paths:
+                image = Image.open(path).convert("RGB")
+                candidates.append(torch.stack([
+                    normalize(transforms.functional.to_tensor(cropper(image)))
+                    for _ in range(args.crops_per_image)
+                ]))
+            candidates = torch.stack(candidates)  # [N, crops, 3, 16, 16]
+            flat = candidates.flatten(0, 1)
+            losses = []
+            with torch.no_grad():
+                for start in range(0, flat.shape[0], 512):
+                    images = F.pad(flat[start:start + 512].to(device), (8, 8, 8, 8))
+                    labels = torch.full((images.shape[0],), class_id, dtype=torch.long, device=device)
+                    losses.append(F.cross_entropy(model(images), labels, reduction="none").cpu())
+            losses = torch.cat(losses).reshape(len(selected_paths), args.crops_per_image)
+            best_crop_loss, best_crop_id = losses.min(dim=1)
+            best_image_ids = best_crop_loss.argsort()[:4]
+            patches = torch.stack([
+                candidates[image_id, best_crop_id[image_id]] for image_id in best_image_ids
+            ])
+            canvas = torch.zeros(3, 32, 32)
+            canvas[:, :16, :16], canvas[:, :16, 16:] = patches[0], patches[1]
+            canvas[:, 16:, :16], canvas[:, 16:, 16:] = patches[2], patches[3]
+            for channel, (mean, std) in enumerate(zip(MEAN, STD)):
+                canvas[channel].mul_(std).add_(mean).clamp_(0, 1)
+            Image.fromarray((canvas.numpy().transpose(1, 2, 0) * 255).astype(np.uint8)).save(target_path)
+            print(f"class={class_id} patch={patch_id} saved", flush=True)
+
+
+if __name__ == "__main__":
+    main()

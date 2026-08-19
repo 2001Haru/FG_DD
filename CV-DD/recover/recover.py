@@ -190,6 +190,8 @@ def parse_args():
                         help='whether or not to apply data augmentation')
     parser.add_argument('--start-index', type=int, default=0, 
                         help='start index of the class to recover')
+    parser.add_argument('--seed', type=int, default=None,
+                        help='optional seed for reproducible controlled experiments')
     parser.add_argument('--sre2l-model', type=str, default='ResNet18', help='Name of the Model applied to Sre2L++')
     # Committee Related Configs
     parser.add_argument('--pretrained-model-type', type=str, required=True, choices=['offline', 'online'],
@@ -281,6 +283,14 @@ def parse_args():
         args.input_size = 32
         args.jitter = 4
         args.model_prior_weight_dict = {'ResNet18':63, 'ResNet50':65.3, 'ShuffleNetV2':68.5, 'MobileNetV2':67.6, 'Densenet121':67.4}
+
+    elif args.dataset_name == 'cifar20':
+        args.mean_norm = [0.5071, 0.4867, 0.4408]
+        args.std_norm = [0.2675, 0.2565, 0.2761]
+        args.ncls = 20
+        args.input_size = 32
+        args.jitter = 4
+        args.model_prior_weight_dict = {'ResNet18': 0.0}
         
     elif args.dataset_name == 'imagenet1k':
         args.mean_norm = [0.485, 0.456, 0.406]
@@ -388,6 +398,11 @@ def main_syn(args, device, ipc_id, is_first_ipc=False):
 
 if __name__ == '__main__':
     args = parse_args()
+    if args.seed is not None:
+        random.seed(args.seed)
+        np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
     print(args)
     #set up device
     device = 'cpu'

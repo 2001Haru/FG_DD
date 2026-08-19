@@ -90,7 +90,7 @@ def load_small_dataset_model(model, args):
     return net
 
 def load_val_loader(args):
-    if args.dataset_name == "cifar100" or args.dataset_name == "cifar10":
+    if args.dataset_name in ("cifar100", "cifar20", "cifar10"):
         transform_test = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize(mean=args.mean_norm, std=args.std_norm)

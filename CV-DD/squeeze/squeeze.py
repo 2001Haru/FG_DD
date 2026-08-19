@@ -1,5 +1,7 @@
 import torch
 import argparse
+import random
+import numpy as np
 from utils_squeeze import load_model,load_dataset,evaluate_loader,get_all_models
 import torch.nn as nn
 import csv
@@ -40,6 +42,8 @@ def parse_args():
                         help='Enable multi_gpu_learning')
     parser.add_argument('--world_size',type=int, default=-1,
                         help='the number of gpu that is available')
+    parser.add_argument('--seed', type=int, default=None,
+                        help='optional seed for reproducible controlled experiments')
     args = parser.parse_args()
 
     # set up the mean, std and ncls for the dataset
@@ -52,6 +56,11 @@ def parse_args():
         args.mean_norm = [0.4914, 0.4822, 0.4465]
         args.std_norm = [0.2470, 0.2435, 0.2616]
         args.ncls = 10
+        args.input_size = 32
+    elif args.dataset_name == 'cifar20':
+        args.mean_norm = [0.5071, 0.4867, 0.4408]
+        args.std_norm = [0.2675, 0.2565, 0.2761]
+        args.ncls = 20
         args.input_size = 32
     elif args.dataset_name == 'tiny_imagenet':
         args.mean_norm = [0.485, 0.456, 0.406]
@@ -191,6 +200,11 @@ def generate_evaluation_csv(args):
 if __name__ == '__main__':
     # parse the arguments
     args = parse_args()
+    if args.seed is not None:
+        random.seed(args.seed)
+        np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
     print(args)
     
     # Step 1

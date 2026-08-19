@@ -108,6 +108,11 @@ def main():
         args.std_norm = [0.2470, 0.2435, 0.2616]
         args.ncls = 10
         args.input_size = 32
+    elif args.dataset_name == 'cifar20':
+        args.mean_norm = [0.5071, 0.4867, 0.4408]
+        args.std_norm = [0.2675, 0.2565, 0.2761]
+        args.ncls = 20
+        args.input_size = 32
     elif args.dataset_name == 'imagenet1k':
         args.mean_norm = [0.485, 0.456, 0.406]
         args.std_norm = [0.229, 0.224, 0.225]
@@ -155,7 +160,9 @@ def main():
     
     if args.seed is not None:
         random.seed(args.seed)
+        np.random.seed(args.seed)
         torch.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
         cudnn.deterministic = True
         print('You have chosen to seed training. '
                       'This will turn on the CUDNN deterministic setting, '
@@ -255,7 +262,7 @@ def main_worker(gpu, ngpus_per_node, args):
         for name, param in _model.named_parameters():
             param.requires_grad = False
 
-    cudnn.benchmark = True
+    cudnn.benchmark = args.seed is None
 
     print("process data from {}".format(args.syn_data_path))
 

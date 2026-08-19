@@ -150,6 +150,18 @@ def get_args():
         else:
             args.adamw_lr = 0.0005
             args.eta = 1
+
+    elif args.dataset_name == 'cifar20':
+        args.mean_norm = [0.5071, 0.4867, 0.4408]
+        args.std_norm = [0.2675, 0.2565, 0.2761]
+        args.ncls = 20
+        args.input_size = 32
+        if args.model == 'ResNet18' or args.model == 'ResNet50':
+            args.adamw_lr = 0.001
+            args.eta = 2 if args.ipc == 10 else 1
+        else:
+            args.adamw_lr = 0.0005
+            args.eta = 1
     
     #final checked
     elif args.dataset_name == 'tiny_imagenet':

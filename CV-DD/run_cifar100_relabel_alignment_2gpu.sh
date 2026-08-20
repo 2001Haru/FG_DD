@@ -18,6 +18,7 @@ RANDOM_MODELS="$EXP_ROOT/models/random100_seed${RANDOM_PARTITION_SEED}"
 FINE_MAPPING="$EXP_ROOT/data/hierarchy.json"
 RANDOM_MAPPING="$EXP_ROOT/data/random100_seed${RANDOM_PARTITION_SEED}/hierarchy.json"
 COARSE_TEST="$EXP_ROOT/data/coarse/test"; FINE_TEST="$EXP_ROOT/data/fine/test"
+RANDOM_TEST="$EXP_ROOT/data/random100_seed${RANDOM_PARTITION_SEED}/test"
 FKD_PARENT="$EXP_ROOT/relabel_alignment_fkd"
 OUTPUT="$EXP_ROOT/relabel_alignment_post_eval"
 PER_CLASS="$EXP_ROOT/relabel_alignment_per_class"
@@ -31,7 +32,7 @@ wait_jobs() {
     return "$status"
 }
 for required in "$FINE_MODELS/ResNet18.pth" "$RANDOM_MODELS/ResNet18.pth" \
-                "$FINE_MAPPING" "$RANDOM_MAPPING" "$COARSE_TEST" "$FINE_TEST"; do
+                "$FINE_MAPPING" "$RANDOM_MAPPING" "$COARSE_TEST" "$FINE_TEST" "$RANDOM_TEST"; do
     [[ -e "$required" ]] || fail "missing $required"
 done
 
@@ -41,23 +42,35 @@ resolve_arm() {
     case "$arm" in
         oracle_aligned)
             SYN_PATH="$seed_syn/oracle_merged_coarse20_ipc25"
-            MODEL_DIR="$FINE_MODELS"; DATASET=cifar20; TEACHER_CLASSES=100
-            TEACHER_MAPPING="$FINE_MAPPING"; NATIVE100=0; ARM_IPC=25
+            MODEL_DIR="$FINE_MODELS"; RELABEL_DATASET=cifar20; STUDENT_DATASET=cifar20
+            TEACHER_CLASSES=100; TEACHER_MAPPING="$FINE_MAPPING"; NATIVE100=0; ARM_IPC=25
             ;;
         baseline_mismatched)
             SYN_PATH="$seed_syn/baseline_coarse20_ipc25"
-            MODEL_DIR="$FINE_MODELS"; DATASET=cifar20; TEACHER_CLASSES=100
-            TEACHER_MAPPING="$FINE_MAPPING"; NATIVE100=0; ARM_IPC=25
+            MODEL_DIR="$FINE_MODELS"; RELABEL_DATASET=cifar20; STUDENT_DATASET=cifar20
+            TEACHER_CLASSES=100; TEACHER_MAPPING="$FINE_MAPPING"; NATIVE100=0; ARM_IPC=25
             ;;
         random_aligned)
             SYN_PATH="$seed_syn/random_merged_coarse20_pseed${RANDOM_PARTITION_SEED}_ipc25"
-            MODEL_DIR="$RANDOM_MODELS"; DATASET=cifar20; TEACHER_CLASSES=100
-            TEACHER_MAPPING="$RANDOM_MAPPING"; NATIVE100=0; ARM_IPC=25
+            MODEL_DIR="$RANDOM_MODELS"; RELABEL_DATASET=cifar20; STUDENT_DATASET=cifar20
+            TEACHER_CLASSES=100; TEACHER_MAPPING="$RANDOM_MAPPING"; NATIVE100=0; ARM_IPC=25
             ;;
         oracle_100dim)
             SYN_PATH="$seed_syn/oracle_fine100_ipc5"
-            MODEL_DIR="$FINE_MODELS"; DATASET=cifar100; TEACHER_CLASSES=100
-            TEACHER_MAPPING=""; NATIVE100=1; ARM_IPC=5
+            MODEL_DIR="$FINE_MODELS"; RELABEL_DATASET=cifar100; STUDENT_DATASET=cifar100
+            TEACHER_CLASSES=100; TEACHER_MAPPING=""; NATIVE100=1; ARM_IPC=5
+            EVAL_MAPPING="$FINE_MAPPING"; EVAL_VAL_DIR="$FINE_TEST"
+            ;;
+        baseline_random_marg20)
+            SYN_PATH="$seed_syn/baseline_coarse20_ipc25"
+            MODEL_DIR="$RANDOM_MODELS"; RELABEL_DATASET=cifar20; STUDENT_DATASET=cifar20
+            TEACHER_CLASSES=100; TEACHER_MAPPING="$RANDOM_MAPPING"; NATIVE100=0; ARM_IPC=25
+            ;;
+        baseline_random_100dim)
+            SYN_PATH="$seed_syn/baseline_coarse20_ipc25"
+            MODEL_DIR="$RANDOM_MODELS"; RELABEL_DATASET=cifar20; STUDENT_DATASET=cifar100
+            TEACHER_CLASSES=100; TEACHER_MAPPING=""; NATIVE100=1; ARM_IPC=25
+            EVAL_MAPPING="$RANDOM_MAPPING"; EVAL_VAL_DIR="$RANDOM_TEST"
             ;;
         *) fail "unknown arm: $arm" ;;
     esac
@@ -81,12 +94,13 @@ relabel_one() {
     python -u "$ROOT/relabel/relabel.py" --syn-data-path "$SYN_PATH" \
         --fkd-path "$FKD_BASE" --model-pool-dir "$MODEL_DIR" \
         --teacher-model-name ResNet18 --gpu 0 --batch-size 16 --workers "$WORKERS" \
-        --dataset-name "$DATASET" --epochs 300 --fkd-seed "$FKD_VIEW_SEED" \
+        --dataset-name "$RELABEL_DATASET" --epochs 300 --fkd-seed "$FKD_VIEW_SEED" \
         --seed "$RELABEL_SEED" --min-scale-crops 0.08 --max-scale-crops 1 \
         --use-fp16 --mode fkd_save --mix-type cutmix "${extra_args[@]}" > "$log" 2>&1
 }
 
-ARMS=(oracle_aligned baseline_mismatched random_aligned oracle_100dim)
+ARMS=(oracle_aligned baseline_mismatched random_aligned oracle_100dim \
+      baseline_random_marg20 baseline_random_100dim)
 echo "===== Relabel alignment matrix ====="
 echo "Recovery seeds: ${RECOVERY_SEEDS_ARRAY[*]}"
 echo "Student seeds: ${STUDENT_SEEDS_ARRAY[*]}"
@@ -114,15 +128,15 @@ validate_one() {
     [[ -f "$per_class" ]] && return
     local val_dir="$COARSE_TEST" eval_args=()
     if (( NATIVE100 == 1 )); then
-        val_dir="$FINE_TEST"
-        eval_args+=(--eval-hierarchy-mapping "$FINE_MAPPING"
+        val_dir="$EVAL_VAL_DIR"
+        eval_args+=(--eval-hierarchy-mapping "$EVAL_MAPPING"
                     --primary-eval-collapsed-coarse)
     fi
     CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT/validate/train_fkd.py" --model ResNet18 --ipc "$ARM_IPC" \
         --exp-name "relabel_alignment_${arm}_rseed${recovery_seed}_sseed${student_seed}" \
         --original-data-path "$SYN_PATH" --fkd-path "$FKD_PATH" --output-dir "$OUTPUT" \
-        --batch-size 16 --epochs 300 --dataset-name "$DATASET" \
+        --batch-size 16 --epochs 300 --dataset-name "$STUDENT_DATASET" \
         --gradient-accumulation-steps 2 --mix-type cutmix --cos --workers "$WORKERS" \
         --temperature "$TEMPERATURE" --fkd_seed "$FKD_VIEW_SEED" --adamw-weight-decay 0.01 \
         --train-seed "$student_seed" --persistent-workers --val-dir "$val_dir" \

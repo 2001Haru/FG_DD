@@ -6,7 +6,10 @@ from pathlib import Path
 from summarize_post_eval_seeds import hierarchical_summary, result_path
 
 
-NEW_ARMS = ("oracle_aligned", "baseline_mismatched", "random_aligned", "oracle_100dim")
+NEW_ARMS = (
+    "oracle_aligned", "baseline_mismatched", "random_aligned", "oracle_100dim",
+    "baseline_random_marg20", "baseline_random_100dim",
+)
 REFERENCE_ARMS = {
     "baseline": "baseline",
     "oracle_existing": "oracle_fine_target",
@@ -19,6 +22,15 @@ COMPARISONS = {
     "oracle_100dim_minus_oracle_aligned": ("oracle_100dim", "oracle_aligned"),
     "oracle_aligned_minus_baseline_mismatched": (
         "oracle_aligned", "baseline_mismatched"
+    ),
+    "baseline_random_marg20_minus_baseline": (
+        "baseline_random_marg20", "baseline"
+    ),
+    "baseline_random_100dim_minus_baseline_random_marg20": (
+        "baseline_random_100dim", "baseline_random_marg20"
+    ),
+    "baseline_random_marg20_minus_baseline_fine_marg20": (
+        "baseline_random_marg20", "baseline_mismatched"
     ),
 }
 

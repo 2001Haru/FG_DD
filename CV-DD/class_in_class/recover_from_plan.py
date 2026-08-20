@@ -52,6 +52,8 @@ def main():
     parser.add_argument("--r-bn", type=float, default=0.01)
     parser.add_argument("--first-bn-multiplier", type=float, default=10.0)
     parser.add_argument("--seed", type=int, required=True)
+    parser.add_argument("--diagnostics-output",
+                        help="durable JSONL recovery diagnostics (in addition to stdout)")
     args = parser.parse_args()
 
     plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
@@ -77,6 +79,18 @@ def main():
         transforms.RandomHorizontalFlip(),
     ])
     clip_args = argparse.Namespace(mean_norm=MEAN, std_norm=STD)
+
+    diagnostic_handle = None
+    if args.diagnostics_output:
+        diagnostic_path = Path(args.diagnostics_output)
+        diagnostic_path.parent.mkdir(parents=True, exist_ok=True)
+        completed_batch_exists = any(
+            all(output_path(args.output_dir, entry).is_file() for entry in entries)
+            for entries in plan["batches"]
+        )
+        diagnostic_handle = diagnostic_path.open(
+            "a" if completed_batch_exists else "w", encoding="utf-8"
+        )
 
     try:
         for batch_id, entries in enumerate(plan["batches"]):
@@ -130,7 +144,11 @@ def main():
                         "update_rms": update_rms.item(),
                         "relative_update_rms": update_rms.item() / max(image_rms.item(), eps),
                     }
-                    print("RECOVERY_DIAG " + json.dumps(record, sort_keys=True), flush=True)
+                    serialized = json.dumps(record, sort_keys=True)
+                    print("RECOVERY_DIAG " + serialized, flush=True)
+                    if diagnostic_handle is not None:
+                        diagnostic_handle.write(serialized + "\n")
+                        diagnostic_handle.flush()
                     print(f"batch={batch_id} iter={iteration} loss={loss.item():.6f} "
                           f"elapsed={time.time()-started:.1f}s", flush=True)
 
@@ -141,6 +159,8 @@ def main():
             del inputs, optimizer
             torch.cuda.empty_cache()
     finally:
+        if diagnostic_handle is not None:
+            diagnostic_handle.close()
         for hook in hooks:
             hook.close()
 

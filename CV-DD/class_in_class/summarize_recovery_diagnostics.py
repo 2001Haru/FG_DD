@@ -22,9 +22,17 @@ def load(path):
         for line in handle:
             if line.startswith("RECOVERY_DIAG "):
                 record = json.loads(line[len("RECOVERY_DIAG "):])
-                record["progress"] = record["iteration"] / max(record["iterations"] - 1, 1)
-                records.append(record)
-    return records
+            elif line.startswith("{"):
+                record = json.loads(line)
+            else:
+                continue
+            record["progress"] = record["iteration"] / max(record["iterations"] - 1, 1)
+            records.append(record)
+    deduplicated = {
+        (record["seed"], record["batch_id"], record["iteration"]): record
+        for record in records
+    }
+    return list(deduplicated.values())
 
 
 def segment(record):

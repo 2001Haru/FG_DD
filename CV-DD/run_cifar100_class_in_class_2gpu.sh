@@ -18,7 +18,12 @@ EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/cifar100_v2_bs100}"
 DATA="$EXP_ROOT/data"; MODELS="$EXP_ROOT/models"; PATCHES="$EXP_ROOT/patches"; PLANS="$EXP_ROOT/recovery_plans"
 SYN_STAGE=synthetic; [[ "$CALIBRATION_ONLY" == "1" ]] && SYN_STAGE=calibration_synthetic
 SYN_PARENT="$EXP_ROOT/$SYN_STAGE"; FKD_PARENT="$EXP_ROOT/fkd"; OUTPUT="$EXP_ROOT/post_eval"
-LOGS="$ROOT/logs/cifar100_class_in_class_v2_bs100"
+LOGS_ROOT="$ROOT/logs/cifar100_class_in_class_v2_bs100"
+if [[ "$CALIBRATION_ONLY" == "1" ]]; then
+    LOGS="$LOGS_ROOT/calibration_${ITERATIONS}"
+else
+    LOGS="$LOGS_ROOT/formal_${ITERATIONS}"
+fi
 FINE_DATA="$DATA/fine"; COARSE_DATA="$DATA/coarse"; MAPPING="$DATA/hierarchy.json"
 FINE_MODELS="$MODELS/fine100"; COARSE_MODELS="$MODELS/coarse20"
 FINE_PATCH_ROOT="$PATCHES/fine100"; COARSE_PATCH_ROOT="$PATCHES/coarse20"
@@ -93,7 +98,8 @@ recover_arm() {
     CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT/class_in_class/recover_from_plan.py" --plan "$plan" --teacher "$teacher" \
         --patch-root "$patches" --output-dir "$output" --iterations "$ITERATIONS" --lr "$lr" \
-        --r-bn "$rbn" --first-bn-multiplier 10 --seed "$seed" > "$log" 2>&1
+        --r-bn "$rbn" --first-bn-multiplier 10 --seed "$seed" \
+        --diagnostics-output "$output/recovery_diagnostics.jsonl" > "$log" 2>&1
 }
 echo "[4/8] Recovery: paired seeds, five BS100 batches per arm"
 for seed in "${SEEDS[@]}"; do
@@ -101,7 +107,10 @@ for seed in "${SEEDS[@]}"; do
     recover_arm "$GPU0" "$ORACLE_PLAN" "$FINE_MODELS/ResNet18.pth" "$FINE_PATCH_ROOT" "$seed_root/oracle_fine100_ipc5" "$seed" "$ORACLE_RECOVERY_LR" "$ORACLE_R_BN" "$LOGS/recover_oracle_seed${seed}.log" & p0=$!
     recover_arm "$GPU1" "$BASE_PLAN" "$COARSE_MODELS/ResNet18.pth" "$COARSE_PATCH_ROOT" "$seed_root/baseline_coarse20_ipc25" "$seed" "$BASE_RECOVERY_LR" "$BASE_R_BN" "$LOGS/recover_baseline_seed${seed}.log" & p1=$!
     s0=0; s1=0; wait "$p0" || s0=$?; wait "$p1" || s1=$?; (( s0==0 && s1==0 )) || fail "recovery seed $seed failed"
-    python "$ROOT/class_in_class/summarize_recovery_diagnostics.py" --baseline-log "$LOGS/recover_baseline_seed${seed}.log" --oracle-log "$LOGS/recover_oracle_seed${seed}.log" > "$LOGS/recovery_balance_seed${seed}.txt"
+    python "$ROOT/class_in_class/summarize_recovery_diagnostics.py" \
+        --baseline-log "$seed_root/baseline_coarse20_ipc25/recovery_diagnostics.jsonl" \
+        --oracle-log "$seed_root/oracle_fine100_ipc5/recovery_diagnostics.jsonl" \
+        > "$LOGS/recovery_balance_seed${seed}.txt"
 done
 {
     for seed in "${SEEDS[@]}"; do
@@ -109,6 +118,8 @@ done
         cat "$LOGS/recovery_balance_seed${seed}.txt"
     done
 } > "$LOGS/recovery_balance_all_seeds.txt"
+python "$ROOT/class_in_class/analyze_recovery_ce.py" --synthetic-parent "$SYN_PARENT" --seeds "${SEEDS[@]}" \
+    --output-dir "$LOGS/recovery_ce_analysis" > "$LOGS/recovery_ce_analysis.log" 2>&1
 if [[ "$CALIBRATION_ONLY" == "1" ]]; then echo "[5/8] Calibration complete: $LOGS/recovery_balance_all_seeds.txt"; exit 0; fi
 
 echo "[5/8] Merging Oracle seeds into coarse20"

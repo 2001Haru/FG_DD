@@ -1,6 +1,7 @@
 note.txt
 
 *.md
+*.pdf
 
 __pycache__/
 *.py[cod]

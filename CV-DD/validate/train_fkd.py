@@ -1,4 +1,5 @@
 import argparse
+import json
 import math
 import os
 import random
@@ -112,6 +113,8 @@ def get_args():
                         help='seed for batch loading sampler')
     parser.add_argument('--val-dir', required=True, type=str,
                         help="path to the validation data")
+    parser.add_argument('--per-class-output', type=str, default=None,
+                        help='write best-checkpoint per-class validation accuracy as JSON')
 
     args = parser.parse_args()
 
@@ -265,6 +268,8 @@ def main():
         np.random.seed(args.train_seed)
         torch.manual_seed(args.train_seed)
         torch.cuda.manual_seed_all(args.train_seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
         print(f"=> training seed: {args.train_seed}")
     
     # set up wandb
@@ -408,6 +413,12 @@ def main():
             'scheduler' : scheduler.state_dict(),
         }, is_best, output_dir=args.output_dir)
 
+    if args.per_class_output is not None:
+        best_path = os.path.join(args.output_dir, 'model_best.pth.tar')
+        checkpoint = torch.load(best_path, map_location='cpu', weights_only=False)
+        model.load_state_dict(checkpoint['state_dict'], strict=True)
+        export_per_class_accuracy(model, args, checkpoint['best_acc1'])
+
 def adjust_bn_momentum(model, iters):
     for m in model.modules():
         if isinstance(m, nn.BatchNorm2d):
@@ -524,6 +535,41 @@ def validate(model, args, epoch=None):
     wandb_metrics.update(metrics)
 
     return top1.avg
+
+
+def export_per_class_accuracy(model, args, best_acc1):
+    model.eval()
+    correct = torch.zeros(args.ncls, dtype=torch.long)
+    total = torch.zeros(args.ncls, dtype=torch.long)
+    with torch.no_grad():
+        for data, target in args.val_loader:
+            data = data.cuda(non_blocking=True)
+            prediction = model(data).argmax(1).cpu()
+            target = target.long()
+            total.scatter_add_(0, target, torch.ones_like(target, dtype=torch.long))
+            matched = prediction.eq(target).long()
+            correct.scatter_add_(0, target, matched)
+    classes = getattr(args.val_loader.dataset, 'classes', [str(index) for index in range(args.ncls)])
+    per_class = []
+    for class_id in range(args.ncls):
+        accuracy_value = 100.0 * correct[class_id].item() / max(total[class_id].item(), 1)
+        per_class.append({
+            'class_id': class_id,
+            'class_name': classes[class_id],
+            'correct': correct[class_id].item(),
+            'total': total[class_id].item(),
+            'accuracy': accuracy_value,
+        })
+    payload = {
+        'best_top1': float(best_acc1),
+        'num_classes': args.ncls,
+        'per_class': per_class,
+    }
+    output = os.path.abspath(args.per_class_output)
+    os.makedirs(os.path.dirname(output), exist_ok=True)
+    with open(output, 'w', encoding='utf-8') as handle:
+        json.dump(payload, handle, indent=2)
+    print(f'Per-class best-checkpoint accuracy saved to: {output}', flush=True)
 
 def save_checkpoint(state, is_best, output_dir=None,epoch=None):
     if epoch is None:

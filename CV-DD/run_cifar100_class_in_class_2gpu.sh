@@ -3,179 +3,157 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$ROOT/config.sh"
-
-GPU0="${GPU0:-0}"
-GPU1="${GPU1:-1}"
-SEED="${SEED:-42}"
-WORKERS="${WORKERS:-8}"
-ITERATIONS="${ITERATIONS:-4000}"
+GPU0="${GPU0:-0}"; GPU1="${GPU1:-1}"; WORKERS="${WORKERS:-8}"
+RECOVERY_SEEDS="${RECOVERY_SEEDS:-41 42 43}"; read -r -a SEEDS <<< "$RECOVERY_SEEDS"
+(( ${#SEEDS[@]} >= 3 )) || { echo "At least three recovery seeds are required" >&2; exit 1; }
+ITERATIONS="${ITERATIONS:-4000}"; CALIBRATION_ONLY="${CALIBRATION_ONLY:-0}"
+CALIBRATION_ITERATIONS="${CALIBRATION_ITERATIONS:-400}"
+BASE_RECOVERY_LR="${BASE_RECOVERY_LR:-0.25}"; ORACLE_RECOVERY_LR="${ORACLE_RECOVERY_LR:-0.25}"
+BASE_R_BN="${BASE_R_BN:-0.01}"; ORACLE_R_BN="${ORACLE_R_BN:-0.01}"
 RAW_ARCHIVE="${RAW_ARCHIVE:-/linxi/dataset/CV-DD/raw/cifar100/cifar-100-python.tar.gz}"
 RAW_DIR="${RAW_DIR:-/linxi/dataset/CV-DD/raw/cifar100/cifar-100-python}"
-EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/cifar100}"
+EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/cifar100_v2_bs100}"
+[[ "$CALIBRATION_ONLY" == "1" ]] && ITERATIONS="$CALIBRATION_ITERATIONS"
 
-DATA="$EXP_ROOT/data"
-MODELS="$EXP_ROOT/models"
-PATCHES="$EXP_ROOT/patches"
-SYN_PARENT="$EXP_ROOT/synthetic"
-FKD_PARENT="$EXP_ROOT/fkd"
-OUTPUT="$EXP_ROOT/post_eval"
-LOGS="$ROOT/logs/cifar100_class_in_class"
-FINE_DATA="$DATA/fine"
-COARSE_DATA="$DATA/coarse"
-MAPPING="$DATA/hierarchy.json"
-FINE_MODELS="$MODELS/fine100"
-COARSE_MODELS="$MODELS/coarse20"
-FINE_PATCH_ROOT="$PATCHES/fine100"
-COARSE_PATCH_ROOT="$PATCHES/coarse20"
-FINE_SYN="$SYN_PARENT/oracle_fine100_ipc5"
-BASE_SYN="$SYN_PARENT/baseline_coarse20_ipc25"
-ORACLE_SYN="$SYN_PARENT/oracle_merged_coarse20_ipc25"
-BASE_FKD_BASE="$FKD_PARENT/baseline_coarse20"
-ORACLE_FKD_BASE="$FKD_PARENT/oracle_merged_coarse20"
-BASE_FKD="${BASE_FKD_BASE}_bs16_ipc25"
-ORACLE_FKD="${ORACLE_FKD_BASE}_bs16_ipc25"
-
-mkdir -p "$EXP_ROOT" "$MODELS" "$PATCHES" "$SYN_PARENT" "$FKD_PARENT" "$OUTPUT" "$LOGS"
+DATA="$EXP_ROOT/data"; MODELS="$EXP_ROOT/models"; PATCHES="$EXP_ROOT/patches"; PLANS="$EXP_ROOT/recovery_plans"
+SYN_STAGE=synthetic; [[ "$CALIBRATION_ONLY" == "1" ]] && SYN_STAGE=calibration_synthetic
+SYN_PARENT="$EXP_ROOT/$SYN_STAGE"; FKD_PARENT="$EXP_ROOT/fkd"; OUTPUT="$EXP_ROOT/post_eval"
+LOGS="$ROOT/logs/cifar100_class_in_class_v2_bs100"
+FINE_DATA="$DATA/fine"; COARSE_DATA="$DATA/coarse"; MAPPING="$DATA/hierarchy.json"
+FINE_MODELS="$MODELS/fine100"; COARSE_MODELS="$MODELS/coarse20"
+FINE_PATCH_ROOT="$PATCHES/fine100"; COARSE_PATCH_ROOT="$PATCHES/coarse20"
+BASE_PLAN="$PLANS/baseline_coarse20_ipc25.json"; ORACLE_PLAN="$PLANS/oracle_fine100_ipc5.json"
+mkdir -p "$EXP_ROOT" "$MODELS" "$PATCHES" "$PLANS" "$SYN_PARENT" "$FKD_PARENT" "$OUTPUT" "$LOGS"
 fail() { echo "Preflight failed: $*" >&2; exit 1; }
 
 if [[ ! -f "$RAW_DIR/train" ]]; then
     [[ -f "$RAW_ARCHIVE" ]] || fail "missing official archive: $RAW_ARCHIVE"
-    echo "eb9058c3a382ffc7106e4002c42a8d85  $RAW_ARCHIVE" | md5sum -c - || \
-        fail "CIFAR-100 archive checksum mismatch"
-    mkdir -p "$(dirname "$RAW_DIR")"
-    tar -xzf "$RAW_ARCHIVE" -C "$(dirname "$RAW_DIR")"
+    echo "eb9058c3a382ffc7106e4002c42a8d85  $RAW_ARCHIVE" | md5sum -c - || fail "archive checksum mismatch"
+    mkdir -p "$(dirname "$RAW_DIR")"; tar -xzf "$RAW_ARCHIVE" -C "$(dirname "$RAW_DIR")"
 fi
 
 cat <<EOF
-===== CV-DD SRe2L++ Class-in-Class Oracle =====
-Task: 20-way CIFAR-100 coarse classification
-Baseline: coarse20 x IPC25 = 500
-Oracle: fine100 x IPC5, merge 5-to-1 = 500
-Teacher (native CV-DD): ResNet18, Adam lr=1e-3 wd=1e-4, batch512, 200 epochs
-Recovery (native CV-DD): class batch20 for both, Adam lr=0.25, r_bn=0.01, $ITERATIONS iterations
-BSSL (native CV-DD): same coarse20 teacher, batch16, 300 epochs, CutMix, fp16
-Post-eval (native CV-DD CIFAR-100 protocol): random CV-DD ResNet18
-Post-eval: batch16, 300 epochs, AdamW lr=1e-3 wd=0.01, eta=1, T=20, grad_accum=2
-Seed=$SEED
-================================================
+===== CV-DD SRe2L++ Class-in-Class v2 BS100 =====
+Baseline: 5 batches × (20 coarse × 5 images) = 500
+Oracle:   5 batches × (100 fine × 1 image) = 500
+Both: BS100, 100% label-space coverage/batch, 5 batches, equal steps/image
+Recovery seeds: ${SEEDS[*]} (paired); all other seeds fixed42
+Recovery baseline: lr=$BASE_RECOVERY_LR r_bn=$BASE_R_BN iterations=$ITERATIONS
+Recovery oracle:   lr=$ORACLE_RECOVERY_LR r_bn=$ORACLE_R_BN iterations=$ITERATIONS
+Native CV-DD post-eval: R18 random, BS16, 300 epochs, AdamW 1e-3/wd0.01, eta1, T20
+Fresh root: $EXP_ROOT; calibration-only=$CALIBRATION_ONLY
+==================================================
 EOF
 
 if [[ ! -f "$MAPPING" ]]; then
-    echo "[1/7] Preparing fine/coarse ImageFolder datasets"
+    echo "[1/8] Preparing official hierarchy"
     python "$ROOT/class_in_class/prepare_cifar100_hierarchy.py" --raw-dir "$RAW_DIR" --output-dir "$DATA"
 fi
-[[ "$(find "$FINE_DATA/train" -type f -name '*.png' | wc -l)" == 50000 ]] || fail "fine train set incomplete"
-[[ "$(find "$COARSE_DATA/test" -type f -name '*.png' | wc -l)" == 10000 ]] || fail "coarse test set incomplete"
+if [[ ! -f "$BASE_PLAN" || ! -f "$ORACLE_PLAN" ]]; then
+    python "$ROOT/class_in_class/build_bs100_recovery_plans.py" --mapping "$MAPPING" --output-dir "$PLANS"
+fi
+[[ "$(find "$FINE_DATA/train" -type f -name '*.png' | wc -l)" == 50000 ]] || fail "fine train incomplete"
+[[ "$(find "$COARSE_DATA/test" -type f -name '*.png' | wc -l)" == 10000 ]] || fail "coarse test incomplete"
 
 train_teacher() {
-    local gpu="$1" dataset_name="$2" data_dir="$3" save_dir="$4" log="$5"
-    if [[ -f "$save_dir/ResNet18.pth" ]]; then return; fi
-    mkdir -p "$save_dir"
+    local gpu="$1" dataset="$2" data="$3" output="$4" log="$5"
+    [[ -f "$output/ResNet18.pth" ]] && return; mkdir -p "$output"
     CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
-    python -u "$ROOT/squeeze/squeeze.py" \
-        --model-list ResNet18 --optimizer Adam --dataset-dir "$data_dir" --save-dir "$save_dir" \
-        --batch-size 512 --dataset-name "$dataset_name" --epoch 200 --lr 0.001 --seed "$SEED" > "$log" 2>&1
+    python -u "$ROOT/squeeze/squeeze.py" --model-list ResNet18 --optimizer Adam --dataset-dir "$data" \
+        --save-dir "$output" --batch-size 512 --dataset-name "$dataset" --epoch 200 --lr 0.001 --seed 42 > "$log" 2>&1
 }
-
-echo "[2/7] Training native CV-DD fine100/coarse20 teachers"
+echo "[2/8] Training fresh native CV-DD teachers"
 train_teacher "$GPU0" cifar100 "$FINE_DATA" "$FINE_MODELS" "$LOGS/teacher_fine100.log" & p0=$!
 train_teacher "$GPU1" cifar20 "$COARSE_DATA" "$COARSE_MODELS" "$LOGS/teacher_coarse20.log" & p1=$!
-s0=0; s1=0; wait "$p0" || s0=$?; wait "$p1" || s1=$?
-(( s0 == 0 && s1 == 0 )) || fail "teacher training failed: fine=$s0 coarse=$s1"
+s0=0; s1=0; wait "$p0" || s0=$?; wait "$p1" || s1=$?; (( s0==0 && s1==0 )) || fail "teacher failed"
 
 generate_patches() {
     local gpu="$1" data="$2" teacher="$3" classes="$4" ipc="$5" root="$6" log="$7"
-    local directory="$root/medium" expected=$((classes * ipc)) count=0
-    [[ -d "$directory" ]] && count="$(find "$directory" -type f -name '*.jpg' | wc -l)"
-    if (( count == expected )); then return; fi
+    local expected=$((classes*ipc)) directory="$root/medium" count=0
+    [[ -d "$directory" ]] && count="$(find "$directory" -type f -name '*.jpg' | wc -l)"; (( count == expected )) && return
     CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
-    python -u "$ROOT/class_in_class/generate_patches.py" \
-        --data-dir "$data" --teacher "$teacher" --num-classes "$classes" \
-        --patches-per-class "$ipc" --candidate-images 100 --crops-per-image 5 \
-        --output-dir "$directory" --seed "$SEED" > "$log" 2>&1
+    python -u "$ROOT/class_in_class/generate_patches.py" --data-dir "$data" --teacher "$teacher" \
+        --num-classes "$classes" --patches-per-class "$ipc" --candidate-images 100 --crops-per-image 5 \
+        --output-dir "$directory" --seed 42 > "$log" 2>&1
 }
-
-echo "[3/7] Generating balanced RDED medium patches"
+echo "[3/8] Generating fresh balanced patches"
 generate_patches "$GPU0" "$FINE_DATA" "$FINE_MODELS/ResNet18.pth" 100 5 "$FINE_PATCH_ROOT" "$LOGS/patches_fine100.log" & p0=$!
 generate_patches "$GPU1" "$COARSE_DATA" "$COARSE_MODELS/ResNet18.pth" 20 25 "$COARSE_PATCH_ROOT" "$LOGS/patches_coarse20.log" & p1=$!
-s0=0; s1=0; wait "$p0" || s0=$?; wait "$p1" || s1=$?
-(( s0 == 0 && s1 == 0 )) || fail "patch generation failed: fine=$s0 coarse=$s1"
+s0=0; s1=0; wait "$p0" || s0=$?; wait "$p1" || s1=$?; (( s0==0 && s1==0 )) || fail "patch generation failed"
 
-recover_route() {
-    local gpu="$1" dataset="$2" classes="$3" ipc="$4" model_dir="$5" patch_root="$6" exp="$7" log="$8"
+recover_arm() {
+    local gpu="$1" plan="$2" teacher="$3" patches="$4" output="$5" seed="$6" lr="$7" rbn="$8" log="$9"
+    local plan_hash marker expected; plan_hash="$(sha256sum "$plan" | awk '{print $1}')"; marker="$output/.recovery_protocol"
+    expected="$plan_hash:$seed:$lr:$rbn:$ITERATIONS"
+    if [[ -d "$output" ]] && find "$output" -type f -name '*.jpg' -print -quit | grep -q .; then
+        [[ -f "$marker" ]] || fail "old recovery without marker: $output"
+        [[ "$(tr -d '[:space:]' < "$marker")" == "$expected" ]] || fail "protocol mismatch; archive $output"
+    else mkdir -p "$output"; printf '%s\n' "$expected" > "$marker"; fi
     CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
-    python -u "$ROOT/recover/recover.py" \
-        --exp-name "$exp" --apply-data-augmentation --dataset-name "$dataset" --batch-size 20 \
-        --syn-data-path "$SYN_PARENT" --patch-dir "$patch_root" --model-pool-dir "$model_dir" \
-        --pretrained-model-type offline --model-setting 0 --sre2l-model ResNet18 \
-        --voter-type equal --selected-size 1 --lr 0.25 --iteration "$ITERATIONS" --r-bn 0.01 \
-        --store-best-images --skip-completed --ipc-start 0 --ipc-end "$ipc" \
-        --initialisation-method Patches --patch-diff medium --seed "$SEED" > "$log" 2>&1
+    python -u "$ROOT/class_in_class/recover_from_plan.py" --plan "$plan" --teacher "$teacher" \
+        --patch-root "$patches" --output-dir "$output" --iterations "$ITERATIONS" --lr "$lr" \
+        --r-bn "$rbn" --first-bn-multiplier 10 --seed "$seed" > "$log" 2>&1
 }
+echo "[4/8] Recovery: paired seeds, five BS100 batches per arm"
+for seed in "${SEEDS[@]}"; do
+    seed_root="$SYN_PARENT/seed${seed}"
+    recover_arm "$GPU0" "$ORACLE_PLAN" "$FINE_MODELS/ResNet18.pth" "$FINE_PATCH_ROOT" "$seed_root/oracle_fine100_ipc5" "$seed" "$ORACLE_RECOVERY_LR" "$ORACLE_R_BN" "$LOGS/recover_oracle_seed${seed}.log" & p0=$!
+    recover_arm "$GPU1" "$BASE_PLAN" "$COARSE_MODELS/ResNet18.pth" "$COARSE_PATCH_ROOT" "$seed_root/baseline_coarse20_ipc25" "$seed" "$BASE_RECOVERY_LR" "$BASE_R_BN" "$LOGS/recover_baseline_seed${seed}.log" & p1=$!
+    s0=0; s1=0; wait "$p0" || s0=$?; wait "$p1" || s1=$?; (( s0==0 && s1==0 )) || fail "recovery seed $seed failed"
+    python "$ROOT/class_in_class/summarize_recovery_diagnostics.py" --baseline-log "$LOGS/recover_baseline_seed${seed}.log" --oracle-log "$LOGS/recover_oracle_seed${seed}.log" > "$LOGS/recovery_balance_seed${seed}.txt"
+done
+{
+    for seed in "${SEEDS[@]}"; do
+        echo "######## recovery seed $seed ########"
+        cat "$LOGS/recovery_balance_seed${seed}.txt"
+    done
+} > "$LOGS/recovery_balance_all_seeds.txt"
+if [[ "$CALIBRATION_ONLY" == "1" ]]; then echo "[5/8] Calibration complete: $LOGS/recovery_balance_all_seeds.txt"; exit 0; fi
 
-echo "[4/7] Running native CV-DD SRe2L++ recovery for both routes"
-recover_route "$GPU0" cifar100 100 5 "$FINE_MODELS" "$FINE_PATCH_ROOT" "oracle_fine100_ipc5" "$LOGS/recover_oracle.log" & p0=$!
-recover_route "$GPU1" cifar20 20 25 "$COARSE_MODELS" "$COARSE_PATCH_ROOT" "baseline_coarse20_ipc25" "$LOGS/recover_baseline.log" & p1=$!
-s0=0; s1=0; wait "$p0" || s0=$?; wait "$p1" || s1=$?
-(( s0 == 0 && s1 == 0 )) || fail "recovery failed: oracle=$s0 baseline=$s1"
-
-oracle_count=0
-[[ -d "$ORACLE_SYN" ]] && oracle_count="$(find "$ORACLE_SYN" -type f -name '*.jpg' | wc -l)"
-if (( oracle_count == 0 )); then
-    echo "[5/7] Merging oracle fine classes back into coarse classes"
-    python "$ROOT/class_in_class/merge_fine_synthetic_to_coarse.py" \
-        --fine-dir "$FINE_SYN" --mapping "$MAPPING" --output-dir "$ORACLE_SYN" --fine-ipc 5
-elif (( oracle_count != 500 )); then
-    fail "partial merged Oracle directory: $ORACLE_SYN ($oracle_count/500)"
-fi
-[[ "$(find "$BASE_SYN" -type f -name '*.jpg' | wc -l)" == 500 ]] || fail "baseline synthetic count is not 500"
-[[ "$(find "$ORACLE_SYN" -type f -name '*.jpg' | wc -l)" == 500 ]] || fail "oracle synthetic count is not 500"
-
-relabel_route() {
-    local gpu="$1" syn="$2" base="$3" final="$4" log="$5" count=0
-    [[ -d "$final" ]] && count="$(find "$final" -type f -name 'batch_*.tar' | wc -l)"
-    if (( count == 9600 )); then return; fi
-    if (( count != 0 )); then fail "partial FKD directory: $final ($count/9600)"; fi
-    CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
-    python -u "$ROOT/relabel/relabel.py" \
-        --syn-data-path "$syn" --fkd-path "$base" --model-pool-dir "$COARSE_MODELS" \
-        --teacher-model-name ResNet18 --gpu 0 --batch-size 16 --workers "$WORKERS" \
-        --dataset-name cifar20 --epochs 300 --fkd-seed "$SEED" --seed "$SEED" \
-        --min-scale-crops 0.08 --max-scale-crops 1 --use-fp16 --mode fkd_save --mix-type cutmix \
-        > "$log" 2>&1
-}
-
-echo "[6/7] Generating identical coarse20 BSSL for both routes"
-relabel_route "$GPU0" "$ORACLE_SYN" "$ORACLE_FKD_BASE" "$ORACLE_FKD" "$LOGS/relabel_oracle.log" & p0=$!
-relabel_route "$GPU1" "$BASE_SYN" "$BASE_FKD_BASE" "$BASE_FKD" "$LOGS/relabel_baseline.log" & p1=$!
-s0=0; s1=0; wait "$p0" || s0=$?; wait "$p1" || s1=$?
-(( s0 == 0 && s1 == 0 )) || fail "relabel failed: oracle=$s0 baseline=$s1"
-
-validate_route() {
-    local gpu="$1" route="$2" syn="$3" fkd="$4" log="$5"
-    CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
-    python -u "$ROOT/validate/train_fkd.py" \
-        --model ResNet18 --ipc 25 --exp-name "class_in_class_${route}_seed${SEED}" \
-        --original-data-path "$syn" --fkd-path "$fkd" --output-dir "$OUTPUT" \
-        --batch-size 16 --epochs 300 --dataset-name cifar20 --gradient-accumulation-steps 2 \
-        --mix-type cutmix --cos --workers "$WORKERS" --temperature 20 --fkd_seed "$SEED" \
-        --adamw-weight-decay 0.01 \
-        --train-seed "$SEED" --persistent-workers --val-dir "$COARSE_DATA/test" --disable-wandb \
-        > "$log" 2>&1
-}
-
-echo "[7/7] Running native CV-DD SRe2L++ post-evaluation"
-validate_route "$GPU0" oracle "$ORACLE_SYN" "$ORACLE_FKD" "$LOGS/validate_oracle.log" & p0=$!
-validate_route "$GPU1" baseline "$BASE_SYN" "$BASE_FKD" "$LOGS/validate_baseline.log" & p1=$!
-s0=0; s1=0; wait "$p0" || s0=$?; wait "$p1" || s1=$?
-(( s0 == 0 && s1 == 0 )) || fail "post-eval failed: oracle=$s0 baseline=$s1"
-
-for route in baseline oracle; do
-    log="$LOGS/validate_${route}.log"
-    best="$(grep 'TEST Iter' "$log" | sed -E 's/.*Top-1 err = ([0-9.]+).*/\1/' | \
-        awk 'BEGIN{b=-1}{a=100-$1;if(a>b)b=a}END{if(b>=0)printf "%.2f",b}')"
-    echo "$route best Top1: ${best:-N/A}"
-    grep 'TEST Iter' "$log" | tail -n 1 || true
+echo "[5/8] Merging Oracle seeds into coarse20"
+for seed in "${SEEDS[@]}"; do
+    source="$SYN_PARENT/seed${seed}/oracle_fine100_ipc5"; merged="$SYN_PARENT/seed${seed}/oracle_merged_coarse20_ipc25"
+    count=0; [[ -d "$merged" ]] && count="$(find "$merged" -type f -name '*.jpg' | wc -l)"
+    if (( count==0 )); then python "$ROOT/class_in_class/merge_fine_synthetic_to_coarse.py" --fine-dir "$source" --mapping "$MAPPING" --output-dir "$merged" --fine-ipc 5
+    elif (( count!=500 )); then fail "partial merged directory: $merged"; fi
 done
 
-echo "Decision rule: Oracle must beat baseline under the identical 500-image budget."
+relabel_arm() {
+    local gpu="$1" syn="$2" base="$3" final="$4" log="$5" count=0
+    [[ -d "$final" ]] && count="$(find "$final" -type f -name 'batch_*.tar' | wc -l)"; (( count==9600 )) && return; (( count==0 )) || fail "partial FKD: $final"
+    CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+    python -u "$ROOT/relabel/relabel.py" --syn-data-path "$syn" --fkd-path "$base" --model-pool-dir "$COARSE_MODELS" \
+        --teacher-model-name ResNet18 --gpu 0 --batch-size 16 --workers "$WORKERS" --dataset-name cifar20 \
+        --epochs 300 --fkd-seed 42 --seed 42 --min-scale-crops 0.08 --max-scale-crops 1 \
+        --use-fp16 --mode fkd_save --mix-type cutmix > "$log" 2>&1
+}
+echo "[6/8] Coarse20 BSSL for paired recovery seeds"
+for seed in "${SEEDS[@]}"; do
+    seed_syn="$SYN_PARENT/seed${seed}"; seed_fkd="$FKD_PARENT/seed${seed}"
+    relabel_arm "$GPU0" "$seed_syn/oracle_merged_coarse20_ipc25" "$seed_fkd/oracle" "$seed_fkd/oracle_bs16_ipc25" "$LOGS/relabel_oracle_seed${seed}.log" & p0=$!
+    relabel_arm "$GPU1" "$seed_syn/baseline_coarse20_ipc25" "$seed_fkd/baseline" "$seed_fkd/baseline_bs16_ipc25" "$LOGS/relabel_baseline_seed${seed}.log" & p1=$!
+    s0=0; s1=0; wait "$p0" || s0=$?; wait "$p1" || s1=$?; (( s0==0 && s1==0 )) || fail "relabel seed $seed failed"
+done
+
+validate_arm() {
+    local gpu="$1" arm="$2" rseed="$3" syn="$4" fkd="$5" log="$6" per_class="$7"
+    CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+    python -u "$ROOT/validate/train_fkd.py" --model ResNet18 --ipc 25 --exp-name "class_in_class_${arm}_rseed${rseed}" \
+        --original-data-path "$syn" --fkd-path "$fkd" --output-dir "$OUTPUT" --batch-size 16 --epochs 300 \
+        --dataset-name cifar20 --gradient-accumulation-steps 2 --mix-type cutmix --cos --workers "$WORKERS" \
+        --temperature 20 --fkd_seed 42 --adamw-weight-decay 0.01 --train-seed 42 --persistent-workers \
+        --val-dir "$COARSE_DATA/test" --disable-wandb --per-class-output "$per_class" > "$log" 2>&1
+}
+echo "[7/8] Native CV-DD post-eval with fixed student seed42"
+PER_CLASS="$EXP_ROOT/per_class"; mkdir -p "$PER_CLASS"
+for seed in "${SEEDS[@]}"; do
+    seed_syn="$SYN_PARENT/seed${seed}"; seed_fkd="$FKD_PARENT/seed${seed}"
+    validate_arm "$GPU0" oracle "$seed" "$seed_syn/oracle_merged_coarse20_ipc25" "$seed_fkd/oracle_bs16_ipc25" "$LOGS/validate_oracle_seed${seed}.log" "$PER_CLASS/oracle_seed${seed}.json" & p0=$!
+    validate_arm "$GPU1" baseline "$seed" "$seed_syn/baseline_coarse20_ipc25" "$seed_fkd/baseline_bs16_ipc25" "$LOGS/validate_baseline_seed${seed}.log" "$PER_CLASS/baseline_seed${seed}.json" & p1=$!
+    s0=0; s1=0; wait "$p0" || s0=$?; wait "$p1" || s1=$?; (( s0==0 && s1==0 )) || fail "post-eval seed $seed failed"
+done
+
+echo "[8/8] Superclass distance/gain analysis"
+python "$ROOT/class_in_class/analyze_superclass_gain.py" --fine-data "$FINE_DATA" --fine-teacher "$FINE_MODELS/ResNet18.pth" \
+    --mapping "$MAPPING" --per-class-dir "$PER_CLASS" --recovery-seeds "${SEEDS[@]}" --output-dir "$EXP_ROOT/analysis"
+echo "Complete: $EXP_ROOT/analysis and $LOGS"

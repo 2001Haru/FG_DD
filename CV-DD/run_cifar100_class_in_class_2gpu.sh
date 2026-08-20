@@ -60,7 +60,8 @@ train_teacher() {
     [[ -f "$output/ResNet18.pth" ]] && return; mkdir -p "$output"
     CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT/squeeze/squeeze.py" --model-list ResNet18 --optimizer Adam --dataset-dir "$data" \
-        --save-dir "$output" --batch-size 512 --dataset-name "$dataset" --epoch 200 --lr 0.001 --seed 42 > "$log" 2>&1
+        --save-dir "$output" --batch-size 512 --dataset-name "$dataset" --epoch 200 --lr 0.001 --seed 42 \
+        --workers "$WORKERS" --persistent-workers --prefetch-factor 4 > "$log" 2>&1
 }
 echo "[2/8] Training fresh native CV-DD teachers"
 train_teacher "$GPU0" cifar100 "$FINE_DATA" "$FINE_MODELS" "$LOGS/teacher_fine100.log" & p0=$!

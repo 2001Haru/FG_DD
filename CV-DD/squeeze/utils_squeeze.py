@@ -46,12 +46,21 @@ def load_dataset(rank, args, mode="train"):
         train_sampler = None
 
     # load dataset for CIFAR-100 
+    loader_options = {
+        "num_workers": args.workers,
+        "pin_memory": True,
+        "persistent_workers": args.persistent_workers and args.workers > 0,
+    }
+    if args.workers > 0:
+        loader_options["prefetch_factor"] = args.prefetch_factor
+
     trainloader = torch.utils.data.DataLoader(
-        train_set, batch_size=args.batch_size, sampler=train_sampler, shuffle=(train_sampler is None), num_workers=2, pin_memory=True)
+        train_set, batch_size=args.batch_size, sampler=train_sampler,
+        shuffle=(train_sampler is None), **loader_options)
     
     # load dataset for CIFAR-100 
     testloader = torch.utils.data.DataLoader(
-        test_set, batch_size=256, shuffle=False, num_workers=2, pin_memory=True)
+        test_set, batch_size=256, shuffle=False, **loader_options)
     
     return trainloader, testloader
 
@@ -90,7 +99,8 @@ def evaluate_loader(model, criterion, dataloader, device):
     total_loss = 0
     with torch.no_grad():
         for inputs, labels in dataloader:
-            inputs, labels = inputs.to(device), labels.to(device)
+            inputs = inputs.to(device, non_blocking=True)
+            labels = labels.to(device, non_blocking=True)
             outputs = model(inputs)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)

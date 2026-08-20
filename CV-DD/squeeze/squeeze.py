@@ -8,6 +8,7 @@ import csv
 import torchvision.models as models
 import sys
 import os
+import time
 # for multiprocessing system
 import torch.multiprocessing as mp
 import torch.distributed as dist
@@ -44,6 +45,12 @@ def parse_args():
                         help='the number of gpu that is available')
     parser.add_argument('--seed', type=int, default=None,
                         help='optional seed for reproducible controlled experiments')
+    parser.add_argument('--workers', type=int, default=2,
+                        help='number of DataLoader workers per training process')
+    parser.add_argument('--persistent-workers', action='store_true',
+                        help='keep DataLoader workers alive across epochs')
+    parser.add_argument('--prefetch-factor', type=int, default=2,
+                        help='batches prefetched by each DataLoader worker')
     args = parser.parse_args()
 
     # set up the mean, std and ncls for the dataset
@@ -117,13 +124,15 @@ def generate_models_process(rank, device, args):
         
         # train the model
         for epoch in range(args.epoch):
+            epoch_start = time.perf_counter()
             model.train()
             if args.use_multi_gpu:
                 trainloader.sampler.set_epoch(epoch)  # 同步每个进程的数据
             # Train the model for one step
             for inputs, labels in trainloader:
                 # inputs, labels = args.mixup_fn(inputs, labels)
-                inputs, labels = inputs.to(device), labels.to(device)
+                inputs = inputs.to(device, non_blocking=True)
+                labels = labels.to(device, non_blocking=True)
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
@@ -134,6 +143,13 @@ def generate_models_process(rank, device, args):
                 # train_acc, train_loss = evaluate_loader(model, criterion, trainloader, device)
                 test_acc, test_loss = evaluate_loader(model, criterion, testloader, device)
                 print(f"Epoch: {epoch}, Test Acc: {test_acc} Test Loss: {test_loss}")
+
+            if rank == 0:
+                print(
+                    f"Teacher progress: epoch {epoch + 1}/{args.epoch}, "
+                    f"elapsed={time.perf_counter() - epoch_start:.2f}s",
+                    flush=True,
+                )
                 
             scheduler.step()
             

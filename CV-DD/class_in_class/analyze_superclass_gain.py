@@ -160,6 +160,10 @@ def main():
     random_yerr = np.array([row["random_paired_gain_std"] for row in rows])
     random_pearson = float(np.corrcoef(x, random_y)[0, 1])
     random_spearman = float(np.corrcoef(rank(x), rank(random_y))[0, 1])
+    semantic_y = np.array([row["oracle_vs_random_mean"] for row in rows])
+    semantic_yerr = np.array([row["oracle_vs_random_std"] for row in rows])
+    semantic_pearson = float(np.corrcoef(x, semantic_y)[0, 1])
+    semantic_spearman = float(np.corrcoef(rank(x), rank(semantic_y))[0, 1])
     slope, intercept = np.polyfit(x, y, 1)
 
     fig, axis = plt.subplots(figsize=(11, 7))
@@ -197,6 +201,26 @@ def main():
     fig.savefig(output / "fine_distance_vs_three_arm_gain.png", dpi=200)
     plt.close(fig)
 
+    semantic_slope, semantic_intercept = np.polyfit(x, semantic_y, 1)
+    fig, axis = plt.subplots(figsize=(11, 7))
+    axis.errorbar(x, semantic_y, yerr=semantic_yerr, fmt="o", capsize=3, alpha=0.8)
+    axis.plot(line_x, semantic_slope * line_x + semantic_intercept,
+              linestyle="--", color="tab:purple")
+    axis.axhline(0, color="black", linewidth=0.8)
+    for row, x_value, y_value in zip(rows, x, semantic_y):
+        axis.annotate(row["coarse_name"], (x_value, y_value), xytext=(4, 4),
+                      textcoords="offset points", fontsize=8)
+    axis.set_xlabel("Mean pairwise cosine distance among five official fine-class centroids")
+    axis.set_ylabel("Oracle semantic residual over Random (Top1 points)")
+    axis.set_title(
+        f"Fine structure vs semantic residual (Pearson={semantic_pearson:.3f}, "
+        f"Spearman={semantic_spearman:.3f})"
+    )
+    axis.grid(alpha=0.2)
+    fig.tight_layout()
+    fig.savefig(output / "fine_distance_vs_semantic_residual.png", dpi=200)
+    plt.close(fig)
+
     summary = {
         "recovery_seeds": args.recovery_seeds,
         "random_partition_seed": args.random_partition_seed,
@@ -211,6 +235,8 @@ def main():
         "spearman_distance_gain": spearman,
         "pearson_distance_random_gain": random_pearson,
         "spearman_distance_random_gain": random_spearman,
+        "pearson_distance_oracle_vs_random": semantic_pearson,
+        "spearman_distance_oracle_vs_random": semantic_spearman,
         "feature_distance": "mean pairwise cosine distance among five normalized fine-class centroids",
     }
     with (output / "summary.json").open("w", encoding="utf-8") as handle:

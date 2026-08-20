@@ -3,6 +3,7 @@ import json
 import os
 import random
 import shutil
+import time
 from pathlib import Path
 
 
@@ -10,13 +11,14 @@ EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
 
 def materialize(source, destination):
-    destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists():
-        return
+        return "existing"
     try:
         os.link(source, destination)
+        return "hardlink"
     except OSError:
         shutil.copy2(source, destination)
+        return "copy"
 
 
 def split_coarse_class(source_dir, output, split, coarse_id, groups, seed):
@@ -28,13 +30,15 @@ def split_coarse_class(source_dir, output, split, coarse_id, groups, seed):
     rng = random.Random(seed * 1_000_003 + coarse_id * 101 + (0 if split == "train" else 1))
     rng.shuffle(images)
     per_group = len(images) // groups
+    modes = {"existing": 0, "hardlink": 0, "copy": 0}
     for group_id in range(groups):
         pseudo_id = coarse_id * groups + group_id
         selected = images[group_id * per_group:(group_id + 1) * per_group]
+        destination_dir = output / split / f"{pseudo_id:03d}"
+        destination_dir.mkdir(parents=True, exist_ok=True)
         for source in selected:
-            destination = output / split / f"{pseudo_id:03d}" / source.name
-            materialize(source, destination)
-    return per_group
+            modes[materialize(source, destination_dir / source.name)] += 1
+    return per_group, modes
 
 
 def main():
@@ -52,6 +56,7 @@ def main():
         raise RuntimeError("the controlled experiment requires five pseudo classes per coarse class")
 
     split_counts = {}
+    started = time.time()
     for split, expected_per_coarse in (("train", 2500), ("test", 500)):
         split_root = source / split
         classes = sorted(path for path in split_root.iterdir() if path.is_dir())
@@ -66,8 +71,15 @@ def main():
                 raise RuntimeError(
                     f"{split} coarse class {coarse_id}: expected {expected_per_coarse}, found {count}"
                 )
-            per_group = split_coarse_class(
+            per_group, modes = split_coarse_class(
                 class_dir, output, split, coarse_id, groups, args.seed
+            )
+            print(
+                f"random partition: split={split} coarse={coarse_id + 1}/20 "
+                f"images={expected_per_coarse} hardlink={modes['hardlink']} "
+                f"copy={modes['copy']} existing={modes['existing']} "
+                f"elapsed={time.time() - started:.1f}s",
+                flush=True,
             )
         split_counts[split] = per_group
 

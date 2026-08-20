@@ -99,6 +99,11 @@ s0=0; s1=0; wait "$p0" || s0=$?; wait "$p1" || s1=$?; (( s0==0 && s1==0 )) || fa
 train_teacher "$GPU0" cifar100 "$RANDOM_DATA" "$RANDOM_MODELS" "$LOGS/teacher_random100.log" || fail "random teacher failed"
 [[ -f "$RANDOM_MODELS/model_result_info.csv" ]] || fail "random teacher metrics CSV missing"
 cp "$RANDOM_MODELS/model_result_info.csv" "$LOGS/teacher_random100_metrics.csv"
+CUDA_VISIBLE_DEVICES="$GPU0" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+python "$ROOT/class_in_class/audit_random_teacher_hierarchy.py" --data-dir "$RANDOM_DATA" \
+    --checkpoint "$RANDOM_MODELS/ResNet18.pth" --workers "$WORKERS" \
+    --output "$LOGS/teacher_random100_hierarchy_audit.json" \
+    > "$LOGS/teacher_random100_hierarchy_audit.log" 2>&1
 if [[ "$RANDOM_TEACHER_AUDIT_ONLY" == "1" ]]; then
     echo "Random Teacher audit complete; inspect $LOGS/teacher_random100_metrics.csv"
     cat "$LOGS/teacher_random100_metrics.csv"

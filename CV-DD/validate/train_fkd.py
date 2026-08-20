@@ -262,7 +262,14 @@ def get_args():
         args.eval_fine_to_coarse = [
             int(hierarchy['fine_to_coarse'][str(index)]) for index in range(args.ncls)
         ]
-        args.eval_coarse_names = hierarchy['coarse_names']
+        coarse_count = max(args.eval_fine_to_coarse) + 1
+        args.eval_coarse_names = hierarchy.get(
+            'coarse_names', [f'{index:02d}' for index in range(coarse_count)]
+        )
+        if len(args.eval_coarse_names) != coarse_count:
+            raise ValueError(
+                'hierarchy coarse_names length does not match fine_to_coarse mapping'
+            )
         if args.primary_eval_collapsed_coarse and args.ncls != 100:
             raise ValueError('collapsed coarse primary evaluation expects a 100-way student')
     

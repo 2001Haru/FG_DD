@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import random
 import numpy as np
@@ -39,6 +40,12 @@ parser.add_argument('--eval-mode', type=str,default="F",
                     help='whether to use the evaluation mode or not')
 parser.add_argument('--teacher-model-name', type=str,
                     help='teacher model name')
+parser.add_argument('--teacher-num-classes', type=int, default=None,
+                    help='Teacher output dimension when it differs from dataset-name')
+parser.add_argument('--teacher-mapping', type=str, default=None,
+                    help='fine_to_coarse hierarchy for temperature-compatible probability marginalization')
+parser.add_argument('--marginalize-temperature', type=float, default=20.0,
+                    help='temperature at which Teacher probabilities are marginalized')
 parser.add_argument('--model-pool-dir', type=str, default=None,
                     help='required when pretrained model type is offline, the directory of the models when using offline mode')
 parser.add_argument('--fkd-path',required=True, type=str,
@@ -209,6 +216,17 @@ def main_worker(gpu, ngpus_per_node, args):
         dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                                 world_size=args.world_size, rank=args.gpu)
     # load different teacher models
+    args.teacher_to_target = None
+    if args.teacher_mapping is not None:
+        with open(args.teacher_mapping, encoding='utf-8') as handle:
+            hierarchy = json.load(handle)
+        teacher_classes = args.teacher_num_classes or args.ncls
+        args.teacher_to_target = torch.tensor([
+            int(hierarchy['fine_to_coarse'][str(index)])
+            for index in range(teacher_classes)
+        ], dtype=torch.long)
+        if max(args.teacher_to_target.tolist()) + 1 != args.ncls:
+            raise RuntimeError('teacher mapping target count does not match dataset ncls')
     teacher_model_lis = []
     if args.multi_model:
         for model_name in args.model_choice:
@@ -337,6 +355,18 @@ def save(train_loader, model_lis, dir_path, args):
             
         output = torch.stack(total_output, 0)
         output = output.sum(0)
+        if args.teacher_to_target is not None:
+            temperature = args.marginalize_temperature
+            probabilities = torch.softmax(output / temperature, dim=1)
+            target_probabilities = torch.zeros(
+                output.shape[0], args.ncls, dtype=probabilities.dtype,
+                device=probabilities.device,
+            )
+            mapping = args.teacher_to_target.to(probabilities.device)
+            target_probabilities.scatter_add_(
+                1, mapping.unsqueeze(0).expand(output.shape[0], -1), probabilities
+            )
+            output = temperature * target_probabilities.clamp_min(1e-12).log()
         
         if args.use_fp16:
             output = output.half()

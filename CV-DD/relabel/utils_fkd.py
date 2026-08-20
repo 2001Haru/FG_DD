@@ -271,32 +271,33 @@ def get_img2batch_idx_list(num_img = 50000, batch_size = 1024, seed=42, epochs=3
     return img2batch_idx_list
  
 def load_model(args, model_name):
+    teacher_ncls = getattr(args, 'teacher_num_classes', None) or args.ncls
     if args.dataset_name in ('imagenet100', 'imagenet-nette', 'imagenet1k', 'CUB_imsize224'):
         if model_name == 'ResNet18':
             model = models.resnet18(weights=None)
-        model.fc = nn.Linear(model.fc.in_features, args.ncls) 
+        model.fc = nn.Linear(model.fc.in_features, teacher_ncls)
     else:
         if model_name == 'ResNet18':
-            model = ResNet18(args.ncls)
+            model = ResNet18(teacher_ncls)
         elif model_name == 'ResNet50':
-            model = ResNet50(args.ncls)
+            model = ResNet50(teacher_ncls)
         elif model_name == 'ResNet101':
-            model = ResNet101(args.ncls)
+            model = ResNet101(teacher_ncls)
         elif model_name == 'Densenet121':
-            model = DenseNet121(args.ncls)
+            model = DenseNet121(teacher_ncls)
         elif model_name == 'Densenet169':
-            model = DenseNet169(args.ncls)
+            model = DenseNet169(teacher_ncls)
         elif model_name == 'Densenet201':
-            model = DenseNet201(args.ncls)
+            model = DenseNet201(teacher_ncls)
         elif model_name == 'Densenet161':
-            model = DenseNet161(args.ncls)
+            model = DenseNet161(teacher_ncls)
         elif model_name == 'MobileNetV2':
-            model = MobileNetV2(args.ncls)
+            model = MobileNetV2(teacher_ncls)
         elif model_name == 'ShuffleNetV2':
-            model = ShuffleNetV2(net_size=0.5, ncls=args.ncls)
+            model = ShuffleNetV2(net_size=0.5, ncls=teacher_ncls)
         elif 'conv' in model_name:
             model = ConvNet(
-                num_classes=args.ncls,
+                num_classes=teacher_ncls,
                 net_norm="batch",
                 net_act="relu",
                 net_pooling="avgpooling",

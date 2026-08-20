@@ -115,6 +115,10 @@ def get_args():
                         help="path to the validation data")
     parser.add_argument('--per-class-output', type=str, default=None,
                         help='write best-checkpoint per-class validation accuracy as JSON')
+    parser.add_argument('--eval-hierarchy-mapping', type=str, default=None,
+                        help='fine_to_coarse hierarchy for collapsed probability evaluation')
+    parser.add_argument('--primary-eval-collapsed-coarse', action='store_true',
+                        help='select best checkpoint using hierarchy-collapsed coarse Top1')
 
     args = parser.parse_args()
 
@@ -249,6 +253,18 @@ def get_args():
         args.eta = 2
     else:
         raise ValueError('dataset not supported')
+
+    args.eval_fine_to_coarse = None
+    args.eval_coarse_names = None
+    if args.eval_hierarchy_mapping is not None:
+        with open(args.eval_hierarchy_mapping, encoding='utf-8') as handle:
+            hierarchy = json.load(handle)
+        args.eval_fine_to_coarse = [
+            int(hierarchy['fine_to_coarse'][str(index)]) for index in range(args.ncls)
+        ]
+        args.eval_coarse_names = hierarchy['coarse_names']
+        if args.primary_eval_collapsed_coarse and args.ncls != 100:
+            raise ValueError('collapsed coarse primary evaluation expects a 100-way student')
     
     # set up the train_dir and output_dir
     args.output_dir = os.path.join(args.output_dir, args.dataset_name, args.exp_name)
@@ -497,6 +513,19 @@ def train(model, args, epoch=None):
     t1 = time.time()
 
 
+def collapse_to_coarse(output, target, args):
+    mapping = torch.tensor(args.eval_fine_to_coarse, dtype=torch.long, device=output.device)
+    probabilities = torch.softmax(output, dim=1)
+    coarse_probabilities = torch.zeros(
+        output.shape[0], len(args.eval_coarse_names),
+        dtype=probabilities.dtype, device=output.device,
+    )
+    coarse_probabilities.scatter_add_(
+        1, mapping.unsqueeze(0).expand(output.shape[0], -1), probabilities
+    )
+    return coarse_probabilities, mapping[target]
+
+
 def validate(model, args, epoch=None):
     objs = AverageMeter()
     top1 = AverageMeter()
@@ -512,9 +541,14 @@ def validate(model, args, epoch=None):
             target = target.cuda(non_blocking=True)
             
             output = model(data)
-            loss = loss_function(output, target)
+            if args.primary_eval_collapsed_coarse:
+                evaluated_output, evaluated_target = collapse_to_coarse(output, target, args)
+                loss = F.nll_loss(evaluated_output.clamp_min(1e-12).log(), evaluated_target)
+            else:
+                evaluated_output, evaluated_target = output, target
+                loss = loss_function(output, target)
 
-            prec1, prec5 = accuracy(output, target, topk=(1, 5))
+            prec1, prec5 = accuracy(evaluated_output, evaluated_target, topk=(1, 5))
             n = data.size(0)
             objs.update(loss.item(), n)
             top1.update(prec1.item(), n)
@@ -539,19 +573,34 @@ def validate(model, args, epoch=None):
 
 def export_per_class_accuracy(model, args, best_acc1):
     model.eval()
-    correct = torch.zeros(args.ncls, dtype=torch.long)
-    total = torch.zeros(args.ncls, dtype=torch.long)
+    output_classes = len(args.eval_coarse_names) if args.primary_eval_collapsed_coarse else args.ncls
+    correct = torch.zeros(output_classes, dtype=torch.long)
+    total = torch.zeros(output_classes, dtype=torch.long)
+    native_correct = 0
+    native_total = 0
     with torch.no_grad():
         for data, target in args.val_loader:
             data = data.cuda(non_blocking=True)
-            prediction = model(data).argmax(1).cpu()
-            target = target.long()
+            output = model(data)
+            native_correct += output.argmax(1).cpu().eq(target.long()).sum().item()
+            native_total += target.numel()
+            if args.primary_eval_collapsed_coarse:
+                evaluated_output, evaluated_target = collapse_to_coarse(
+                    output, target.cuda(non_blocking=True), args
+                )
+                prediction = evaluated_output.argmax(1).cpu()
+                target = evaluated_target.cpu().long()
+            else:
+                prediction = output.argmax(1).cpu()
+                target = target.long()
             total.scatter_add_(0, target, torch.ones_like(target, dtype=torch.long))
             matched = prediction.eq(target).long()
             correct.scatter_add_(0, target, matched)
-    classes = getattr(args.val_loader.dataset, 'classes', [str(index) for index in range(args.ncls)])
+    classes = (args.eval_coarse_names if args.primary_eval_collapsed_coarse else
+               getattr(args.val_loader.dataset, 'classes',
+                       [str(index) for index in range(output_classes)]))
     per_class = []
-    for class_id in range(args.ncls):
+    for class_id in range(output_classes):
         accuracy_value = 100.0 * correct[class_id].item() / max(total[class_id].item(), 1)
         per_class.append({
             'class_id': class_id,
@@ -562,7 +611,10 @@ def export_per_class_accuracy(model, args, best_acc1):
         })
     payload = {
         'best_top1': float(best_acc1),
-        'num_classes': args.ncls,
+        'num_classes': output_classes,
+        'primary_metric': ('collapsed_coarse20_top1'
+                           if args.primary_eval_collapsed_coarse else 'native_top1'),
+        'native_top1_at_best_checkpoint': 100.0 * native_correct / max(native_total, 1),
         'per_class': per_class,
     }
     output = os.path.abspath(args.per_class_output)

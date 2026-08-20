@@ -12,6 +12,8 @@ GAIN_FIELDS = {
     "oracle_minus_random": "oracle_vs_random_mean",
     "coarse_target_minus_baseline": "coarse_target_paired_gain_mean",
     "oracle_minus_coarse_target": "oracle_vs_coarse_target_mean",
+    "random_minus_random_coarse_target": "random_vs_random_coarse_target_mean",
+    "difference_in_differences": "difference_in_differences_mean",
 }
 
 

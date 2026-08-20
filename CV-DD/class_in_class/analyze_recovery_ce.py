@@ -150,6 +150,7 @@ def plot_curve(rows, output):
     colors = {
         "baseline": "#3569b0", "oracle": "#d04a35", "random": "#3b9853",
         "coarse_target": "#8b5fbf",
+        "random_coarse_target": "#a66a3f",
     }
     for arm in sorted({row["arm"] for row in rows}):
         selected = [row for row in rows if row["arm"] == arm]
@@ -207,6 +208,13 @@ def main():
         )
         if coarse_target_diagnostics.is_file():
             records.extend(load_records(coarse_target_diagnostics, "coarse_target", seed))
+        random_coarse_target_diagnostics = seed_root / (
+            f"random100_coarse_target_pseed{args.random_partition_seed}_ipc25"
+        ) / "recovery_diagnostics.jsonl"
+        if random_coarse_target_diagnostics.is_file():
+            records.extend(load_records(
+                random_coarse_target_diagnostics, "random_coarse_target", seed
+            ))
     initial_ce = {}
     for record in records:
         key = (record["arm"], record["seed"], record["batch_id"])

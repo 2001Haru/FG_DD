@@ -34,6 +34,7 @@ RANDOM_MODELS="$MODELS/random100_seed${RANDOM_PARTITION_SEED}"
 FINE_PATCH_ROOT="$PATCHES/fine100"; COARSE_PATCH_ROOT="$PATCHES/coarse20"
 RANDOM_PATCH_ROOT="$PATCHES/random100_seed${RANDOM_PARTITION_SEED}"
 COARSE_TARGET_PATCH_ROOT="$PATCHES/fine100_marginalized_coarse20"
+RANDOM_COARSE_TARGET_PATCH_ROOT="$PATCHES/random100_pseed${RANDOM_PARTITION_SEED}_marginalized_coarse20"
 BASE_PLAN="$PLANS/baseline_coarse20_ipc25.json"; ORACLE_PLAN="$PLANS/oracle_fine100_ipc5.json"
 RANDOM_PLAN="$PLANS/random_pseudo100_pseed${RANDOM_PARTITION_SEED}_ipc5.json"
 mkdir -p "$EXP_ROOT" "$MODELS" "$PATCHES" "$PLANS" "$SYN_PARENT" "$FKD_PARENT" "$OUTPUT" "$LOGS"
@@ -132,6 +133,10 @@ generate_patches "$GPU0" "$RANDOM_DATA" "$RANDOM_MODELS/ResNet18.pth" 100 5 "$RA
 generate_patches "$GPU0" "$COARSE_DATA" "$FINE_MODELS/ResNet18.pth" 20 25 \
     "$COARSE_TARGET_PATCH_ROOT" "$LOGS/patches_fine100_coarse_target.log" 100 "$MAPPING" \
     || fail "Fine100 marginalized coarse-target patch generation failed"
+generate_patches "$GPU0" "$COARSE_DATA" "$RANDOM_MODELS/ResNet18.pth" 20 25 \
+    "$RANDOM_COARSE_TARGET_PATCH_ROOT" \
+    "$LOGS/patches_random100_pseed${RANDOM_PARTITION_SEED}_coarse_target.log" \
+    100 "$RANDOM_MAPPING" || fail "Random100 marginalized coarse-target patch generation failed"
 
 recover_arm() {
     local gpu="$1" plan="$2" teacher="$3" patches="$4" output="$5" seed="$6" lr="$7" rbn="$8" log="$9"
@@ -186,6 +191,21 @@ for index in "${!SEEDS[@]}"; do
         coarse_target_pids=()
     fi
 done
+random_coarse_target_pids=()
+for index in "${!SEEDS[@]}"; do
+    seed="${SEEDS[$index]}"; seed_root="$SYN_PARENT/seed${seed}"
+    gpu="$GPU0"; (( ${#random_coarse_target_pids[@]} == 1 )) && gpu="$GPU1"
+    recover_arm "$gpu" "$BASE_PLAN" "$RANDOM_MODELS/ResNet18.pth" \
+        "$RANDOM_COARSE_TARGET_PATCH_ROOT" \
+        "$seed_root/random100_coarse_target_pseed${RANDOM_PARTITION_SEED}_ipc25" \
+        "$seed" "$BASE_RECOVERY_LR" "$BASE_R_BN" \
+        "$LOGS/recover_random100_coarse_target_pseed${RANDOM_PARTITION_SEED}_seed${seed}.log" \
+        100 "$RANDOM_MAPPING" & random_coarse_target_pids+=("$!")
+    if (( ${#random_coarse_target_pids[@]} == 2 || index == ${#SEEDS[@]} - 1 )); then
+        wait_jobs "${random_coarse_target_pids[@]}" || fail "Random100 coarse-target recovery batch failed"
+        random_coarse_target_pids=()
+    fi
+done
 for seed in "${SEEDS[@]}"; do
     seed_root="$SYN_PARENT/seed${seed}"
     python "$ROOT/class_in_class/summarize_recovery_diagnostics.py" \
@@ -193,6 +213,7 @@ for seed in "${SEEDS[@]}"; do
         --oracle-log "$seed_root/oracle_fine100_ipc5/recovery_diagnostics.jsonl" \
         --random-log "$seed_root/random_pseudo100_pseed${RANDOM_PARTITION_SEED}_ipc5/recovery_diagnostics.jsonl" \
         --coarse-target-log "$seed_root/fine100_coarse_target_ipc25/recovery_diagnostics.jsonl" \
+        --random-coarse-target-log "$seed_root/random100_coarse_target_pseed${RANDOM_PARTITION_SEED}_ipc25/recovery_diagnostics.jsonl" \
         > "$LOGS/recovery_balance_seed${seed}.txt"
 done
 {
@@ -258,6 +279,21 @@ for index in "${!SEEDS[@]}"; do
         coarse_target_pids=()
     fi
 done
+random_coarse_target_pids=()
+for index in "${!SEEDS[@]}"; do
+    seed="${SEEDS[$index]}"; seed_syn="$SYN_PARENT/seed${seed}"; seed_fkd="$FKD_PARENT/seed${seed}"
+    gpu="$GPU0"; (( ${#random_coarse_target_pids[@]} == 1 )) && gpu="$GPU1"
+    relabel_arm "$gpu" \
+        "$seed_syn/random100_coarse_target_pseed${RANDOM_PARTITION_SEED}_ipc25" \
+        "$seed_fkd/random_coarse_target_pseed${RANDOM_PARTITION_SEED}" \
+        "$seed_fkd/random_coarse_target_pseed${RANDOM_PARTITION_SEED}_bs16_ipc25" \
+        "$LOGS/relabel_random_coarse_target_pseed${RANDOM_PARTITION_SEED}_seed${seed}.log" \
+        & random_coarse_target_pids+=("$!")
+    if (( ${#random_coarse_target_pids[@]} == 2 || index == ${#SEEDS[@]} - 1 )); then
+        wait_jobs "${random_coarse_target_pids[@]}" || fail "random coarse-target relabel batch failed"
+        random_coarse_target_pids=()
+    fi
+done
 
 validate_arm() {
     local gpu="$1" arm="$2" rseed="$3" syn="$4" fkd="$5" log="$6" per_class="$7"
@@ -301,6 +337,21 @@ for index in "${!SEEDS[@]}"; do
     if (( ${#coarse_target_pids[@]} == 2 || index == ${#SEEDS[@]} - 1 )); then
         wait_jobs "${coarse_target_pids[@]}" || fail "coarse-target post-eval batch failed"
         coarse_target_pids=()
+    fi
+done
+random_coarse_target_pids=()
+for index in "${!SEEDS[@]}"; do
+    seed="${SEEDS[$index]}"; seed_syn="$SYN_PARENT/seed${seed}"; seed_fkd="$FKD_PARENT/seed${seed}"
+    gpu="$GPU0"; (( ${#random_coarse_target_pids[@]} == 1 )) && gpu="$GPU1"
+    validate_arm "$gpu" "random_coarse_target_pseed${RANDOM_PARTITION_SEED}" "$seed" \
+        "$seed_syn/random100_coarse_target_pseed${RANDOM_PARTITION_SEED}_ipc25" \
+        "$seed_fkd/random_coarse_target_pseed${RANDOM_PARTITION_SEED}_bs16_ipc25" \
+        "$LOGS/validate_random_coarse_target_pseed${RANDOM_PARTITION_SEED}_seed${seed}.log" \
+        "$PER_CLASS/random_coarse_target_pseed${RANDOM_PARTITION_SEED}_seed${seed}.json" \
+        & random_coarse_target_pids+=("$!")
+    if (( ${#random_coarse_target_pids[@]} == 2 || index == ${#SEEDS[@]} - 1 )); then
+        wait_jobs "${random_coarse_target_pids[@]}" || fail "random coarse-target post-eval batch failed"
+        random_coarse_target_pids=()
     fi
 done
 

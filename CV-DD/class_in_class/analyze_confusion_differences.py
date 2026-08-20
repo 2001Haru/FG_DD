@@ -19,13 +19,14 @@ sys.path.insert(0, ROOT)
 from models import ResNet18  # noqa: E402
 
 
-ARMS = ("baseline", "random", "coarse_target", "oracle")
+ARMS = ("baseline", "random", "coarse_target", "random_coarse_target", "oracle")
 COMPARISONS = {
     "oracle_minus_baseline": ("oracle", "baseline"),
     "random_minus_baseline": ("random", "baseline"),
     "oracle_minus_random": ("oracle", "random"),
     "coarse_target_minus_baseline": ("coarse_target", "baseline"),
     "oracle_minus_coarse_target": ("oracle", "coarse_target"),
+    "random_minus_random_coarse_target": ("random", "random_coarse_target"),
 }
 
 
@@ -39,6 +40,8 @@ def rank(values):
 def checkpoint_path(root, arm, seed, partition_seed):
     if arm == "random":
         experiment = f"class_in_class_random_pseed{partition_seed}_rseed{seed}"
+    elif arm == "random_coarse_target":
+        experiment = f"class_in_class_random_coarse_target_pseed{partition_seed}_rseed{seed}"
     else:
         experiment = f"class_in_class_{arm}_rseed{seed}"
     return root / "cifar20" / experiment / "model_best.pth.tar"

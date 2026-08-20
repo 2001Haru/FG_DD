@@ -56,15 +56,30 @@ def fine_centroid_distances(data_dir, checkpoint, hierarchy, workers):
         handle.remove()
     centroids = F.normalize(sums / counts.unsqueeze(1), dim=1)
 
+    superclass_centroids = F.normalize(torch.stack([
+        centroids[hierarchy["coarse_to_fine"][str(coarse)]].mean(dim=0)
+        for coarse in range(20)
+    ]), dim=1)
+    superclass_cosine = (1.0 - superclass_centroids @ superclass_centroids.T).clamp_min(0.0)
+
     distances = {}
     for coarse in range(20):
         fine_ids = hierarchy["coarse_to_fine"][str(coarse)]
         values = centroids[fine_ids]
         cosine = 1.0 - values @ values.T
         upper = cosine[torch.triu_indices(5, 5, offset=1).unbind()]
+        intra = upper.mean().item()
+        other_distances = superclass_cosine[coarse].clone()
+        other_distances[coarse] = float("inf")
+        nearest_distance, nearest_id = other_distances.min(dim=0)
+        inter = nearest_distance.item()
         distances[coarse] = {
-            "cosine_centroid_distance": upper.mean().item(),
+            "cosine_centroid_distance": intra,
             "cosine_centroid_distance_std": upper.std(unbiased=True).item(),
+            "nearest_other_superclass_id": nearest_id.item(),
+            "nearest_other_superclass_cosine_distance": inter,
+            "rho_inter_over_intra": inter / max(intra, 1e-12),
+            "fragmentation_over_margin": intra / max(inter, 1e-12),
         }
     return distances
 
@@ -131,6 +146,15 @@ def main():
             "fine_names": "|".join(hierarchy["fine_names"][fine]
                                    for fine in hierarchy["coarse_to_fine"][str(coarse)]),
             "fine_centroid_cosine_distance": distances[coarse]["cosine_centroid_distance"],
+            "nearest_other_superclass_id": distances[coarse]["nearest_other_superclass_id"],
+            "nearest_other_superclass_name": hierarchy["coarse_names"][
+                distances[coarse]["nearest_other_superclass_id"]
+            ],
+            "nearest_other_superclass_cosine_distance": distances[coarse][
+                "nearest_other_superclass_cosine_distance"
+            ],
+            "rho_inter_over_intra": distances[coarse]["rho_inter_over_intra"],
+            "fragmentation_over_margin": distances[coarse]["fragmentation_over_margin"],
             "baseline_mean": float(np.mean(baseline_values)),
             "baseline_std": float(np.std(baseline_values, ddof=1)),
             "random_mean": float(np.mean(random_values)),
@@ -164,6 +188,13 @@ def main():
     semantic_yerr = np.array([row["oracle_vs_random_std"] for row in rows])
     semantic_pearson = float(np.corrcoef(x, semantic_y)[0, 1])
     semantic_spearman = float(np.corrcoef(rank(x), rank(semantic_y))[0, 1])
+    rho = np.array([row["rho_inter_over_intra"] for row in rows])
+    rho_oracle_pearson = float(np.corrcoef(rho, y)[0, 1])
+    rho_oracle_spearman = float(np.corrcoef(rank(rho), rank(y))[0, 1])
+    rho_random_pearson = float(np.corrcoef(rho, random_y)[0, 1])
+    rho_random_spearman = float(np.corrcoef(rank(rho), rank(random_y))[0, 1])
+    rho_semantic_pearson = float(np.corrcoef(rho, semantic_y)[0, 1])
+    rho_semantic_spearman = float(np.corrcoef(rank(rho), rank(semantic_y))[0, 1])
     slope, intercept = np.polyfit(x, y, 1)
 
     fig, axis = plt.subplots(figsize=(11, 7))
@@ -221,6 +252,41 @@ def main():
     fig.savefig(output / "fine_distance_vs_semantic_residual.png", dpi=200)
     plt.close(fig)
 
+    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+    axes[0].errorbar(rho, y, yerr=yerr, fmt="o", capsize=3, alpha=0.75,
+                     label="Oracle - Baseline")
+    axes[0].errorbar(rho, random_y, yerr=random_yerr, fmt="s", capsize=3, alpha=0.75,
+                     label="Random - Baseline")
+    axes[0].axhline(0, color="black", linewidth=0.8)
+    axes[0].set_xlabel(r"$\rho$: nearest inter-superclass distance / within-superclass dispersion")
+    axes[0].set_ylabel("Gain over Baseline (Top1 points)")
+    axes[0].set_title(
+        f"Total gains vs relative margin\n"
+        f"Oracle Pearson={rho_oracle_pearson:.3f}; Random Pearson={rho_random_pearson:.3f}"
+    )
+    axes[0].legend()
+    axes[0].grid(alpha=0.2)
+
+    axes[1].errorbar(rho, semantic_y, yerr=semantic_yerr, fmt="o", capsize=3, alpha=0.8)
+    rho_line = np.linspace(rho.min(), rho.max(), 100)
+    rho_slope, rho_intercept = np.polyfit(rho, semantic_y, 1)
+    axes[1].plot(rho_line, rho_slope * rho_line + rho_intercept,
+                 linestyle="--", color="tab:purple")
+    axes[1].axhline(0, color="black", linewidth=0.8)
+    for row, x_value, y_value in zip(rows, rho, semantic_y):
+        axes[1].annotate(row["coarse_name"], (x_value, y_value), xytext=(4, 4),
+                         textcoords="offset points", fontsize=8)
+    axes[1].set_xlabel(r"$\rho$: nearest inter-superclass distance / within-superclass dispersion")
+    axes[1].set_ylabel("Oracle - Random semantic residual (Top1 points)")
+    axes[1].set_title(
+        f"Semantic residual vs relative margin\n"
+        f"Pearson={rho_semantic_pearson:.3f}, Spearman={rho_semantic_spearman:.3f}"
+    )
+    axes[1].grid(alpha=0.2)
+    fig.tight_layout()
+    fig.savefig(output / "relative_margin_vs_gains.png", dpi=200)
+    plt.close(fig)
+
     summary = {
         "recovery_seeds": args.recovery_seeds,
         "random_partition_seed": args.random_partition_seed,
@@ -237,6 +303,16 @@ def main():
         "spearman_distance_random_gain": random_spearman,
         "pearson_distance_oracle_vs_random": semantic_pearson,
         "spearman_distance_oracle_vs_random": semantic_spearman,
+        "relative_margin_definition": (
+            "rho = nearest cosine distance to another normalized superclass centroid / "
+            "mean pairwise cosine distance among the five normalized fine-class centroids"
+        ),
+        "pearson_rho_oracle_gain": rho_oracle_pearson,
+        "spearman_rho_oracle_gain": rho_oracle_spearman,
+        "pearson_rho_random_gain": rho_random_pearson,
+        "spearman_rho_random_gain": rho_random_spearman,
+        "pearson_rho_oracle_vs_random": rho_semantic_pearson,
+        "spearman_rho_oracle_vs_random": rho_semantic_spearman,
         "feature_distance": "mean pairwise cosine distance among five normalized fine-class centroids",
     }
     with (output / "summary.json").open("w", encoding="utf-8") as handle:

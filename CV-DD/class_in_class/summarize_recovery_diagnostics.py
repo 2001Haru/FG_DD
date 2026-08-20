@@ -64,10 +64,13 @@ def main():
     parser = argparse.ArgumentParser("Summarize CE/BN balance and image update scale from CV-DD recovery logs")
     parser.add_argument("--baseline-log", required=True)
     parser.add_argument("--oracle-log", required=True)
+    parser.add_argument("--random-log")
     args = parser.parse_args()
     baseline, oracle = load(args.baseline_log), load(args.oracle_log)
     summarize("baseline-coarse20", baseline)
     summarize("oracle-fine100-stratified", oracle)
+    if args.random_log:
+        summarize("random-pseudo100-stratified", load(args.random_log))
     print("\nCalibration targets:")
     print("  r_bn controls bn_to_ce_grad_ratio; compare this before scalar loss ratios.")
     print("  lr controls relative_update_rms; compare at matched optimization progress.")

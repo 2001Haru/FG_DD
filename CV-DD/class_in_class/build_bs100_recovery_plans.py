@@ -6,6 +6,7 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser("Build equal-budget BS100 recovery plans")
     parser.add_argument("--mapping", required=True)
+    parser.add_argument("--random-mapping")
     parser.add_argument("--output-dir", required=True)
     args = parser.parse_args()
     with Path(args.mapping).open(encoding="utf-8") as handle:
@@ -33,10 +34,30 @@ def main():
         ]
         oracle_batches.append(entries)
 
-    for name, batches, classes, ipc in (
+    random_batches = None
+    if args.random_mapping:
+        with Path(args.random_mapping).open(encoding="utf-8") as handle:
+            random_hierarchy = json.load(handle)
+        random_batches = []
+        for batch_id in range(5):
+            random_batches.append([
+                {
+                    "class_id": pseudo_id,
+                    "coarse_id": int(random_hierarchy["fine_to_coarse"][str(pseudo_id)]),
+                    "image_id": batch_id,
+                    "patch_id": batch_id,
+                }
+                for pseudo_id in range(100)
+            ])
+
+    plans = [
         ("baseline_coarse20_ipc25", baseline_batches, 20, 25),
         ("oracle_fine100_ipc5", oracle_batches, 100, 5),
-    ):
+    ]
+    if random_batches is not None:
+        partition_seed = int(random_hierarchy["partition_seed"])
+        plans.append((f"random_pseudo100_pseed{partition_seed}_ipc5", random_batches, 100, 5))
+    for name, batches, classes, ipc in plans:
         flat = batches[0] + batches[1] + batches[2] + batches[3] + batches[4]
         counts = {class_id: 0 for class_id in range(classes)}
         for entry in flat:

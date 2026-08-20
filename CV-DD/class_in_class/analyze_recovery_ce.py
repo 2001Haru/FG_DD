@@ -101,7 +101,7 @@ def terminal_summary(records):
                          "normalized_ce_auc": normalized_auc})
 
     result = {"definition": "CE at the final recovery iteration; no CE matching was applied"}
-    for arm in ("baseline", "oracle"):
+    for arm in sorted({row["arm"] for row in terminal}):
         arm_rows = [row for row in terminal if row["arm"] == arm]
         all_values = [row["ce"] for row in arm_rows]
         normalized_values = [row["ce_over_initial"] for row in arm_rows]
@@ -147,8 +147,8 @@ def plot_curve(rows, output):
         print("matplotlib unavailable; CSV/JSON CE outputs were still written")
         return
     fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.6))
-    colors = {"baseline": "#3569b0", "oracle": "#d04a35"}
-    for arm in ("baseline", "oracle"):
+    colors = {"baseline": "#3569b0", "oracle": "#d04a35", "random": "#3b9853"}
+    for arm in sorted({row["arm"] for row in rows}):
         selected = [row for row in rows if row["arm"] == arm]
         x = [row["iteration"] for row in selected]
         median = [max(row["median_ce"], 1e-12) for row in selected]
@@ -179,6 +179,7 @@ def main():
     parser = argparse.ArgumentParser("Export class-in-class recovery CE curves and terminal values")
     parser.add_argument("--synthetic-parent", required=True)
     parser.add_argument("--seeds", nargs="+", type=int, required=True)
+    parser.add_argument("--random-partition-seed", type=int)
     parser.add_argument("--output-dir", required=True)
     args = parser.parse_args()
     synthetic_parent, output = Path(args.synthetic_parent), Path(args.output_dir)
@@ -192,6 +193,12 @@ def main():
         records.extend(load_records(
             seed_root / "oracle_fine100_ipc5" / "recovery_diagnostics.jsonl", "oracle", seed
         ))
+        if args.random_partition_seed is not None:
+            random_diagnostics = seed_root / (
+                f"random_pseudo100_pseed{args.random_partition_seed}_ipc5"
+            ) / "recovery_diagnostics.jsonl"
+            if random_diagnostics.is_file():
+                records.extend(load_records(random_diagnostics, "random", seed))
     initial_ce = {}
     for record in records:
         key = (record["arm"], record["seed"], record["batch_id"])

@@ -108,25 +108,32 @@ def main():
         hierarchy = json.load(handle)
     distances = fine_centroid_distances(args.fine_data, args.fine_teacher, hierarchy, args.workers)
 
-    baseline_by_seed, oracle_by_seed, random_by_seed, overall = {}, {}, {}, []
+    baseline_by_seed, oracle_by_seed, random_by_seed, coarse_target_by_seed, overall = {}, {}, {}, {}, []
     for seed in args.recovery_seeds:
         baseline_top1, baseline = load_accuracy(Path(args.per_class_dir) / f"baseline_seed{seed}.json")
         oracle_top1, oracle = load_accuracy(Path(args.per_class_dir) / f"oracle_seed{seed}.json")
         random_top1, random_arm = load_accuracy(
             Path(args.per_class_dir) / f"random_pseed{args.random_partition_seed}_seed{seed}.json"
         )
+        coarse_target_top1, coarse_target = load_accuracy(
+            Path(args.per_class_dir) / f"coarse_target_seed{seed}.json"
+        )
         baseline_by_seed[seed], oracle_by_seed[seed] = baseline, oracle
         random_by_seed[seed] = random_arm
+        coarse_target_by_seed[seed] = coarse_target
         oracle_gain = oracle_top1 - baseline_top1
         random_gain = random_top1 - baseline_top1
         overall.append({
             "seed": seed,
             "baseline_top1": baseline_top1,
             "random_top1": random_top1,
+            "coarse_target_top1": coarse_target_top1,
             "oracle_top1": oracle_top1,
             "random_gain": random_gain,
             "oracle_gain": oracle_gain,
             "oracle_vs_random": oracle_top1 - random_top1,
+            "coarse_target_gain": coarse_target_top1 - baseline_top1,
+            "oracle_vs_coarse_target": oracle_top1 - coarse_target_top1,
             "gain": oracle_gain,
         })
 
@@ -134,12 +141,17 @@ def main():
     for coarse in range(20):
         baseline_values = [baseline_by_seed[seed][coarse] for seed in args.recovery_seeds]
         random_values = [random_by_seed[seed][coarse] for seed in args.recovery_seeds]
+        coarse_target_values = [coarse_target_by_seed[seed][coarse] for seed in args.recovery_seeds]
         oracle_values = [oracle_by_seed[seed][coarse] for seed in args.recovery_seeds]
         oracle_gains = [oracle - baseline for oracle, baseline in zip(oracle_values, baseline_values)]
         random_gains = [random_arm - baseline for random_arm, baseline
                         in zip(random_values, baseline_values)]
         oracle_vs_random = [oracle - random_arm for oracle, random_arm
                             in zip(oracle_values, random_values)]
+        coarse_target_gains = [value - baseline for value, baseline
+                               in zip(coarse_target_values, baseline_values)]
+        oracle_vs_coarse_target = [oracle - value for oracle, value
+                                   in zip(oracle_values, coarse_target_values)]
         rows.append({
             "coarse_id": coarse,
             "coarse_name": hierarchy["coarse_names"][coarse],
@@ -159,6 +171,8 @@ def main():
             "baseline_std": float(np.std(baseline_values, ddof=1)),
             "random_mean": float(np.mean(random_values)),
             "random_std": float(np.std(random_values, ddof=1)),
+            "coarse_target_mean": float(np.mean(coarse_target_values)),
+            "coarse_target_std": float(np.std(coarse_target_values, ddof=1)),
             "oracle_mean": float(np.mean(oracle_values)),
             "oracle_std": float(np.std(oracle_values, ddof=1)),
             "random_paired_gain_mean": float(np.mean(random_gains)),
@@ -167,6 +181,10 @@ def main():
             "paired_gain_std": float(np.std(oracle_gains, ddof=1)),
             "oracle_vs_random_mean": float(np.mean(oracle_vs_random)),
             "oracle_vs_random_std": float(np.std(oracle_vs_random, ddof=1)),
+            "coarse_target_paired_gain_mean": float(np.mean(coarse_target_gains)),
+            "coarse_target_paired_gain_std": float(np.std(coarse_target_gains, ddof=1)),
+            "oracle_vs_coarse_target_mean": float(np.mean(oracle_vs_coarse_target)),
+            "oracle_vs_coarse_target_std": float(np.std(oracle_vs_coarse_target, ddof=1)),
         })
 
     with (output / "superclass_results.csv").open("w", newline="", encoding="utf-8") as handle:
@@ -297,6 +315,10 @@ def main():
         "overall_random_gain_std": float(np.std([item["random_gain"] for item in overall], ddof=1)),
         "overall_oracle_vs_random_mean": float(np.mean([item["oracle_vs_random"] for item in overall])),
         "overall_oracle_vs_random_std": float(np.std([item["oracle_vs_random"] for item in overall], ddof=1)),
+        "overall_coarse_target_gain_mean": float(np.mean([item["coarse_target_gain"] for item in overall])),
+        "overall_coarse_target_gain_std": float(np.std([item["coarse_target_gain"] for item in overall], ddof=1)),
+        "overall_oracle_vs_coarse_target_mean": float(np.mean([item["oracle_vs_coarse_target"] for item in overall])),
+        "overall_oracle_vs_coarse_target_std": float(np.std([item["oracle_vs_coarse_target"] for item in overall], ddof=1)),
         "pearson_distance_gain": pearson,
         "spearman_distance_gain": spearman,
         "pearson_distance_random_gain": random_pearson,

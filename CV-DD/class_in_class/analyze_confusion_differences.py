@@ -19,11 +19,13 @@ sys.path.insert(0, ROOT)
 from models import ResNet18  # noqa: E402
 
 
-ARMS = ("baseline", "random", "oracle")
+ARMS = ("baseline", "random", "coarse_target", "oracle")
 COMPARISONS = {
     "oracle_minus_baseline": ("oracle", "baseline"),
     "random_minus_baseline": ("random", "baseline"),
     "oracle_minus_random": ("oracle", "random"),
+    "coarse_target_minus_baseline": ("coarse_target", "baseline"),
+    "oracle_minus_coarse_target": ("oracle", "coarse_target"),
 }
 
 
@@ -240,7 +242,8 @@ def main():
             writer.writeheader(); writer.writerows(mutual_pairs)
 
     rho = np.array([float(feature_rows[i]["rho_inter_over_intra"]) for i in range(20)])
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5.5), sharex=True)
+    fig, axes = plt.subplots(1, len(COMPARISONS), figsize=(6 * len(COMPARISONS), 5.5),
+                             sharex=True)
     for axis, comparison in zip(axes, COMPARISONS):
         f1_mean, f1_std = comparison_f1[comparison]
         axis.errorbar(rho, 100 * f1_mean, yerr=100 * f1_std, fmt="o", capsize=3)

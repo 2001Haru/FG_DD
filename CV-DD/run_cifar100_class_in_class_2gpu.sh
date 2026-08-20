@@ -33,6 +33,7 @@ FINE_MODELS="$MODELS/fine100"; COARSE_MODELS="$MODELS/coarse20"
 RANDOM_MODELS="$MODELS/random100_seed${RANDOM_PARTITION_SEED}"
 FINE_PATCH_ROOT="$PATCHES/fine100"; COARSE_PATCH_ROOT="$PATCHES/coarse20"
 RANDOM_PATCH_ROOT="$PATCHES/random100_seed${RANDOM_PARTITION_SEED}"
+COARSE_TARGET_PATCH_ROOT="$PATCHES/fine100_marginalized_coarse20"
 BASE_PLAN="$PLANS/baseline_coarse20_ipc25.json"; ORACLE_PLAN="$PLANS/oracle_fine100_ipc5.json"
 RANDOM_PLAN="$PLANS/random_pseudo100_pseed${RANDOM_PARTITION_SEED}_ipc5.json"
 mkdir -p "$EXP_ROOT" "$MODELS" "$PATCHES" "$PLANS" "$SYN_PARENT" "$FKD_PARENT" "$OUTPUT" "$LOGS"
@@ -112,23 +113,37 @@ fi
 
 generate_patches() {
     local gpu="$1" data="$2" teacher="$3" classes="$4" ipc="$5" root="$6" log="$7"
+    local teacher_classes="${8:-}" teacher_mapping="${9:-}"
+    local extra_args=()
+    [[ -n "$teacher_classes" ]] && extra_args+=(--teacher-num-classes "$teacher_classes")
+    [[ -n "$teacher_mapping" ]] && extra_args+=(--teacher-mapping "$teacher_mapping")
     local expected=$((classes*ipc)) directory="$root/medium" count=0
     [[ -d "$directory" ]] && count="$(find "$directory" -type f -name '*.jpg' | wc -l)"; (( count == expected )) && return
     CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT/class_in_class/generate_patches.py" --data-dir "$data" --teacher "$teacher" \
         --num-classes "$classes" --patches-per-class "$ipc" --candidate-images 100 --crops-per-image 5 \
-        --output-dir "$directory" --seed 42 > "$log" 2>&1
+        --output-dir "$directory" --seed 42 "${extra_args[@]}" > "$log" 2>&1
 }
 echo "[3/8] Generating fresh balanced patches"
 generate_patches "$GPU0" "$FINE_DATA" "$FINE_MODELS/ResNet18.pth" 100 5 "$FINE_PATCH_ROOT" "$LOGS/patches_fine100.log" & p0=$!
 generate_patches "$GPU1" "$COARSE_DATA" "$COARSE_MODELS/ResNet18.pth" 20 25 "$COARSE_PATCH_ROOT" "$LOGS/patches_coarse20.log" & p1=$!
 s0=0; s1=0; wait "$p0" || s0=$?; wait "$p1" || s1=$?; (( s0==0 && s1==0 )) || fail "patch generation failed"
 generate_patches "$GPU0" "$RANDOM_DATA" "$RANDOM_MODELS/ResNet18.pth" 100 5 "$RANDOM_PATCH_ROOT" "$LOGS/patches_random100.log" || fail "random patch generation failed"
+generate_patches "$GPU0" "$COARSE_DATA" "$FINE_MODELS/ResNet18.pth" 20 25 \
+    "$COARSE_TARGET_PATCH_ROOT" "$LOGS/patches_fine100_coarse_target.log" 100 "$MAPPING" \
+    || fail "Fine100 marginalized coarse-target patch generation failed"
 
 recover_arm() {
     local gpu="$1" plan="$2" teacher="$3" patches="$4" output="$5" seed="$6" lr="$7" rbn="$8" log="$9"
+    local teacher_classes="${10:-}" teacher_mapping="${11:-}"
+    local extra_args=() protocol_suffix=""
+    [[ -n "$teacher_classes" ]] && extra_args+=(--teacher-num-classes "$teacher_classes")
+    if [[ -n "$teacher_mapping" ]]; then
+        extra_args+=(--teacher-mapping "$teacher_mapping")
+        protocol_suffix=":teacher${teacher_classes}:mapping$(sha256sum "$teacher_mapping" | awk '{print $1}')"
+    fi
     local plan_hash marker expected; plan_hash="$(sha256sum "$plan" | awk '{print $1}')"; marker="$output/.recovery_protocol"
-    expected="$plan_hash:$seed:$lr:$rbn:$ITERATIONS"
+    expected="$plan_hash:$seed:$lr:$rbn:$ITERATIONS$protocol_suffix"
     if [[ -d "$output" ]] && find "$output" -type f -name '*.jpg' -print -quit | grep -q .; then
         [[ -f "$marker" ]] || fail "old recovery without marker: $output"
         [[ "$(tr -d '[:space:]' < "$marker")" == "$expected" ]] || fail "protocol mismatch; archive $output"
@@ -137,7 +152,7 @@ recover_arm() {
     python -u "$ROOT/class_in_class/recover_from_plan.py" --plan "$plan" --teacher "$teacher" \
         --patch-root "$patches" --output-dir "$output" --iterations "$ITERATIONS" --lr "$lr" \
         --r-bn "$rbn" --first-bn-multiplier 10 --seed "$seed" \
-        --diagnostics-output "$output/recovery_diagnostics.jsonl" > "$log" 2>&1
+        --diagnostics-output "$output/recovery_diagnostics.jsonl" "${extra_args[@]}" > "$log" 2>&1
 }
 echo "[4/8] Recovery: paired seeds, five BS100 batches per arm"
 for seed in "${SEEDS[@]}"; do
@@ -158,12 +173,26 @@ for index in "${!SEEDS[@]}"; do
         random_pids=()
     fi
 done
+coarse_target_pids=()
+for index in "${!SEEDS[@]}"; do
+    seed="${SEEDS[$index]}"; seed_root="$SYN_PARENT/seed${seed}"
+    gpu="$GPU0"; (( ${#coarse_target_pids[@]} == 1 )) && gpu="$GPU1"
+    recover_arm "$gpu" "$BASE_PLAN" "$FINE_MODELS/ResNet18.pth" "$COARSE_TARGET_PATCH_ROOT" \
+        "$seed_root/fine100_coarse_target_ipc25" "$seed" "$BASE_RECOVERY_LR" "$BASE_R_BN" \
+        "$LOGS/recover_fine100_coarse_target_seed${seed}.log" 100 "$MAPPING" \
+        & coarse_target_pids+=("$!")
+    if (( ${#coarse_target_pids[@]} == 2 || index == ${#SEEDS[@]} - 1 )); then
+        wait_jobs "${coarse_target_pids[@]}" || fail "Fine100 coarse-target recovery batch failed"
+        coarse_target_pids=()
+    fi
+done
 for seed in "${SEEDS[@]}"; do
     seed_root="$SYN_PARENT/seed${seed}"
     python "$ROOT/class_in_class/summarize_recovery_diagnostics.py" \
         --baseline-log "$seed_root/baseline_coarse20_ipc25/recovery_diagnostics.jsonl" \
         --oracle-log "$seed_root/oracle_fine100_ipc5/recovery_diagnostics.jsonl" \
         --random-log "$seed_root/random_pseudo100_pseed${RANDOM_PARTITION_SEED}_ipc5/recovery_diagnostics.jsonl" \
+        --coarse-target-log "$seed_root/fine100_coarse_target_ipc25/recovery_diagnostics.jsonl" \
         > "$LOGS/recovery_balance_seed${seed}.txt"
 done
 {
@@ -188,7 +217,6 @@ for seed in "${SEEDS[@]}"; do
     if (( count==0 )); then python "$ROOT/class_in_class/merge_fine_synthetic_to_coarse.py" --fine-dir "$source" --mapping "$RANDOM_MAPPING" --output-dir "$merged" --fine-ipc 5
     elif (( count!=500 )); then fail "partial random merged directory: $merged"; fi
 done
-
 relabel_arm() {
     local gpu="$1" syn="$2" base="$3" final="$4" log="$5" count=0
     [[ -d "$final" ]] && count="$(find "$final" -type f -name 'batch_*.tar' | wc -l)"; (( count==9600 )) && return; (( count==0 )) || fail "partial FKD: $final"
@@ -216,6 +244,18 @@ for index in "${!SEEDS[@]}"; do
     if (( ${#random_pids[@]} == 2 || index == ${#SEEDS[@]} - 1 )); then
         wait_jobs "${random_pids[@]}" || fail "random relabel batch failed"
         random_pids=()
+    fi
+done
+coarse_target_pids=()
+for index in "${!SEEDS[@]}"; do
+    seed="${SEEDS[$index]}"; seed_syn="$SYN_PARENT/seed${seed}"; seed_fkd="$FKD_PARENT/seed${seed}"
+    gpu="$GPU0"; (( ${#coarse_target_pids[@]} == 1 )) && gpu="$GPU1"
+    relabel_arm "$gpu" "$seed_syn/fine100_coarse_target_ipc25" "$seed_fkd/coarse_target" \
+        "$seed_fkd/coarse_target_bs16_ipc25" "$LOGS/relabel_coarse_target_seed${seed}.log" \
+        & coarse_target_pids+=("$!")
+    if (( ${#coarse_target_pids[@]} == 2 || index == ${#SEEDS[@]} - 1 )); then
+        wait_jobs "${coarse_target_pids[@]}" || fail "coarse-target relabel batch failed"
+        coarse_target_pids=()
     fi
 done
 
@@ -249,6 +289,18 @@ for index in "${!SEEDS[@]}"; do
     if (( ${#random_pids[@]} == 2 || index == ${#SEEDS[@]} - 1 )); then
         wait_jobs "${random_pids[@]}" || fail "random post-eval batch failed"
         random_pids=()
+    fi
+done
+coarse_target_pids=()
+for index in "${!SEEDS[@]}"; do
+    seed="${SEEDS[$index]}"; seed_syn="$SYN_PARENT/seed${seed}"; seed_fkd="$FKD_PARENT/seed${seed}"
+    gpu="$GPU0"; (( ${#coarse_target_pids[@]} == 1 )) && gpu="$GPU1"
+    validate_arm "$gpu" coarse_target "$seed" "$seed_syn/fine100_coarse_target_ipc25" \
+        "$seed_fkd/coarse_target_bs16_ipc25" "$LOGS/validate_coarse_target_seed${seed}.log" \
+        "$PER_CLASS/coarse_target_seed${seed}.json" & coarse_target_pids+=("$!")
+    if (( ${#coarse_target_pids[@]} == 2 || index == ${#SEEDS[@]} - 1 )); then
+        wait_jobs "${coarse_target_pids[@]}" || fail "coarse-target post-eval batch failed"
+        coarse_target_pids=()
     fi
 done
 

@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import random
 import sys
@@ -23,6 +24,9 @@ def main():
     parser = argparse.ArgumentParser("Generate balanced RDED medium patches for CIFAR hierarchy experiments")
     parser.add_argument("--data-dir", required=True)
     parser.add_argument("--teacher", required=True)
+    parser.add_argument("--teacher-num-classes", type=int)
+    parser.add_argument("--teacher-mapping",
+                        help="fine_to_coarse hierarchy used to marginalize Teacher probabilities")
     parser.add_argument("--num-classes", type=int, required=True)
     parser.add_argument("--patches-per-class", type=int, required=True)
     parser.add_argument("--candidate-images", type=int, default=100)
@@ -43,9 +47,18 @@ def main():
     for path, target in dataset.samples:
         by_class[target].append(path)
 
-    model = ResNet18(args.num_classes)
+    teacher_num_classes = args.teacher_num_classes or args.num_classes
+    model = ResNet18(teacher_num_classes)
     model.load_state_dict(torch.load(args.teacher, map_location="cpu", weights_only=True), strict=True)
     model.to(device).eval()
+    teacher_to_target = None
+    if args.teacher_mapping:
+        hierarchy = json.loads(Path(args.teacher_mapping).read_text(encoding="utf-8"))
+        teacher_to_target = torch.tensor(
+            [int(hierarchy["fine_to_coarse"][str(index)])
+             for index in range(teacher_num_classes)],
+            dtype=torch.long, device=device,
+        )
     normalize = transforms.Normalize(MEAN, STD)
     cropper = transforms.RandomResizedCrop(16, ratio=(1.0, 1.0), antialias=True)
 
@@ -71,8 +84,25 @@ def main():
             with torch.no_grad():
                 for start in range(0, flat.shape[0], 512):
                     images = F.pad(flat[start:start + 512].to(device), (8, 8, 8, 8))
-                    labels = torch.full((images.shape[0],), class_id, dtype=torch.long, device=device)
-                    losses.append(F.cross_entropy(model(images), labels, reduction="none").cpu())
+                    logits = model(images)
+                    if teacher_to_target is None:
+                        labels = torch.full(
+                            (images.shape[0],), class_id, dtype=torch.long, device=device
+                        )
+                        batch_losses = F.cross_entropy(logits, labels, reduction="none")
+                    else:
+                        probabilities = logits.softmax(dim=1)
+                        target_probabilities = torch.zeros(
+                            images.shape[0], args.num_classes,
+                            dtype=probabilities.dtype, device=device,
+                        )
+                        target_probabilities.scatter_add_(
+                            1,
+                            teacher_to_target.unsqueeze(0).expand(images.shape[0], -1),
+                            probabilities,
+                        )
+                        batch_losses = -target_probabilities[:, class_id].clamp_min(1e-12).log()
+                    losses.append(batch_losses.cpu())
             losses = torch.cat(losses).reshape(len(selected_paths), args.crops_per_image)
             best_crop_loss, best_crop_id = losses.min(dim=1)
             best_image_ids = best_crop_loss.argsort()[:4]

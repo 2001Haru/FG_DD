@@ -147,7 +147,10 @@ def plot_curve(rows, output):
         print("matplotlib unavailable; CSV/JSON CE outputs were still written")
         return
     fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.6))
-    colors = {"baseline": "#3569b0", "oracle": "#d04a35", "random": "#3b9853"}
+    colors = {
+        "baseline": "#3569b0", "oracle": "#d04a35", "random": "#3b9853",
+        "coarse_target": "#8b5fbf",
+    }
     for arm in sorted({row["arm"] for row in rows}):
         selected = [row for row in rows if row["arm"] == arm]
         x = [row["iteration"] for row in selected]
@@ -199,6 +202,11 @@ def main():
             ) / "recovery_diagnostics.jsonl"
             if random_diagnostics.is_file():
                 records.extend(load_records(random_diagnostics, "random", seed))
+        coarse_target_diagnostics = (
+            seed_root / "fine100_coarse_target_ipc25" / "recovery_diagnostics.jsonl"
+        )
+        if coarse_target_diagnostics.is_file():
+            records.extend(load_records(coarse_target_diagnostics, "coarse_target", seed))
     initial_ce = {}
     for record in records:
         key = (record["arm"], record["seed"], record["batch_id"])

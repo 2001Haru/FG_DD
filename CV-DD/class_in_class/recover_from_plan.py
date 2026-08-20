@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
 
@@ -45,6 +46,9 @@ def main():
     parser = argparse.ArgumentParser("CV-DD SRe2L++ recovery adapter for explicit equal-budget batch plans")
     parser.add_argument("--plan", required=True)
     parser.add_argument("--teacher", required=True)
+    parser.add_argument("--teacher-num-classes", type=int)
+    parser.add_argument("--teacher-mapping",
+                        help="fine_to_coarse hierarchy used to marginalize Teacher probabilities")
     parser.add_argument("--patch-root", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--iterations", type=int, default=4000)
@@ -67,13 +71,22 @@ def main():
     torch.backends.cudnn.benchmark = False
     device = torch.device("cuda")
 
-    model = ResNet18(plan["num_classes"])
+    teacher_num_classes = args.teacher_num_classes or plan["num_classes"]
+    model = ResNet18(teacher_num_classes)
     model.load_state_dict(torch.load(args.teacher, map_location="cpu", weights_only=True), strict=True)
     model.to(device).eval()
     for parameter in model.parameters():
         parameter.requires_grad = False
     hooks = [BNFeatureHook(module) for module in model.modules() if isinstance(module, nn.BatchNorm2d)]
     criterion = nn.CrossEntropyLoss()
+    teacher_to_target = None
+    if args.teacher_mapping:
+        hierarchy = json.loads(Path(args.teacher_mapping).read_text(encoding="utf-8"))
+        teacher_to_target = torch.tensor(
+            [int(hierarchy["fine_to_coarse"][str(index)])
+             for index in range(teacher_num_classes)],
+            dtype=torch.long, device=device,
+        )
     augmentation = transforms.Compose([
         transforms.RandomResizedCrop(32),
         transforms.RandomHorizontalFlip(),
@@ -111,7 +124,21 @@ def main():
                 images = augmentation(inputs)
                 images = torch.roll(images, (random.randint(0, 4), random.randint(0, 4)), (2, 3))
                 optimizer.zero_grad()
-                ce = criterion(model(images), targets)
+                logits = model(images)
+                if teacher_to_target is None:
+                    ce = criterion(logits, targets)
+                else:
+                    probabilities = logits.softmax(dim=1)
+                    target_probabilities = torch.zeros(
+                        images.shape[0], plan["num_classes"],
+                        dtype=probabilities.dtype, device=device,
+                    )
+                    target_probabilities.scatter_add_(
+                        1,
+                        teacher_to_target.unsqueeze(0).expand(images.shape[0], -1),
+                        probabilities,
+                    )
+                    ce = F.nll_loss(target_probabilities.clamp_min(1e-12).log(), targets)
                 scales = [args.first_bn_multiplier] + [1.0] * (len(hooks) - 1)
                 bn_raw = sum(hook.r_feature * scale for hook, scale in zip(hooks, scales))
                 bn_weighted = args.r_bn * bn_raw

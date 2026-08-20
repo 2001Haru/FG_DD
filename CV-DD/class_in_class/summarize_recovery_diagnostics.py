@@ -65,12 +65,15 @@ def main():
     parser.add_argument("--baseline-log", required=True)
     parser.add_argument("--oracle-log", required=True)
     parser.add_argument("--random-log")
+    parser.add_argument("--coarse-target-log")
     args = parser.parse_args()
     baseline, oracle = load(args.baseline_log), load(args.oracle_log)
     summarize("baseline-coarse20", baseline)
     summarize("oracle-fine100-stratified", oracle)
     if args.random_log:
         summarize("random-pseudo100-stratified", load(args.random_log))
+    if args.coarse_target_log:
+        summarize("fine100-marginalized-coarse20", load(args.coarse_target_log))
     print("\nCalibration targets:")
     print("  r_bn controls bn_to_ce_grad_ratio; compare this before scalar loss ratios.")
     print("  lr controls relative_update_rms; compare at matched optimization progress.")

@@ -14,7 +14,7 @@ sys.path.insert(0, ROOT)
 from models import ResNet18  # noqa: E402
 
 
-def evaluate(model, data_root, split, workers):
+def evaluate(model, data_root, split, workers, fine_to_coarse, coarse_to_fine):
     dataset = datasets.ImageFolder(
         str(Path(data_root) / split),
         transforms.Compose([
@@ -26,53 +26,69 @@ def evaluate(model, data_root, split, workers):
         dataset, batch_size=512, shuffle=False, num_workers=workers,
         pin_memory=True, persistent_workers=workers > 0,
     )
-    pseudo_correct = coarse_correct = total = 0
+    native_correct = coarse_correct = total = 0
     within_parent_entropy_sum = 0.0
     with torch.no_grad():
-        for images, pseudo_targets in loader:
+        for images, native_targets in loader:
             images = images.cuda(non_blocking=True)
-            pseudo_targets = pseudo_targets.cuda(non_blocking=True)
+            native_targets = native_targets.cuda(non_blocking=True)
             logits = model(images)
             probabilities = logits.softmax(dim=1)
-            coarse_probabilities = probabilities.reshape(-1, 20, 5).sum(dim=2)
-            coarse_targets = pseudo_targets.div(5, rounding_mode="floor")
-            pseudo_correct += logits.argmax(dim=1).eq(pseudo_targets).sum().item()
+            coarse_probabilities = torch.zeros(
+                images.shape[0], 20, device=images.device, dtype=probabilities.dtype
+            )
+            coarse_probabilities.scatter_add_(
+                1, fine_to_coarse.unsqueeze(0).expand(images.shape[0], -1), probabilities
+            )
+            coarse_targets = fine_to_coarse[native_targets]
+            native_correct += logits.argmax(dim=1).eq(native_targets).sum().item()
             coarse_correct += coarse_probabilities.argmax(dim=1).eq(coarse_targets).sum().item()
 
-            parent_groups = probabilities.reshape(-1, 20, 5)[
-                torch.arange(images.shape[0], device=images.device), coarse_targets
-            ]
+            parent_groups = probabilities.gather(1, coarse_to_fine[coarse_targets])
             parent_groups = parent_groups / parent_groups.sum(dim=1, keepdim=True).clamp_min(1e-12)
             entropy = -(parent_groups * parent_groups.clamp_min(1e-12).log()).sum(dim=1)
             within_parent_entropy_sum += entropy.sum().item()
             total += images.shape[0]
     return {
         "images": total,
-        "pseudo100_top1": 100.0 * pseudo_correct / total,
+        "native100_top1": 100.0 * native_correct / total,
         "collapsed_coarse20_top1": 100.0 * coarse_correct / total,
-        "pseudo_top1_to_collapsed_coarse_top1_ratio": pseudo_correct / max(coarse_correct, 1),
+        "native_top1_to_collapsed_coarse_top1_ratio": native_correct / max(coarse_correct, 1),
         "within_parent_group_entropy": within_parent_entropy_sum / total,
         "max_random_group_entropy": float(torch.tensor(5.0).log()),
     }
 
 
 def main():
-    parser = argparse.ArgumentParser("Audit what a memorizing random100 Teacher generalizes")
+    parser = argparse.ArgumentParser("Audit native100 and hierarchy-collapsed coarse20 Teacher accuracy")
     parser.add_argument("--data-dir", required=True)
     parser.add_argument("--checkpoint", required=True)
+    parser.add_argument("--mapping", required=True)
     parser.add_argument("--output")
     parser.add_argument("--workers", type=int, default=8)
     args = parser.parse_args()
     model = ResNet18(100)
     model.load_state_dict(torch.load(args.checkpoint, map_location="cpu", weights_only=True), strict=True)
     model.cuda().eval()
+    hierarchy = json.loads(Path(args.mapping).read_text(encoding="utf-8"))
+    fine_to_coarse = torch.tensor(
+        [int(hierarchy["fine_to_coarse"][str(index)]) for index in range(100)],
+        dtype=torch.long, device="cuda",
+    )
+    coarse_to_fine = torch.tensor(
+        [hierarchy["coarse_to_fine"][str(index)] for index in range(20)],
+        dtype=torch.long, device="cuda",
+    )
     result = {
         "interpretation": (
-            "Pseudo IDs are random only within each parent. Collapsed coarse accuracy measures "
-            "generalized semantic information; pseudo100 accuracy measures random-group prediction."
+            "native100_top1 uses the dataset's 100-way labels; collapsed_coarse20_top1 sums "
+            "probabilities according to the supplied hierarchy before taking argmax."
         ),
-        "train": evaluate(model, args.data_dir, "train", args.workers),
-        "test": evaluate(model, args.data_dir, "test", args.workers),
+        "mapping": str(Path(args.mapping).resolve()),
+        "train": evaluate(model, args.data_dir, "train", args.workers,
+                          fine_to_coarse, coarse_to_fine),
+        "test": evaluate(model, args.data_dir, "test", args.workers,
+                         fine_to_coarse, coarse_to_fine),
     }
     serialized = json.dumps(result, indent=2)
     print(serialized)

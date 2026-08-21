@@ -15,7 +15,7 @@ EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/imagenette_cic_t}"
 DATA_ROOT="$EXP_ROOT/data"; MODEL_ROOT="$EXP_ROOT/models"; PATCH_ROOT="$EXP_ROOT/patches"
 SYN_ROOT="$EXP_ROOT/synthetic"; FKD_ROOT="$EXP_ROOT/fkd"; POST_ROOT="$EXP_ROOT/post_eval"
 PER_CLASS="$EXP_ROOT/per_class"; ANALYSIS="$EXP_ROOT/analysis"; LOGS="$ROOT/logs/imagenette_cic_t/full"
-VAL_DIR="${VAL_DIR:-$val_dir/imagenet-nette}"
+VAL_DIR="${VAL_DIR:-$val_dir/imagenet-nette/test}"
 mkdir -p "$PATCH_ROOT" "$SYN_ROOT" "$FKD_ROOT" "$POST_ROOT" "$PER_CLASS" "$ANALYSIS" "$LOGS"
 fail(){ echo "ImageNette CiC-T full experiment failed: $*" >&2; exit 1; }
 wait_jobs(){ local status=0 pid; for pid in "$@"; do wait "$pid" || status=$?; done; return "$status"; }

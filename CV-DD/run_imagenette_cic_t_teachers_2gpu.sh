@@ -72,7 +72,10 @@ audit_one(){
     local data="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}"
     local model_dir="$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}"
     local output="$AUDIT_ROOT/random_c${c}_teacher_audit.json"
-    [[ -f "$output" ]] && return
+    if [[ -f "$output" ]]; then
+        schema="$(python -c "import json; print(json.load(open('$output')).get('audit_schema_version', 0))")"
+        [[ "$schema" == "2" ]] && return
+    fi
     CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python "$ROOT/class_in_class/audit_imagenette_subclass_teacher.py" \
         --data-dir "$data" --checkpoint "$model_dir/ResNet18.pth" \

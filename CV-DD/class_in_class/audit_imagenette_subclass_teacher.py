@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 from pathlib import Path
 
 import torch
@@ -23,7 +24,7 @@ def evaluate(model, root, split, mapping, groups, workers):
         dataset, batch_size=256, shuffle=False, num_workers=workers,
         pin_memory=True, persistent_workers=workers > 0,
     )
-    native_correct = coarse_correct = total = 0; entropy_sum = 0.0
+    native_correct = coarse_correct = joint_correct = total = 0; entropy_sum = 0.0
     mapping = mapping.cuda(); groups = groups.cuda()
     for images, native_targets in loader:
         images = images.cuda(non_blocking=True); native_targets = native_targets.cuda(non_blocking=True)
@@ -35,17 +36,24 @@ def evaluate(model, root, split, mapping, groups, workers):
             1, mapping.unsqueeze(0).expand(images.shape[0], -1), probabilities
         )
         coarse_targets = mapping[native_targets]
-        native_correct += probabilities.argmax(1).eq(native_targets).sum().item()
-        coarse_correct += coarse_probabilities.argmax(1).eq(coarse_targets).sum().item()
+        native_matches = probabilities.argmax(1).eq(native_targets)
+        coarse_matches = coarse_probabilities.argmax(1).eq(coarse_targets)
+        native_correct += native_matches.sum().item()
+        coarse_correct += coarse_matches.sum().item()
+        joint_correct += (native_matches & coarse_matches).sum().item()
         within = probabilities.gather(1, groups[coarse_targets])
         within = within / within.sum(1, keepdim=True).clamp_min(1e-12)
         entropy_sum += (-(within * within.clamp_min(1e-12).log()).sum(1)).sum().item()
         total += images.shape[0]
     return {
         "images": total,
+        "native_correct": native_correct,
+        "collapsed_coarse_correct": coarse_correct,
+        "native_and_coarse_correct": joint_correct,
         "native_subclass_top1": 100.0 * native_correct / total,
         "collapsed_coarse10_top1": 100.0 * coarse_correct / total,
         "native_to_collapsed_hit_ratio": native_correct / max(coarse_correct, 1),
+        "conditional_native_given_coarse_correct": joint_correct / max(coarse_correct, 1),
         "within_parent_entropy": entropy_sum / total,
     }
 
@@ -70,13 +78,46 @@ def main():
     model = models.resnet18(weights=None); model.fc = nn.Linear(model.fc.in_features, classes)
     model.load_state_dict(torch.load(args.checkpoint, map_location="cpu", weights_only=True), strict=True)
     model.cuda().eval()
+    def binomial_test(k, n, probability):
+        if probability >= 1.0:
+            return {"z": 0.0 if k == n else float("-inf"),
+                    "one_sided_p_in_observed_direction": 1.0 if k == n else 0.0,
+                    "two_sided_p": 1.0 if k == n else 0.0}
+        observed = k / n
+        z = (observed - probability) / math.sqrt(probability * (1 - probability) / n)
+        log_masses = [
+            math.lgamma(n + 1) - math.lgamma(index + 1) - math.lgamma(n - index + 1)
+            + index * math.log(probability) + (n - index) * math.log1p(-probability)
+            for index in range(n + 1)
+        ]
+        observed_log_mass = log_masses[k]
+        two_sided = sum(
+            math.exp(value) for value in log_masses if value <= observed_log_mass + 1e-12
+        )
+        if observed < probability:
+            one_sided = sum(math.exp(log_masses[index]) for index in range(k + 1))
+            direction = "less"
+        else:
+            one_sided = sum(math.exp(log_masses[index]) for index in range(k, n + 1))
+            direction = "greater"
+        return {"z": z, "direction": direction,
+                "one_sided_p_in_observed_direction": min(one_sided, 1.0),
+                "two_sided_p": min(two_sided, 1.0)}
+
+    train = evaluate(model, Path(args.data_dir), "train", mapping, groups, args.workers)
+    val = evaluate(model, Path(args.data_dir), "val", mapping, groups, args.workers)
+    val["conditional_ratio_binomial_test"] = binomial_test(
+        val["native_and_coarse_correct"], val["collapsed_coarse_correct"],
+        1.0 / subclasses,
+    )
     result = {
+        "audit_schema_version": 2,
         "subclasses_per_coarse": subclasses,
         "num_pseudo_classes": classes,
         "expected_test_native_to_coarse_ratio": 1.0 / subclasses,
         "max_uniform_within_parent_entropy": float(torch.tensor(float(subclasses)).log()),
-        "train": evaluate(model, Path(args.data_dir), "train", mapping, groups, args.workers),
-        "val": evaluate(model, Path(args.data_dir), "val", mapping, groups, args.workers),
+        "train": train,
+        "val": val,
     }
     serialized = json.dumps(result, indent=2)
     output = Path(args.output); output.parent.mkdir(parents=True, exist_ok=True)

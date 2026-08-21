@@ -13,6 +13,8 @@ def main():
                      'val_native_top1':q['val']['native_subclass_top1'],
                      'val_coarse_top1':q['val']['collapsed_coarse10_top1'],
                      'val_native_to_coarse_ratio':q['val']['native_to_collapsed_hit_ratio'],
+                     'val_conditional_native_given_coarse':q['val']['conditional_native_given_coarse_correct'],
+                     'val_conditional_binomial_test':q['val']['conditional_ratio_binomial_test'],
                      'val_entropy':q['val']['within_parent_entropy']})
     result={'partition':'balanced random within each ImageNette parent class','teachers':rows}
     text=json.dumps(result,indent=2);out=Path(a.output);out.write_text(text+'\n');print(text)

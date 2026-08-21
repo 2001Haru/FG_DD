@@ -7,6 +7,10 @@ RSEEDS_TEXT="${RECOVERY_SEEDS:-41 42 43}"; read -r -a RSEEDS <<< "$RSEEDS_TEXT"
 SSEEDS_TEXT="${STUDENT_SEEDS:-42 43 44}"; read -r -a SSEEDS <<< "$SSEEDS_TEXT"
 PARTITION_SEED="${PARTITION_SEED:-42}"; TEACHER_SEED="${TEACHER_SEED:-42}"
 VIEW_SEED="${VIEW_SEED:-42}"; TEMPERATURE="${TEMPERATURE:-20}"
+# FKD batches are serialized as a unit: saved views, CutMix metadata and soft
+# labels must be loaded with exactly the same batch size.  ImageNette relabel
+# uses 10; gradient accumulation below only splits this batch for forward/backward.
+readonly FKD_BATCH_SIZE=10
 PATCH_SCORING_BATCH="${PATCH_SCORING_BATCH:-256}"
 PATCH_CROP_WORKERS="${PATCH_CROP_WORKERS:-16}"
 RELABEL_PERSISTENT_WORKERS="${RELABEL_PERSISTENT_WORKERS:-1}"
@@ -108,7 +112,7 @@ relabel_one(){
     local heads=$((10*c))
     local syn="$SYN_ROOT/cic_t_c${c}_ipc10_rseed${rseed}"
     local base="$FKD_ROOT/cic_t_c${c}_rseed${rseed}"
-    local final="${base}_bs10_ipc10"
+    local final="${base}_bs${FKD_BATCH_SIZE}_ipc10"
     local count=0
     local worker_args=()
     if [[ "$RELABEL_PERSISTENT_WORKERS" == "1" ]]; then
@@ -121,7 +125,7 @@ relabel_one(){
         --model-pool-dir "$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}" \
         --teacher-model-name ResNet18 --teacher-num-classes "$heads" \
         --teacher-mapping "$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}/hierarchy.json" \
-        --marginalize-temperature "$TEMPERATURE" --gpu 0 --batch-size 10 --workers "$WORKERS" \
+        --marginalize-temperature "$TEMPERATURE" --gpu 0 --batch-size "$FKD_BATCH_SIZE" --workers "$WORKERS" \
         "${worker_args[@]}" \
         --dataset-name imagenet-nette --epochs 300 --fkd-seed "$VIEW_SEED" --seed "$VIEW_SEED" \
         --min-scale-crops 0.08 --max-scale-crops 1 --use-fp16 --mode fkd_save --mix-type cutmix \
@@ -151,8 +155,8 @@ validate_one(){
     python -u "$ROOT/validate/train_fkd.py" --model ResNet18 --ipc 10 \
         --exp-name "imagenette_cic_t_c${c}_rseed${rseed}_sseed${sseed}" \
         --original-data-path "$SYN_ROOT/cic_t_c${c}_ipc10_rseed${rseed}" \
-        --fkd-path "$FKD_ROOT/cic_t_c${c}_rseed${rseed}_bs10_ipc10" \
-        --output-dir "$POST_ROOT" --batch-size 16 --epochs 300 --dataset-name imagenet-nette \
+        --fkd-path "$FKD_ROOT/cic_t_c${c}_rseed${rseed}_bs${FKD_BATCH_SIZE}_ipc10" \
+        --output-dir "$POST_ROOT" --batch-size "$FKD_BATCH_SIZE" --epochs 300 --dataset-name imagenet-nette \
         --gradient-accumulation-steps 2 --mix-type cutmix --cos --workers "$WORKERS" \
         --temperature "$TEMPERATURE" --fkd_seed "$VIEW_SEED" --adamw-weight-decay 0.01 \
         --train-seed "$sseed" --persistent-workers --val-dir "$VAL_DIR" --disable-wandb \

@@ -1,5 +1,6 @@
 import argparse
 import collections
+import json
 import os
 import random
 import numpy as np
@@ -91,7 +92,22 @@ def get_images(args, hook_for_display, device, num_call, is_first_ipc):
             ce_lis = []
             for model in recover_model_list:
                 outputs_recover = model(inputs_jit)
-                loss_ce = criterion(outputs_recover, targets)
+                if args.teacher_to_target is None:
+                    loss_ce = criterion(outputs_recover, targets)
+                else:
+                    probabilities = torch.softmax(outputs_recover, dim=1)
+                    coarse_probabilities = torch.zeros(
+                        outputs_recover.shape[0], args.ncls,
+                        dtype=probabilities.dtype, device=probabilities.device,
+                    )
+                    mapping = args.teacher_to_target.to(probabilities.device)
+                    coarse_probabilities.scatter_add_(
+                        1, mapping.unsqueeze(0).expand(outputs_recover.shape[0], -1),
+                        probabilities,
+                    )
+                    loss_ce = F.nll_loss(
+                        coarse_probabilities.clamp_min(1e-12).log(), targets
+                    )
                 ce_lis.append(loss_ce)
 
             loss_BN_lis = []
@@ -222,6 +238,10 @@ def parse_args():
                         help='where to store synthetic data')
     parser.add_argument('--model-pool-dir', type=str, default=None,
                         help='required when pretrained model type is offline')
+    parser.add_argument('--teacher-num-classes', type=int, default=None,
+                        help='Teacher output dimension when different from recovery target classes')
+    parser.add_argument('--teacher-mapping', type=str, default=None,
+                        help='fine_to_coarse mapping for probability marginalization in recovery CE')
     parser.add_argument('--patch-dir', type=str, default=None,
                         help='the directory where the patches are stored')
     parser.add_argument('--initialisation-dir', default=None, type=str,
@@ -379,6 +399,17 @@ def parse_args():
     else:
         raise ValueError('model setting not supported')
         
+    args.teacher_to_target = None
+    if args.teacher_mapping is not None:
+        with open(args.teacher_mapping, encoding='utf-8') as handle:
+            hierarchy = json.load(handle)
+        teacher_classes = args.teacher_num_classes or args.ncls
+        args.teacher_to_target = torch.tensor([
+            int(hierarchy['fine_to_coarse'][str(index)])
+            for index in range(teacher_classes)
+        ], dtype=torch.long)
+        if max(args.teacher_to_target.tolist()) + 1 != args.ncls:
+            raise RuntimeError('Teacher mapping target count does not match recovery ncls')
     return args
 
 

@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
-from torchvision import datasets, transforms
+from torchvision import datasets, models as torchvision_models, transforms
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -27,6 +27,10 @@ def main():
     parser.add_argument("--teacher-num-classes", type=int)
     parser.add_argument("--teacher-mapping",
                         help="fine_to_coarse hierarchy used to marginalize Teacher probabilities")
+    parser.add_argument("--teacher-architecture", choices=("cvdd", "torchvision"), default="cvdd")
+    parser.add_argument("--image-size", type=int, default=32)
+    parser.add_argument("--normalization", choices=("cifar100", "imagenet"), default="cifar100")
+    parser.add_argument("--scoring-batch-size", type=int, default=512)
     parser.add_argument("--num-classes", type=int, required=True)
     parser.add_argument("--patches-per-class", type=int, required=True)
     parser.add_argument("--candidate-images", type=int, default=100)
@@ -48,7 +52,11 @@ def main():
         by_class[target].append(path)
 
     teacher_num_classes = args.teacher_num_classes or args.num_classes
-    model = ResNet18(teacher_num_classes)
+    if args.teacher_architecture == "torchvision":
+        model = torchvision_models.resnet18(weights=None)
+        model.fc = torch.nn.Linear(model.fc.in_features, teacher_num_classes)
+    else:
+        model = ResNet18(teacher_num_classes)
     model.load_state_dict(torch.load(args.teacher, map_location="cpu", weights_only=True), strict=True)
     model.to(device).eval()
     teacher_to_target = None
@@ -59,8 +67,15 @@ def main():
              for index in range(teacher_num_classes)],
             dtype=torch.long, device=device,
         )
-    normalize = transforms.Normalize(MEAN, STD)
-    cropper = transforms.RandomResizedCrop(16, ratio=(1.0, 1.0), antialias=True)
+    mean, std = (([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                 if args.normalization == "imagenet" else (MEAN, STD))
+    normalize = transforms.Normalize(mean, std)
+    if args.image_size % 2:
+        raise ValueError("2x2 patch initialization requires an even image size")
+    crop_size = args.image_size // 2
+    cropper = transforms.RandomResizedCrop(
+        crop_size, ratio=(1.0, 1.0), antialias=True
+    )
 
     for class_id, paths in enumerate(by_class):
         class_dir = Path(args.output_dir) / f"{class_id:05d}"
@@ -82,8 +97,10 @@ def main():
             flat = candidates.flatten(0, 1)
             losses = []
             with torch.no_grad():
-                for start in range(0, flat.shape[0], 512):
-                    images = F.pad(flat[start:start + 512].to(device), (8, 8, 8, 8))
+                for start in range(0, flat.shape[0], args.scoring_batch_size):
+                    current = flat[start:start + args.scoring_batch_size].to(device)
+                    padding = crop_size // 2
+                    images = F.pad(current, (padding, padding, padding, padding))
                     logits = model(images)
                     if teacher_to_target is None:
                         labels = torch.full(
@@ -109,11 +126,13 @@ def main():
             patches = torch.stack([
                 candidates[image_id, best_crop_id[image_id]] for image_id in best_image_ids
             ])
-            canvas = torch.zeros(3, 32, 32)
-            canvas[:, :16, :16], canvas[:, :16, 16:] = patches[0], patches[1]
-            canvas[:, 16:, :16], canvas[:, 16:, 16:] = patches[2], patches[3]
-            for channel, (mean, std) in enumerate(zip(MEAN, STD)):
-                canvas[channel].mul_(std).add_(mean).clamp_(0, 1)
+            canvas = torch.zeros(3, args.image_size, args.image_size)
+            canvas[:, :crop_size, :crop_size] = patches[0]
+            canvas[:, :crop_size, crop_size:] = patches[1]
+            canvas[:, crop_size:, :crop_size] = patches[2]
+            canvas[:, crop_size:, crop_size:] = patches[3]
+            for channel, (channel_mean, channel_std) in enumerate(zip(mean, std)):
+                canvas[channel].mul_(channel_std).add_(channel_mean).clamp_(0, 1)
             Image.fromarray((canvas.numpy().transpose(1, 2, 0) * 255).astype(np.uint8)).save(target_path)
             print(f"class={class_id} patch={patch_id} saved", flush=True)
 

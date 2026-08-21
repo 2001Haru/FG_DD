@@ -247,24 +247,25 @@ def load_recover_model(recover_model_name_list, args, device):
         if args.pretrained_model_type == 'offline':
             if args.dataset_name in ('imagenet100', 'imagenet-nette', 'imagenet1k', 'CUB_imsize224'):
                 # code for imagenet100
+                teacher_ncls = args.teacher_num_classes or args.ncls
                 if curr_recover_model_name == 'ResNet18':
                     curr_recover_model = models.resnet18(weights=None)
-                    curr_recover_model.fc = nn.Linear(curr_recover_model.fc.in_features, args.ncls)
+                    curr_recover_model.fc = nn.Linear(curr_recover_model.fc.in_features, teacher_ncls)
                 elif curr_recover_model_name == 'ResNet50':
                     curr_recover_model = models.resnet50(weights=None)
-                    curr_recover_model.fc = nn.Linear(curr_recover_model.fc.in_features, args.ncls)
+                    curr_recover_model.fc = nn.Linear(curr_recover_model.fc.in_features, teacher_ncls)
                 elif curr_recover_model_name == 'Densenet121':
                     curr_recover_model = models.densenet121(weights=None)
                     in_features = curr_recover_model.classifier.in_features
-                    curr_recover_model.classifier = torch.nn.Linear(in_features, args.ncls)
+                    curr_recover_model.classifier = torch.nn.Linear(in_features, teacher_ncls)
                 elif curr_recover_model_name == 'MobileNetV2':
                     curr_recover_model = models.mobilenet_v2(weights=None)
                     in_features = curr_recover_model.classifier[-1].in_features
-                    curr_recover_model.classifier[-1] = torch.nn.Linear(in_features, args.ncls)
+                    curr_recover_model.classifier[-1] = torch.nn.Linear(in_features, teacher_ncls)
 
                 elif curr_recover_model_name == 'ShuffleNetV2':
                     curr_recover_model = models.shufflenet_v2_x1_0(weights=None)
-                    curr_recover_model.fc = nn.Linear(curr_recover_model.fc.in_features, args.ncls)
+                    curr_recover_model.fc = nn.Linear(curr_recover_model.fc.in_features, teacher_ncls)
                 else:
                     raise ValueError('Model not supported')
                 curr_recover_model_weight_path = os.path.join(args.model_pool_dir, curr_recover_model_name + '.pth')
@@ -274,7 +275,9 @@ def load_recover_model(recover_model_name_list, args, device):
                 curr_recover_model.load_state_dict(state_dict)
             # load process for cifar100, cifar10, and tinyimagenet
             else:
-                curr_recover_model = load_model(curr_recover_model_name, args.ncls)
+                curr_recover_model = load_model(
+                    curr_recover_model_name, args.teacher_num_classes or args.ncls
+                )
                 curr_recover_model_weight_path = os.path.join(args.model_pool_dir, curr_recover_model_name + '.pth')
                 state_dict = torch.load(curr_recover_model_weight_path, weights_only=True)
                 curr_recover_model.load_state_dict(state_dict)

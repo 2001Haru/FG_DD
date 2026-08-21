@@ -30,7 +30,9 @@ for c in 1 2 5 10; do
 done
 
 train_one(){
-    local gpu="$1" c="$2" classes=$((10*c))
+    local gpu="$1"
+    local c="$2"
+    local classes=$((10*c))
     local data="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}"
     local model_dir="$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}"
     manifest_hash="$(sha256sum "$data/hierarchy.json" | awk '{print $1}')"

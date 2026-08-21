@@ -103,8 +103,16 @@ def main():
         resolved_output, resolved_source = output.resolve(), source.resolve()
         if resolved_output == resolved_source or not output.name.startswith("random_c"):
             raise RuntimeError(f"refusing to remove unsafe output path: {resolved_output}")
-        print(f"Removing invalid derived partition ({reason}): {resolved_output}", flush=True)
-        shutil.rmtree(resolved_output)
+        archive = Path(
+            str(resolved_output) + f".invalid_{time.strftime('%Y%m%d_%H%M%S')}"
+        )
+        if archive.exists():
+            raise RuntimeError(f"invalid-partition archive already exists: {archive}")
+        output.rename(archive)
+        print(
+            f"Archived invalid derived partition ({reason}): {resolved_output} -> {archive}",
+            flush=True,
+        )
 
     split_counts, started = {}, time.time()
     for split_index, split in enumerate(("train", "val")):

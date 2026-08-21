@@ -78,7 +78,10 @@ def main():
         Path(args.data_dir), args.batch_size, args.workers, args.seed
     )
     if classes != args.classes:
-        raise RuntimeError(f"ImageFolder classes={classes}, expected {args.classes}")
+        raise RuntimeError(
+            f"ImageFolder classes={classes}, expected {args.classes}; "
+            f"data_dir={args.data_dir}; class_names={train_loader.dataset.classes}"
+        )
 
     model = models.resnet18(weights=None)
     model.fc = nn.Linear(model.fc.in_features, args.classes)

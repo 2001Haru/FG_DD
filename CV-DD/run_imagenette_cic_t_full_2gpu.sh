@@ -107,7 +107,9 @@ relabel_one(){
     local rseed="$3"
     local heads=$((10*c))
     local syn="$SYN_ROOT/cic_t_c${c}_ipc10_rseed${rseed}"
-    local base="$FKD_ROOT/cic_t_c${c}_rseed${rseed}" final="${base}_bs10_ipc10" count=0
+    local base="$FKD_ROOT/cic_t_c${c}_rseed${rseed}"
+    local final="${base}_bs10_ipc10"
+    local count=0
     local worker_args=()
     if [[ "$RELABEL_PERSISTENT_WORKERS" == "1" ]]; then
         worker_args+=(--persistent-workers --prefetch-factor 4)

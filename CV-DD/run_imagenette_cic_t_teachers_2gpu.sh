@@ -23,23 +23,25 @@ done
 echo "[1/3] Preparing random subclass ImageFolders"
 for c in 1 2 5 10; do
     output="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}"
-    if [[ ! -f "$output/hierarchy.json" ]]; then
-        python "$ROOT/class_in_class/prepare_imagenette_random_subclasses.py" \
-            --source-root "$SOURCE_ROOT" --output-dir "$output" \
-            --subclasses "$c" --seed "$PARTITION_SEED" \
-            > "$LOGS/partition_c${c}.log" 2>&1
-    fi
+    python "$ROOT/class_in_class/prepare_imagenette_random_subclasses.py" \
+        --source-root "$SOURCE_ROOT" --output-dir "$output" \
+        --subclasses "$c" --seed "$PARTITION_SEED" --repair-invalid-output \
+        > "$LOGS/partition_c${c}.log" 2>&1
 done
 
 train_one(){
     local gpu="$1" c="$2" classes=$((10*c))
     local data="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}"
     local model_dir="$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}"
-    if [[ -f "$model_dir/.training_complete.json" ]]; then return; fi
+    manifest_hash="$(sha256sum "$data/hierarchy.json" | awk '{print $1}')"
+    if [[ -f "$model_dir/.training_complete.json" ]]; then
+        marker_valid="$(python -c "import json; q=json.load(open('$model_dir/.training_complete.json')); print(int(q.get('epochs',-1))==$TEACHER_EPOCHS and int(q.get('classes',-1))==$classes and int(q.get('seed',-1))==$TEACHER_SEED and q.get('data_manifest_sha256')=='$manifest_hash')")"
+        [[ "$marker_valid" == "True" ]] && return
+    fi
     if [[ -f "$model_dir/ResNet18.pth" && -f "$model_dir/training_history.json" ]]; then
         completed_epochs="$(python -c "import json; print(len(json.load(open('$model_dir/training_history.json'))))")"
         if [[ "$completed_epochs" == "$TEACHER_EPOCHS" ]]; then
-            python -c "import json; json.dump({'epochs': $TEACHER_EPOCHS, 'classes': $classes, 'seed': $TEACHER_SEED, 'checkpoint': 'ResNet18.pth'}, open('$model_dir/.training_complete.json','w'), indent=2)"
+            python -c "import json; json.dump({'epochs': $TEACHER_EPOCHS, 'classes': $classes, 'seed': $TEACHER_SEED, 'checkpoint': 'ResNet18.pth', 'data_manifest_sha256': '$manifest_hash'}, open('$model_dir/.training_complete.json','w'), indent=2)"
             return
         fi
     fi

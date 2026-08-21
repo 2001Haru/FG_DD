@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import json
 import random
 import time
@@ -71,6 +72,8 @@ def main():
     torch.cuda.manual_seed_all(args.seed)
     torch.backends.cudnn.deterministic = True; torch.backends.cudnn.benchmark = False
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
+    manifest_path = Path(args.data_dir) / "hierarchy.json"
+    manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
     train_loader, val_loader, classes = make_loaders(
         Path(args.data_dir), args.batch_size, args.workers, args.seed
     )
@@ -121,6 +124,7 @@ def main():
             "classes": args.classes,
             "seed": args.seed,
             "checkpoint": "ResNet18.pth",
+            "data_manifest_sha256": manifest_sha256,
         }, indent=2) + "\n",
         encoding="utf-8",
     )

@@ -32,12 +32,50 @@ def balanced_chunks(items, groups):
     return chunks
 
 
+def existing_partition_is_valid(output, source, subclasses, seed):
+    manifest_path = output / "hierarchy.json"
+    if not manifest_path.is_file():
+        return False, "manifest missing"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as error:
+        return False, f"manifest unreadable: {error}"
+    expected_classes = 10 * subclasses
+    checks = (
+        (manifest.get("kind") == "imagenette_balanced_random_subclasses", "kind mismatch"),
+        (int(manifest.get("partition_seed", -1)) == seed, "seed mismatch"),
+        (int(manifest.get("subclasses_per_coarse", -1)) == subclasses, "C mismatch"),
+        (int(manifest.get("num_pseudo_classes", -1)) == expected_classes,
+         "class count mismatch in manifest"),
+        (Path(manifest.get("source_root", "")).resolve() == source.resolve(), "source mismatch"),
+    )
+    for passed, reason in checks:
+        if not passed:
+            return False, reason
+    for split in ("train", "val"):
+        directories = sorted(path for path in (output / split).iterdir() if path.is_dir()) \
+            if (output / split).is_dir() else []
+        expected_names = [f"{index:03d}" for index in range(expected_classes)]
+        if [path.name for path in directories] != expected_names:
+            return False, f"{split} directory set/count mismatch"
+        expected_counts = manifest.get("split_counts", {}).get(split, {})
+        for index, directory in enumerate(directories):
+            count = len([
+                path for path in directory.iterdir()
+                if path.is_file() and path.suffix.lower() in EXTENSIONS
+            ])
+            if count != int(expected_counts.get(str(index), -1)):
+                return False, f"{split}/{directory.name} image count mismatch"
+    return True, "valid"
+
+
 def main():
     parser = argparse.ArgumentParser("Prepare balanced random ImageNette subclasses")
     parser.add_argument("--source-root", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--subclasses", type=int, required=True)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--repair-invalid-output", action="store_true")
     args = parser.parse_args()
     source, output = Path(args.source_root), Path(args.output_dir)
     if args.subclasses < 1:
@@ -49,6 +87,24 @@ def main():
     coarse_names = [path.name for path in coarse_dirs]
     if sorted(path.name for path in (source / "val").iterdir() if path.is_dir()) != coarse_names:
         raise RuntimeError("train/val coarse class directories do not match")
+
+    valid, reason = existing_partition_is_valid(
+        output, source, args.subclasses, args.seed
+    ) if output.exists() else (False, "output missing")
+    if valid:
+        print(f"Existing partition is valid, reusing: {output}")
+        return
+    if output.exists():
+        if not args.repair_invalid_output:
+            raise RuntimeError(
+                f"invalid existing partition ({reason}): {output}; "
+                "pass --repair-invalid-output to rebuild"
+            )
+        resolved_output, resolved_source = output.resolve(), source.resolve()
+        if resolved_output == resolved_source or not output.name.startswith("random_c"):
+            raise RuntimeError(f"refusing to remove unsafe output path: {resolved_output}")
+        print(f"Removing invalid derived partition ({reason}): {resolved_output}", flush=True)
+        shutil.rmtree(resolved_output)
 
     split_counts, started = {}, time.time()
     for split_index, split in enumerate(("train", "val")):
@@ -108,6 +164,9 @@ def main():
     (output / "hierarchy.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
     )
+    valid, reason = existing_partition_is_valid(output, source, args.subclasses, args.seed)
+    if not valid:
+        raise RuntimeError(f"newly generated partition failed validation: {reason}")
     print(
         f"Prepared ImageNette random subclasses: C={args.subclasses}, "
         f"classes={total_classes}, train={manifest['source_train_images']}, "

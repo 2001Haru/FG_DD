@@ -9,6 +9,7 @@ PARTITION_SEED="${PARTITION_SEED:-42}"; TEACHER_SEED="${TEACHER_SEED:-42}"
 VIEW_SEED="${VIEW_SEED:-42}"; TEMPERATURE="${TEMPERATURE:-20}"
 PATCH_SCORING_BATCH="${PATCH_SCORING_BATCH:-256}"
 PATCH_CROP_WORKERS="${PATCH_CROP_WORKERS:-16}"
+RELABEL_PERSISTENT_WORKERS="${RELABEL_PERSISTENT_WORKERS:-1}"
 REAL_ROOT="${REAL_ROOT:-/linxi/dataset/VLCP/ImageNette}"
 EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/imagenette_cic_t}"
 DATA_ROOT="$EXP_ROOT/data"; MODEL_ROOT="$EXP_ROOT/models"; PATCH_ROOT="$EXP_ROOT/patches"
@@ -100,6 +101,10 @@ relabel_one(){
     local heads=$((10*c))
     local syn="$SYN_ROOT/cic_t_c${c}_ipc10_rseed${rseed}"
     local base="$FKD_ROOT/cic_t_c${c}_rseed${rseed}" final="${base}_bs10_ipc10" count=0
+    local worker_args=()
+    if [[ "$RELABEL_PERSISTENT_WORKERS" == "1" ]]; then
+        worker_args+=(--persistent-workers --prefetch-factor 4)
+    fi
     [[ -d "$final" ]] && count="$(find "$final" -type f -name 'batch_*.tar' | wc -l)"
     (( count==3000 )) && return; (( count==0 )) || fail "partial FKD $final ($count/3000)"
     CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
@@ -108,6 +113,7 @@ relabel_one(){
         --teacher-model-name ResNet18 --teacher-num-classes "$heads" \
         --teacher-mapping "$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}/hierarchy.json" \
         --marginalize-temperature "$TEMPERATURE" --gpu 0 --batch-size 10 --workers "$WORKERS" \
+        "${worker_args[@]}" \
         --dataset-name imagenet-nette --epochs 300 --fkd-seed "$VIEW_SEED" --seed "$VIEW_SEED" \
         --min-scale-crops 0.08 --max-scale-crops 1 --use-fp16 --mode fkd_save --mix-type cutmix \
         > "$LOGS/relabel_c${c}_rseed${rseed}.log" 2>&1

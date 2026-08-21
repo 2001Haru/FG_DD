@@ -67,16 +67,15 @@ def get_images(args, hook_for_display, device, num_call, is_first_ipc):
         optimizer = optim.Adam([{'params': [inputs], 'lr': args.lr}], betas=[0.5, 0.9], eps=1e-8)
         lr_scheduler = utils_re.lr_cosine_policy(args.lr, 0, iterations_per_layer)
         criterion = nn.CrossEntropyLoss().to(device)
+        aug_function = transforms.Compose([
+            transforms.RandomResizedCrop(args.input_size),
+            transforms.RandomHorizontalFlip(),
+        ])
         
         start_time = time.time()
 
         for iteration in range(iterations_per_layer):
             lr_scheduler(optimizer, iteration, iteration)
-            
-            aug_function = transforms.Compose([
-                transforms.RandomResizedCrop(args.input_size),
-                transforms.RandomHorizontalFlip(),
-            ])
             
             if args.apply_data_augmentation:
                 inputs_jit = aug_function(inputs)
@@ -87,7 +86,7 @@ def get_images(args, hook_for_display, device, num_call, is_first_ipc):
             off2 = random.randint(0, lim_1)
             inputs_jit = torch.roll(inputs_jit, shifts=(off1, off2), dims=(2, 3))
 
-            optimizer.zero_grad()
+            optimizer.zero_grad(set_to_none=True)
 
             ce_lis = []
             for model in recover_model_list:
@@ -137,7 +136,11 @@ def get_images(args, hook_for_display, device, num_call, is_first_ipc):
                     curr_BN_loss = loss_BN_lis[i]
                     weight = weight_list[i]
                     print(f"Model: {curr_recover_model_name}, CE loss: {curr_ce.item()}, BN loss: {curr_BN_loss.item()}, weight: {weight}")
-                print(f'time for previous iterations: {end_time-start_time}')
+                interval_iterations = 1 if iteration == 0 else save_every
+                elapsed = end_time - start_time
+                print(f'time for previous iterations: {elapsed}')
+                print(f'recovery_profile seconds_per_iter={elapsed/interval_iterations:.6f} '
+                      f'batch={targets.shape[0]} image_size={args.input_size}')
                 start_time = time.time()
 
                 if hook_for_display is not None:
@@ -434,6 +437,8 @@ if __name__ == '__main__':
         np.random.seed(args.seed)
         torch.manual_seed(args.seed)
         torch.cuda.manual_seed_all(args.seed)
+    if torch.cuda.is_available():
+        torch.backends.cudnn.benchmark = True
     print(args)
     #set up device
     device = 'cpu'

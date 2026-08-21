@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import random
+import time
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
@@ -52,6 +53,9 @@ parser.add_argument('--fkd-path',required=True, type=str,
                     help='the path to save the fkd soft labels')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
+parser.add_argument('--persistent-workers', action='store_true',
+                    help='keep DataLoader workers alive across relabel epochs')
+parser.add_argument('--prefetch-factor', type=int, default=2)
 parser.add_argument('-b', '--batch-size', default=4, type=int,
                     metavar='N',
                     help='mini-batch size (default: 256), this is the total '
@@ -304,10 +308,16 @@ def main_worker(gpu, ngpus_per_node, args):
     generator = torch.Generator()
     generator.manual_seed(args.fkd_seed)
     sampler = torch.utils.data.RandomSampler(train_dataset, generator=generator)
+    loader_options = dict(
+        num_workers=args.workers, pin_memory=True,
+        worker_init_fn=set_worker_sharing_strategy,
+        persistent_workers=args.persistent_workers and args.workers > 0,
+    )
+    if args.workers > 0:
+        loader_options['prefetch_factor'] = args.prefetch_factor
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=(sampler is None), sampler=sampler,
-        num_workers=args.workers, pin_memory=True,
-        worker_init_fn=set_worker_sharing_strategy)
+        **loader_options)
     
     if args.eval_mode == 'T':
         for model in teacher_model_lis:
@@ -337,8 +347,13 @@ def save(train_loader, model_lis, dir_path, args):
         
 
     """Generate soft labels and save"""
+    profile_started = time.time()
+    compute_seconds = 0.0
+    save_seconds = 0.0
+    batches = 0
     for batch_idx, (images, target, flip_status, coords_status) in enumerate(train_loader):
-        images = images.cuda()
+        compute_started = time.time()
+        images = images.cuda(non_blocking=True)
         split_point = int(images.shape[0] // 2)
         origin_images = images
         images, mix_index, mix_lam, mix_bbox = mix_aug(images, args)
@@ -370,10 +385,23 @@ def save(train_loader, model_lis, dir_path, args):
         
         if args.use_fp16:
             output = output.half()
-        
-        batch_config = [coords_status, flip_status, mix_index, mix_lam, mix_bbox, output.cpu()]
+        output_cpu = output.cpu()
+        compute_seconds += time.time() - compute_started
+
+        batch_config = [coords_status, flip_status, mix_index, mix_lam, mix_bbox, output_cpu]
         batch_config_path = os.path.join(dir_path, 'batch_{}.tar'.format(batch_idx))
+        save_started = time.time()
         torch.save(batch_config, batch_config_path)
+        save_seconds += time.time() - save_started
+        batches += 1
+    total_seconds = time.time() - profile_started
+    data_wait_seconds = max(0.0, total_seconds - compute_seconds - save_seconds)
+    print(
+        f"RELABEL_PROFILE batches={batches} total={total_seconds:.3f}s "
+        f"data_wait={data_wait_seconds:.3f}s teacher_compute={compute_seconds:.3f}s "
+        f"save_io={save_seconds:.3f}s",
+        flush=True,
+    )
 
 
 if __name__ == '__main__':

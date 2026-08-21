@@ -1,8 +1,11 @@
 import argparse
+import math
 import json
 import os
 import random
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -10,6 +13,8 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 from torchvision import datasets, models as torchvision_models, transforms
+from torchvision.transforms import InterpolationMode
+from torchvision.transforms import functional as TF
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -18,6 +23,29 @@ from models import ResNet18  # noqa: E402
 
 MEAN = [0.5071, 0.4867, 0.4408]
 STD = [0.2675, 0.2565, 0.2761]
+
+
+def sample_square_crop(image, rng, scale=(0.08, 1.0)):
+    width, height = image.size
+    area = width * height
+    for _ in range(10):
+        target_area = area * rng.uniform(*scale)
+        side = int(round(math.sqrt(target_area)))
+        if 0 < side <= width and side <= height:
+            top = rng.randint(0, height - side)
+            left = rng.randint(0, width - side)
+            return top, left, side, side
+    side = min(width, height)
+    return (height - side) // 2, (width - side) // 2, side, side
+
+
+def deterministic_crop_tensor(task):
+    image, params, crop_size, normalize = task
+    cropped = TF.resized_crop(
+        image, *params, size=[crop_size, crop_size],
+        interpolation=InterpolationMode.BILINEAR, antialias=True,
+    )
+    return normalize(TF.to_tensor(cropped))
 
 
 def main():
@@ -31,6 +59,8 @@ def main():
     parser.add_argument("--image-size", type=int, default=32)
     parser.add_argument("--normalization", choices=("cifar100", "imagenet"), default="cifar100")
     parser.add_argument("--scoring-batch-size", type=int, default=512)
+    parser.add_argument("--crop-workers", type=int, default=0,
+                        help="parallel deterministic CPU crop workers; 0 keeps legacy transform")
     parser.add_argument("--num-classes", type=int, required=True)
     parser.add_argument("--patches-per-class", type=int, required=True)
     parser.add_argument("--candidate-images", type=int, default=100)
@@ -59,6 +89,7 @@ def main():
         model = ResNet18(teacher_num_classes)
     model.load_state_dict(torch.load(args.teacher, map_location="cpu", weights_only=True), strict=True)
     model.to(device).eval()
+    torch.backends.cudnn.benchmark = True
     teacher_to_target = None
     if args.teacher_mapping:
         hierarchy = json.loads(Path(args.teacher_mapping).read_text(encoding="utf-8"))
@@ -77,7 +108,10 @@ def main():
         crop_size, ratio=(1.0, 1.0), antialias=True
     )
 
+    crop_executor = (ThreadPoolExecutor(max_workers=args.crop_workers)
+                     if args.crop_workers > 0 else None)
     for class_id, paths in enumerate(by_class):
+        image_cache = {}
         class_dir = Path(args.output_dir) / f"{class_id:05d}"
         class_dir.mkdir(parents=True, exist_ok=True)
         for patch_id in range(args.patches_per_class):
@@ -87,15 +121,43 @@ def main():
             rng = random.Random(args.seed + class_id * 10000 + patch_id)
             selected_paths = rng.sample(paths, min(args.candidate_images, len(paths)))
             candidates = []
+            crop_started = time.perf_counter()
+            cache_hits = 0
+            selected_images = []
             for path in selected_paths:
-                image = Image.open(path).convert("RGB")
-                candidates.append(torch.stack([
-                    normalize(transforms.functional.to_tensor(cropper(image)))
+                image = image_cache.get(path)
+                if image is None:
+                    with Image.open(path) as opened:
+                        image = opened.convert("RGB").copy()
+                    image_cache[path] = image
+                else:
+                    cache_hits += 1
+                selected_images.append(image)
+            if crop_executor is None:
+                candidates = torch.stack([
+                    torch.stack([
+                        normalize(transforms.functional.to_tensor(cropper(image)))
+                        for _ in range(args.crops_per_image)
+                    ])
+                    for image in selected_images
+                ])
+            else:
+                crop_rng = random.Random(
+                    args.seed + class_id * 10000 + patch_id + 1_000_000_007
+                )
+                tasks = [
+                    (image, sample_square_crop(image, crop_rng), crop_size, normalize)
+                    for image in selected_images
                     for _ in range(args.crops_per_image)
-                ]))
-            candidates = torch.stack(candidates)  # [N, crops, 3, 16, 16]
+                ]
+                transformed = list(crop_executor.map(deterministic_crop_tensor, tasks))
+                candidates = torch.stack(transformed).reshape(
+                    len(selected_images), args.crops_per_image, 3, crop_size, crop_size
+                )
             flat = candidates.flatten(0, 1)
             losses = []
+            crop_seconds = time.perf_counter() - crop_started
+            scoring_started = time.perf_counter()
             with torch.no_grad():
                 for start in range(0, flat.shape[0], args.scoring_batch_size):
                     current = flat[start:start + args.scoring_batch_size].to(device)
@@ -120,6 +182,8 @@ def main():
                         )
                         batch_losses = -target_probabilities[:, class_id].clamp_min(1e-12).log()
                     losses.append(batch_losses.cpu())
+            torch.cuda.synchronize()
+            scoring_seconds = time.perf_counter() - scoring_started
             losses = torch.cat(losses).reshape(len(selected_paths), args.crops_per_image)
             best_crop_loss, best_crop_id = losses.min(dim=1)
             best_image_ids = best_crop_loss.argsort()[:4]
@@ -134,7 +198,15 @@ def main():
             for channel, (channel_mean, channel_std) in enumerate(zip(mean, std)):
                 canvas[channel].mul_(channel_std).add_(channel_mean).clamp_(0, 1)
             Image.fromarray((canvas.numpy().transpose(1, 2, 0) * 255).astype(np.uint8)).save(target_path)
-            print(f"class={class_id} patch={patch_id} saved", flush=True)
+            print(
+                f"class={class_id} patch={patch_id} saved "
+                f"crop_io={crop_seconds:.2f}s scoring={scoring_seconds:.2f}s "
+                f"cache_hits={cache_hits}/{len(selected_paths)} "
+                f"cache_size={len(image_cache)}",
+                flush=True,
+            )
+    if crop_executor is not None:
+        crop_executor.shutdown(wait=True)
 
 
 if __name__ == "__main__":

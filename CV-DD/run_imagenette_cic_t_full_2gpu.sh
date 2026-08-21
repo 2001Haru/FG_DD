@@ -7,6 +7,8 @@ RSEEDS_TEXT="${RECOVERY_SEEDS:-41 42 43}"; read -r -a RSEEDS <<< "$RSEEDS_TEXT"
 SSEEDS_TEXT="${STUDENT_SEEDS:-42 43 44}"; read -r -a SSEEDS <<< "$SSEEDS_TEXT"
 PARTITION_SEED="${PARTITION_SEED:-42}"; TEACHER_SEED="${TEACHER_SEED:-42}"
 VIEW_SEED="${VIEW_SEED:-42}"; TEMPERATURE="${TEMPERATURE:-20}"
+PATCH_SCORING_BATCH="${PATCH_SCORING_BATCH:-256}"
+PATCH_CROP_WORKERS="${PATCH_CROP_WORKERS:-16}"
 REAL_ROOT="${REAL_ROOT:-/linxi/dataset/VLCP/ImageNette}"
 EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/imagenette_cic_t}"
 DATA_ROOT="$EXP_ROOT/data"; MODEL_ROOT="$EXP_ROOT/models"; PATCH_ROOT="$EXP_ROOT/patches"
@@ -40,7 +42,8 @@ patch_one(){
         --teacher-mapping "$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}/hierarchy.json" \
         --teacher-architecture torchvision --num-classes 10 --patches-per-class 10 \
         --candidate-images 100 --crops-per-image 5 --image-size 224 --normalization imagenet \
-        --scoring-batch-size 64 --output-dir "$output" --seed 42 \
+        --scoring-batch-size "$PATCH_SCORING_BATCH" --crop-workers "$PATCH_CROP_WORKERS" \
+        --output-dir "$output" --seed 42 \
         > "$LOGS/patch_c${c}.log" 2>&1
     count="$(find "$output" -type f -name '*.jpg' | wc -l)"
     (( count==100 )) || fail "C=$c patches incomplete after generation ($count/100)"

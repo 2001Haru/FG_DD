@@ -619,6 +619,8 @@ def export_per_class_accuracy(model, args, best_acc1):
     payload = {
         'best_top1': float(best_acc1),
         'num_classes': output_classes,
+        'validation_dir': os.path.abspath(args.val_dir),
+        'validation_images': len(args.val_loader.dataset),
         'primary_metric': ('collapsed_coarse20_top1'
                            if args.primary_eval_collapsed_coarse else 'native_top1'),
         'native_top1_at_best_checkpoint': 100.0 * native_correct / max(native_total, 1),

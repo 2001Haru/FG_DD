@@ -28,6 +28,13 @@ for c in 1 2 5 10; do
         || fail "C=$c Teacher is not marked complete"
 done
 [[ -d "$VAL_DIR" ]] || fail "missing official validation directory: $VAL_DIR"
+VAL_IMAGE_COUNT="$(find "$VAL_DIR" -type f \( -iname '*.jpeg' -o -iname '*.jpg' -o -iname '*.png' -o -iname '*.bmp' -o -iname '*.webp' \) | wc -l)"
+VAL_CLASS_COUNT="$(find "$VAL_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+[[ "$VAL_IMAGE_COUNT" == 3925 ]] \
+    || fail "post-eval VAL_DIR has $VAL_IMAGE_COUNT images, expected full ImageNette 3925: $VAL_DIR"
+[[ "$VAL_CLASS_COUNT" == 10 ]] \
+    || fail "post-eval VAL_DIR has $VAL_CLASS_COUNT class dirs, expected 10: $VAL_DIR"
+echo "Post-eval validation verified: path=$VAL_DIR images=$VAL_IMAGE_COUNT classes=$VAL_CLASS_COUNT"
 
 patch_one(){
     local gpu="$1"
@@ -129,7 +136,15 @@ done; done
 validate_one(){
     local gpu="$1" c="$2" rseed="$3" sseed="$4"
     local result="$PER_CLASS/c${c}_rseed${rseed}_sseed${sseed}.json"
-    [[ -f "$result" ]] && return
+    if [[ -f "$result" ]]; then
+        result_valid="$(python -c "import json,os; q=json.load(open('$result')); print(int(q.get('validation_images',-1))==$VAL_IMAGE_COUNT and os.path.realpath(q.get('validation_dir',''))==os.path.realpath('$VAL_DIR'))")"
+        if [[ "$result_valid" == "True" ]]; then
+            return
+        fi
+        archive="${result}.invalid_val_$(date +%Y%m%d_%H%M%S)"
+        mv "$result" "$archive"
+        echo "Archived post-eval result with unverified validation metadata: $archive"
+    fi
     CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT/validate/train_fkd.py" --model ResNet18 --ipc 10 \
         --exp-name "imagenette_cic_t_c${c}_rseed${rseed}_sseed${sseed}" \

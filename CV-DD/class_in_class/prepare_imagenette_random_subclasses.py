@@ -40,8 +40,8 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
     source, output = Path(args.source_root), Path(args.output_dir)
-    if args.subclasses < 2:
-        raise ValueError("subclasses must be at least 2")
+    if args.subclasses < 1:
+        raise ValueError("subclasses must be at least 1")
 
     coarse_dirs = sorted(path for path in (source / "train").iterdir() if path.is_dir())
     if len(coarse_dirs) != 10:

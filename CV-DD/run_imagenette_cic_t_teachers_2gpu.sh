@@ -21,7 +21,7 @@ for split in train val; do
 done
 
 echo "[1/3] Preparing random subclass ImageFolders"
-for c in 2 5 10; do
+for c in 1 2 5 10; do
     output="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}"
     if [[ ! -f "$output/hierarchy.json" ]]; then
         python "$ROOT/class_in_class/prepare_imagenette_random_subclasses.py" \
@@ -35,7 +35,14 @@ train_one(){
     local gpu="$1" c="$2" classes=$((10*c))
     local data="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}"
     local model_dir="$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}"
-    [[ -f "$model_dir/ResNet18.pth" ]] && return
+    if [[ -f "$model_dir/.training_complete.json" ]]; then return; fi
+    if [[ -f "$model_dir/ResNet18.pth" && -f "$model_dir/training_history.json" ]]; then
+        completed_epochs="$(python -c "import json; print(len(json.load(open('$model_dir/training_history.json'))))")"
+        if [[ "$completed_epochs" == "$TEACHER_EPOCHS" ]]; then
+            python -c "import json; json.dump({'epochs': $TEACHER_EPOCHS, 'classes': $classes, 'seed': $TEACHER_SEED, 'checkpoint': 'ResNet18.pth'}, open('$model_dir/.training_complete.json','w'), indent=2)"
+            return
+        fi
+    fi
     CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT/class_in_class/train_imagenette_subclass_teacher.py" \
         --data-dir "$data" --output-dir "$model_dir" --classes "$classes" \
@@ -43,14 +50,18 @@ train_one(){
         > "$LOGS/train_c${c}.log" 2>&1
 }
 
-echo "[2/3] Training C=2/5/10 subclass Teachers"
+echo "[2/3] Training C=2/5, then C=1/10 Teachers"
 pids=()
-for c in 2 5 10; do
+for c in 2 5; do
     gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
     train_one "$gpu" "$c" & pids+=("$!")
     if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail teacher_training; pids=(); fi
 done
 if (( ${#pids[@]} )); then wait_jobs "${pids[@]}" || fail teacher_training; fi
+pids=()
+train_one "$GPU0" 1 & pids+=("$!")
+train_one "$GPU1" 10 & pids+=("$!")
+wait_jobs "${pids[@]}" || fail teacher_training
 
 audit_one(){
     local gpu="$1" c="$2"
@@ -67,7 +78,7 @@ audit_one(){
 
 echo "[3/3] Auditing memorization and hierarchy collapse"
 pids=()
-for c in 2 5 10; do
+for c in 1 2 5 10; do
     gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
     audit_one "$gpu" "$c" & pids+=("$!")
     if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail teacher_audit; pids=(); fi

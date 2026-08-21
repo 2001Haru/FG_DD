@@ -4,7 +4,7 @@ from pathlib import Path
 def main():
     p=argparse.ArgumentParser();p.add_argument('--audit-dir',required=True);p.add_argument('--output',required=True);a=p.parse_args()
     root=Path(a.audit_dir); rows=[]
-    for c in (2,5,10):
+    for c in (1,2,5,10):
         q=json.loads((root/f'random_c{c}_teacher_audit.json').read_text())
         rows.append({'C':c,'heads':10*c,'expected_test_ratio':1/c,
                      'train_native_top1':q['train']['native_subclass_top1'],

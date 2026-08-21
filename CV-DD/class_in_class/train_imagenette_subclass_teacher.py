@@ -115,6 +115,15 @@ def main():
     (output / "training_history.json").write_text(
         json.dumps(history, indent=2) + "\n", encoding="utf-8"
     )
+    (output / ".training_complete.json").write_text(
+        json.dumps({
+            "epochs": args.epochs,
+            "classes": args.classes,
+            "seed": args.seed,
+            "checkpoint": "ResNet18.pth",
+        }, indent=2) + "\n",
+        encoding="utf-8",
+    )
     print(f"Teacher saved: {output / 'ResNet18.pth'}")
 
 

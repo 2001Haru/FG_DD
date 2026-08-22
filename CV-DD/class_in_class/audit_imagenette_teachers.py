@@ -281,6 +281,8 @@ def main():
     parser.add_argument("--official-checkpoint", required=True)
     parser.add_argument("--controlled-checkpoint", required=True)
     parser.add_argument("--controlled-hierarchy", required=True)
+    parser.add_argument("--official-label", default="official")
+    parser.add_argument("--controlled-label", default="controlled_c1")
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--temperature", type=float, default=20.0)
     parser.add_argument("--output", required=True)
@@ -290,23 +292,28 @@ def main():
     expected_classes = hierarchy["coarse_names"]
     official, official_state = load_teacher(args.official_checkpoint)
     controlled, controlled_state = load_teacher(args.controlled_checkpoint)
-    models_by_name = {"official": official, "controlled_c1": controlled}
+    if args.official_label == args.controlled_label:
+        raise ValueError("Teacher labels must be distinct")
+    models_by_name = {
+        args.official_label: official,
+        args.controlled_label: controlled,
+    }
     official_architecture = architecture_signature(official)
     controlled_architecture = architecture_signature(controlled)
     result = {
         "checkpoints": {
-            "official": {
+            args.official_label: {
                 "path": str(Path(args.official_checkpoint).resolve()),
                 "sha256": checkpoint_sha256(args.official_checkpoint),
             },
-            "controlled_c1": {
+            args.controlled_label: {
                 "path": str(Path(args.controlled_checkpoint).resolve()),
                 "sha256": checkpoint_sha256(args.controlled_checkpoint),
             },
         },
         "architecture": {
-            "official": official_architecture,
-            "controlled_c1": controlled_architecture,
+            args.official_label: official_architecture,
+            args.controlled_label: controlled_architecture,
             "exact_signature_match": (
                 official_architecture["signature_sha256"]
                 == controlled_architecture["signature_sha256"]

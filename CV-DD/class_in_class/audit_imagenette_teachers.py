@@ -50,7 +50,7 @@ def calibration_error(confidence, correct, bins=15):
 
 
 @torch.no_grad()
-def evaluate_pair(models_by_name, root, split, workers):
+def evaluate_pair(models_by_name, root, split, workers, temperature):
     transform = transforms.Compose([
         transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor(),
         transforms.Normalize(MEAN, STD),
@@ -61,8 +61,11 @@ def evaluate_pair(models_by_name, root, split, workers):
         pin_memory=True, persistent_workers=workers > 0,
     )
     storage = {
-        name: {"loss": 0.0, "correct1": 0, "correct5": 0,
+        name: {"loss": 0.0, "temperature_loss": 0.0,
+               "correct1": 0, "correct5": 0,
                "confidence": [], "correct": [], "entropy": [], "margin": [],
+               "logits_l2": [], "logits_std": [],
+               "temperature_confidence": [], "temperature_entropy": [],
                "class_correct": torch.zeros(10, dtype=torch.long),
                "class_total": torch.zeros(10, dtype=torch.long),
                "confusion": torch.zeros(10, 10, dtype=torch.long)}
@@ -80,12 +83,16 @@ def evaluate_pair(models_by_name, root, split, workers):
         for name, model in models_by_name.items():
             logits = model(images)
             probs = logits.softmax(1)
+            temperature_probs = (logits / temperature).softmax(1)
             prediction = probs.argmax(1)
             probabilities[name] = probs
             predictions[name] = prediction
             current = storage[name]
             current["loss"] += F.cross_entropy(
                 logits, targets_gpu, reduction="sum"
+            ).item()
+            current["temperature_loss"] += F.cross_entropy(
+                logits / temperature, targets_gpu, reduction="sum"
             ).item()
             current["correct1"] += prediction.eq(targets_gpu).sum().item()
             current["correct5"] += logits.topk(5, 1).indices.eq(
@@ -99,6 +106,15 @@ def evaluate_pair(models_by_name, root, split, workers):
                 (-(probs * probs.clamp_min(1e-12).log()).sum(1)).cpu()
             )
             current["margin"].append((sorted_probs[:, 0] - sorted_probs[:, 1]).cpu())
+            current["logits_l2"].append(logits.norm(dim=1).cpu())
+            current["logits_std"].append(logits.std(dim=1, unbiased=False).cpu())
+            current["temperature_confidence"].append(
+                temperature_probs.max(1).values.cpu()
+            )
+            current["temperature_entropy"].append(
+                (-(temperature_probs * temperature_probs.clamp_min(1e-12).log())
+                 .sum(1)).cpu()
+            )
             prediction_cpu = prediction.cpu()
             current["class_total"].scatter_add_(
                 0, targets, torch.ones_like(targets, dtype=torch.long)
@@ -125,14 +141,30 @@ def evaluate_pair(models_by_name, root, split, workers):
         correct = torch.cat(current["correct"])
         entropy = torch.cat(current["entropy"])
         margin = torch.cat(current["margin"])
+        logits_l2 = torch.cat(current["logits_l2"])
+        logits_std = torch.cat(current["logits_std"])
+        temperature_confidence = torch.cat(current["temperature_confidence"])
+        temperature_entropy = torch.cat(current["temperature_entropy"])
         metrics[name] = {
             "images": total,
             "top1": 100.0 * current["correct1"] / total,
             "top5": 100.0 * current["correct5"] / total,
             "cross_entropy": current["loss"] / total,
+            "negative_log_likelihood": current["loss"] / total,
             "mean_max_probability": confidence.mean().item(),
             "mean_entropy": entropy.mean().item(),
             "mean_top1_top2_margin": margin.mean().item(),
+            "mean_logits_l2_norm": logits_l2.mean().item(),
+            "std_logits_l2_norm": logits_l2.std(unbiased=False).item(),
+            "mean_within_sample_logits_std": logits_std.mean().item(),
+            f"temperature_{temperature:g}": {
+                "negative_log_likelihood": current["temperature_loss"] / total,
+                "mean_max_probability": temperature_confidence.mean().item(),
+                "mean_entropy": temperature_entropy.mean().item(),
+                "mean_entropy_over_log_num_classes": (
+                    temperature_entropy.mean().item() / math.log(10)
+                ),
+            },
             "ece_15_bins": calibration_error(confidence, correct),
             "per_class_top1": [
                 100.0 * correct_count.item() / max(total_count.item(), 1)
@@ -162,12 +194,84 @@ def state_comparison(left, right):
         denominator_right += b.square().sum().item()
         dot += (a * b).sum().item()
     return {
+        "state_dict_keys_exact_match": list(left.keys()) == list(right.keys()),
+        "state_dict_shapes_exact_match": (
+            {key: tuple(value.shape) for key, value in left.items()}
+            == {key: tuple(value.shape) for key, value in right.items()}
+        ),
         "global_relative_l2_official_denominator": math.sqrt(
             numerator / max(denominator_left, 1e-30)
         ),
         "global_cosine": dot / math.sqrt(
             max(denominator_left * denominator_right, 1e-30)
         ),
+    }
+
+
+def architecture_signature(model):
+    modules = [
+        {"name": name, "type": f"{module.__class__.__module__}.{module.__class__.__name__}"}
+        for name, module in model.named_modules()
+    ]
+    parameters = {
+        name: {"shape": list(parameter.shape), "dtype": str(parameter.dtype)}
+        for name, parameter in model.named_parameters()
+    }
+    canonical = json.dumps(
+        {"modules": modules, "parameters": parameters}, sort_keys=True
+    ).encode("utf-8")
+    return {
+        "root_type": f"{model.__class__.__module__}.{model.__class__.__name__}",
+        "total_parameters": sum(parameter.numel() for parameter in model.parameters()),
+        "trainable_parameters": sum(
+            parameter.numel() for parameter in model.parameters()
+            if parameter.requires_grad
+        ),
+        "module_count": len(modules),
+        "signature_sha256": hashlib.sha256(canonical).hexdigest(),
+        "modules": modules,
+        "parameter_shapes": parameters,
+    }
+
+
+def relative_l2(left, right):
+    left = left.float()
+    right = right.float()
+    return (left - right).norm().item() / max(left.norm().item(), 1e-30)
+
+
+def batchnorm_state_comparison(official_state, controlled_state):
+    prefixes = sorted(
+        key[:-len(".running_mean")]
+        for key in official_state
+        if key.endswith(".running_mean")
+    )
+    layers = []
+    for prefix in prefixes:
+        entry = {"layer": prefix}
+        for suffix in ("running_mean", "running_var", "weight", "bias"):
+            key = f"{prefix}.{suffix}"
+            entry[f"{suffix}_relative_l2_official_denominator"] = relative_l2(
+                official_state[key], controlled_state[key]
+            )
+        tracked_key = f"{prefix}.num_batches_tracked"
+        entry["official_num_batches_tracked"] = int(official_state[tracked_key])
+        entry["controlled_num_batches_tracked"] = int(controlled_state[tracked_key])
+        layers.append(entry)
+    return {
+        "layers": layers,
+        "mean_running_mean_relative_l2": sum(
+            layer["running_mean_relative_l2_official_denominator"] for layer in layers
+        ) / len(layers),
+        "mean_running_var_relative_l2": sum(
+            layer["running_var_relative_l2_official_denominator"] for layer in layers
+        ) / len(layers),
+        "mean_affine_weight_relative_l2": sum(
+            layer["weight_relative_l2_official_denominator"] for layer in layers
+        ) / len(layers),
+        "mean_affine_bias_relative_l2": sum(
+            layer["bias_relative_l2_official_denominator"] for layer in layers
+        ) / len(layers),
     }
 
 
@@ -178,6 +282,7 @@ def main():
     parser.add_argument("--controlled-checkpoint", required=True)
     parser.add_argument("--controlled-hierarchy", required=True)
     parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--temperature", type=float, default=20.0)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
 
@@ -186,6 +291,8 @@ def main():
     official, official_state = load_teacher(args.official_checkpoint)
     controlled, controlled_state = load_teacher(args.controlled_checkpoint)
     models_by_name = {"official": official, "controlled_c1": controlled}
+    official_architecture = architecture_signature(official)
+    controlled_architecture = architecture_signature(controlled)
     result = {
         "checkpoints": {
             "official": {
@@ -197,13 +304,26 @@ def main():
                 "sha256": checkpoint_sha256(args.controlled_checkpoint),
             },
         },
+        "architecture": {
+            "official": official_architecture,
+            "controlled_c1": controlled_architecture,
+            "exact_signature_match": (
+                official_architecture["signature_sha256"]
+                == controlled_architecture["signature_sha256"]
+            ),
+            "both_strictly_loaded_into_torchvision_resnet18": True,
+        },
         "state_dict_comparison": state_comparison(official_state, controlled_state),
+        "batchnorm_state_comparison": batchnorm_state_comparison(
+            official_state, controlled_state
+        ),
         "splits": {},
     }
     for split in ("train", "test"):
         print(f"Evaluating both Teachers on official {split}", flush=True)
         classes, metrics, comparison = evaluate_pair(
-            models_by_name, args.official_root, split, args.workers
+            models_by_name, args.official_root, split, args.workers,
+            args.temperature,
         )
         result["splits"][split] = {
             "class_order": classes,

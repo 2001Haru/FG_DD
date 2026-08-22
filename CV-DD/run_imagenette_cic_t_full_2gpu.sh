@@ -23,7 +23,13 @@ PER_CLASS="$EXP_ROOT/per_class"; ANALYSIS="$EXP_ROOT/analysis"; LOGS="$ROOT/logs
 VAL_DIR="${VAL_DIR:-$val_dir/imagenet-nette/test}"
 mkdir -p "$PATCH_ROOT" "$SYN_ROOT" "$FKD_ROOT" "$POST_ROOT" "$PER_CLASS" "$ANALYSIS" "$LOGS"
 fail(){ echo "ImageNette CiC-T full experiment failed: $*" >&2; exit 1; }
-wait_jobs(){ local status=0 pid; for pid in "$@"; do wait "$pid" || status=$?; done; return "$status"; }
+wait_jobs(){
+    local status=0 pid
+    for pid in "$@"; do
+        if ! wait "$pid"; then status=1; fi
+    done
+    return "$status"
+}
 
 for c in "${C_VALUES_ARRAY[@]}"; do
     data="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}"
@@ -47,10 +53,21 @@ patch_one(){
     local gpu="$1"
     local c="$2"
     local heads=$((10*c))
-    local output="$PATCH_ROOT/c${c}/medium" count=0
+    local patch_root="$PATCH_ROOT/c${c}"
+    local output="$patch_root/medium" count=0 archive
     [[ -d "$output" ]] && count="$(find "$output" -type f -name '*.jpg' | wc -l)"
-    (( count==100 )) && return
-    CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+    if (( count == 100 )) && python "$ROOT/class_in_class/validate_cvdd_patch_tree.py" \
+        --patch-dir "$patch_root" --classes 10 --patches-per-class 10 --image-size 224 \
+        > "$LOGS/patch_validate_c${c}.log" 2>&1; then
+        return
+    fi
+    if [[ -d "$patch_root" ]]; then
+        archive="${patch_root}.invalid_$(date +%Y%m%d_%H%M%S)"
+        [[ ! -e "$archive" ]] || fail "patch archive already exists: $archive"
+        mv "$patch_root" "$archive"
+        echo "Archived invalid C=$c patch tree: $patch_root -> $archive"
+    fi
+    if ! CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT/class_in_class/generate_patches.py" --data-dir "$REAL_ROOT" \
         --teacher "$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}/ResNet18.pth" \
         --teacher-num-classes "$heads" \
@@ -59,9 +76,18 @@ patch_one(){
         --candidate-images 100 --crops-per-image 5 --image-size 224 --normalization imagenet \
         --scoring-batch-size "$PATCH_SCORING_BATCH" --crop-workers "$PATCH_CROP_WORKERS" \
         --output-dir "$output" --seed 42 \
-        > "$LOGS/patch_c${c}.log" 2>&1
+        > "$LOGS/patch_c${c}.log" 2>&1; then
+        echo "C=$c patch generation process failed; see $LOGS/patch_c${c}.log" >&2
+        return 1
+    fi
     count="$(find "$output" -type f -name '*.jpg' | wc -l)"
-    (( count==100 )) || fail "C=$c patches incomplete after generation ($count/100)"
+    (( count==100 )) || { echo "C=$c patches incomplete after generation ($count/100)" >&2; return 1; }
+    if ! python "$ROOT/class_in_class/validate_cvdd_patch_tree.py" \
+        --patch-dir "$patch_root" --classes 10 --patches-per-class 10 --image-size 224 \
+        > "$LOGS/patch_validate_c${c}.log" 2>&1; then
+        echo "C=$c generated patch tree failed validation; see $LOGS/patch_validate_c${c}.log" >&2
+        return 1
+    fi
 }
 
 echo "[1/4] Teacher-specific coarse10 patches"
@@ -70,6 +96,7 @@ pids=(); for c in "${C_VALUES_ARRAY[@]}"; do
     patch_one "$gpu" "$c" & pids+=("$!")
     if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail patches; pids=(); fi
 done
+if (( ${#pids[@]} )); then wait_jobs "${pids[@]}" || fail patches; fi
 
 recover_one(){
     local gpu="$1"
@@ -77,19 +104,24 @@ recover_one(){
     local rseed="$3"
     local heads=$((10*c))
     local exp="cic_t_c${c}_ipc10_rseed${rseed}" output="$SYN_ROOT/cic_t_c${c}_ipc10_rseed${rseed}"
-    local count=0 marker="$output/.protocol"
+    local count=0 marker="$output/.protocol" patch_sha archive
     teacher="$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}/ResNet18.pth"
     mapping="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}/hierarchy.json"
-    expected="c=$c:rseed=$rseed:teacher=$(sha256sum "$teacher"|awk '{print $1}'):mapping=$(sha256sum "$mapping"|awk '{print $1}'):iter=4000"
+    patch_sha="$(find "$PATCH_ROOT/c${c}/medium" -type f -name '*.jpg' -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
+    expected="c=$c:rseed=$rseed:teacher=$(sha256sum "$teacher"|awk '{print $1}'):mapping=$(sha256sum "$mapping"|awk '{print $1}'):patch=$patch_sha:iter=4000"
     if [[ -d "$output" ]]; then
-        [[ -f "$marker" ]] || fail "missing protocol marker: $output"
-        [[ "$(tr -d '[:space:]' < "$marker")" == "$expected" ]] || fail "protocol mismatch: $output"
         count="$(find "$output" -type f -name '*.jpg' | wc -l)"
-        (( count==100 )) && return
-    else
-        mkdir -p "$output"; printf '%s\n' "$expected" > "$marker"
+        if [[ -f "$marker" && "$(tr -d '[:space:]' < "$marker")" == "$expected" ]]; then
+            (( count==100 )) && return
+        elif (( count > 0 )); then
+            archive="${output}.invalid_$(date +%Y%m%d_%H%M%S)"
+            [[ ! -e "$archive" ]] || { echo "synthetic archive already exists: $archive" >&2; return 1; }
+            mv "$output" "$archive"
+            echo "Archived synthetic data with stale patch protocol: $output -> $archive"
+        fi
     fi
-    CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+    mkdir -p "$output"; printf '%s\n' "$expected" > "$marker"
+    if ! CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT/recover/recover.py" --exp-name "$exp" --apply-data-augmentation \
         --dataset-name imagenet-nette --batch-size 10 --syn-data-path "$SYN_ROOT" \
         --patch-dir "$PATCH_ROOT/c${c}" --model-pool-dir "$(dirname "$teacher")" \
@@ -98,15 +130,21 @@ recover_one(){
         --voter-type equal --selected-size 1 --lr 0.25 --iteration 4000 --r-bn 0.01 \
         --store-best-images --ipc-start 0 --ipc-end 10 --initialisation-method Patches \
         --patch-diff medium --seed "$rseed" --skip-completed \
-        > "$LOGS/recover_c${c}_rseed${rseed}.log" 2>&1
+        > "$LOGS/recover_c${c}_rseed${rseed}.log" 2>&1; then
+        echo "C=$c rseed=$rseed recovery process failed; see $LOGS/recover_c${c}_rseed${rseed}.log" >&2
+        return 1
+    fi
+    count="$(find "$output" -type f -name '*.jpg' | wc -l)"
+    (( count == 100 )) || { echo "C=$c rseed=$rseed recovery incomplete ($count/100)" >&2; return 1; }
 }
 
-echo "[2/4] Recovery: 4 arms x 3 seeds"
+echo "[2/4] Recovery: C=${C_VALUES_ARRAY[*]}, seeds=${RSEEDS[*]}"
 pids=(); for rseed in "${RSEEDS[@]}"; do for c in "${C_VALUES_ARRAY[@]}"; do
     gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
     recover_one "$gpu" "$c" "$rseed" & pids+=("$!")
     if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail recovery; pids=(); fi
 done; done
+if (( ${#pids[@]} )); then wait_jobs "${pids[@]}" || fail recovery; fi
 
 relabel_one(){
     local gpu="$1"
@@ -116,14 +154,20 @@ relabel_one(){
     local syn="$SYN_ROOT/cic_t_c${c}_ipc10_rseed${rseed}"
     local base="$FKD_ROOT/cic_t_c${c}_rseed${rseed}"
     local final="${base}_bs${FKD_BATCH_SIZE}_ipc10"
-    local count=0
+    local count=0 archive
     local worker_args=()
     if [[ "$RELABEL_PERSISTENT_WORKERS" == "1" ]]; then
         worker_args+=(--persistent-workers --prefetch-factor 4)
     fi
     [[ -d "$final" ]] && count="$(find "$final" -type f -name 'batch_*.tar' | wc -l)"
-    (( count==3000 )) && return; (( count==0 )) || fail "partial FKD $final ($count/3000)"
-    CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+    (( count==3000 )) && return
+    if (( count > 0 )); then
+        archive="${final}.invalid_$(date +%Y%m%d_%H%M%S)"
+        [[ ! -e "$archive" ]] || { echo "FKD archive already exists: $archive" >&2; return 1; }
+        mv "$final" "$archive"
+        echo "Archived partial FKD ($count/3000): $final -> $archive"
+    fi
+    if ! CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT/relabel/relabel.py" --syn-data-path "$syn" --fkd-path "$base" \
         --model-pool-dir "$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}" \
         --teacher-model-name ResNet18 --teacher-num-classes "$heads" \
@@ -132,7 +176,12 @@ relabel_one(){
         "${worker_args[@]}" \
         --dataset-name imagenet-nette --epochs 300 --fkd-seed "$VIEW_SEED" --seed "$VIEW_SEED" \
         --min-scale-crops 0.08 --max-scale-crops 1 --use-fp16 --mode fkd_save --mix-type cutmix \
-        > "$LOGS/relabel_c${c}_rseed${rseed}.log" 2>&1
+        > "$LOGS/relabel_c${c}_rseed${rseed}.log" 2>&1; then
+        echo "C=$c rseed=$rseed relabel process failed; see $LOGS/relabel_c${c}_rseed${rseed}.log" >&2
+        return 1
+    fi
+    count="$(find "$final" -type f -name 'batch_*.tar' | wc -l)"
+    (( count == 3000 )) || { echo "C=$c rseed=$rseed FKD incomplete ($count/3000)" >&2; return 1; }
 }
 
 echo "[3/4] Relabel marg10"
@@ -141,6 +190,7 @@ pids=(); for rseed in "${RSEEDS[@]}"; do for c in "${C_VALUES_ARRAY[@]}"; do
     relabel_one "$gpu" "$c" "$rseed" & pids+=("$!")
     if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail relabel; pids=(); fi
 done; done
+if (( ${#pids[@]} )); then wait_jobs "${pids[@]}" || fail relabel; fi
 
 validate_one(){
     local gpu="$1" c="$2" rseed="$3" sseed="$4"
@@ -154,7 +204,7 @@ validate_one(){
         mv "$result" "$archive"
         echo "Archived post-eval result with unverified validation metadata: $archive"
     fi
-    CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+    if ! CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT/validate/train_fkd.py" --model ResNet18 --ipc 10 \
         --exp-name "imagenette_cic_t_c${c}_rseed${rseed}_sseed${sseed}" \
         --original-data-path "$SYN_ROOT/cic_t_c${c}_ipc10_rseed${rseed}" \
@@ -163,15 +213,20 @@ validate_one(){
         --gradient-accumulation-steps 2 --mix-type cutmix --cos --workers "$WORKERS" \
         --temperature "$TEMPERATURE" --fkd_seed "$VIEW_SEED" --adamw-weight-decay 0.01 \
         --train-seed "$sseed" --persistent-workers --val-dir "$VAL_DIR" --disable-wandb \
-        --per-class-output "$result" > "$LOGS/validate_c${c}_rseed${rseed}_sseed${sseed}.log" 2>&1
+        --per-class-output "$result" > "$LOGS/validate_c${c}_rseed${rseed}_sseed${sseed}.log" 2>&1; then
+        echo "C=$c rseed=$rseed sseed=$sseed post-eval failed; see validation log" >&2
+        return 1
+    fi
+    [[ -f "$result" ]] || { echo "post-eval completed without result: $result" >&2; return 1; }
 }
 
-echo "[4/4] Post-eval: 4 x 3 x 3"
+echo "[4/4] Post-eval: C=${C_VALUES_ARRAY[*]}, recovery=${RSEEDS[*]}, student=${SSEEDS[*]}"
 pids=(); for sseed in "${SSEEDS[@]}"; do for rseed in "${RSEEDS[@]}"; do for c in "${C_VALUES_ARRAY[@]}"; do
     gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
     validate_one "$gpu" "$c" "$rseed" "$sseed" & pids+=("$!")
     if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail post_eval; pids=(); fi
 done; done; done
+if (( ${#pids[@]} )); then wait_jobs "${pids[@]}" || fail post_eval; fi
 
 SUMMARY_OUTPUT="$ANALYSIS/summary.json"
 if [[ "${C_VALUES_ARRAY[*]}" != "1 2 5 10" ]]; then

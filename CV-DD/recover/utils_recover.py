@@ -217,8 +217,15 @@ def initialize_patch_data(start_label_idx, end_label_idx, args, num_call):
         current_class_name = format_int_to_str(i)
         current_class_dir = os.path.join(patch_dir, current_class_name)
         curr_file_name = os.path.join(current_class_dir, f'class{current_class_name}_id{"{:05}".format(num_call)}.jpg')
-        final_img = normalize(cv2.imread(curr_file_name),args)
         final_img_display = cv2.imread(curr_file_name)
+        if final_img_display is None:
+            raise FileNotFoundError(
+                "CV-DD patch is missing or unreadable: "
+                f"{curr_file_name}. Expected layout: "
+                "<patch-dir>/<difficulty>/<class:05d>/"
+                "class<class:05d>_id<ipc:05d>.jpg"
+            )
+        final_img = normalize(final_img_display, args)
         
     
         # save the img to the initialisation dir to show the quality of the patches

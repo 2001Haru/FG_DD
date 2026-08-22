@@ -17,9 +17,11 @@ PATCH_CROP_WORKERS="${PATCH_CROP_WORKERS:-16}"
 RELABEL_PERSISTENT_WORKERS="${RELABEL_PERSISTENT_WORKERS:-1}"
 REAL_ROOT="${REAL_ROOT:-$val_dir/imagenet-nette}"
 EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/imagenette_cic_t_official_split}"
-DATA_ROOT="$EXP_ROOT/data"; MODEL_ROOT="$EXP_ROOT/models"; PATCH_ROOT="$EXP_ROOT/patches"
+ASSET_ROOT="${ASSET_ROOT:-$EXP_ROOT}"
+C1_TEACHER_OVERRIDE="${C1_TEACHER_OVERRIDE:-}"
+DATA_ROOT="$ASSET_ROOT/data"; MODEL_ROOT="$ASSET_ROOT/models"; PATCH_ROOT="$EXP_ROOT/patches"
 SYN_ROOT="$EXP_ROOT/synthetic"; FKD_ROOT="$EXP_ROOT/fkd"; POST_ROOT="$EXP_ROOT/post_eval"
-PER_CLASS="$EXP_ROOT/per_class"; ANALYSIS="$EXP_ROOT/analysis"; LOGS="$ROOT/logs/imagenette_cic_t_official_split/full"
+PER_CLASS="$EXP_ROOT/per_class"; ANALYSIS="$EXP_ROOT/analysis"; LOGS="${LOGS:-$ROOT/logs/imagenette_cic_t_official_split/full}"
 VAL_DIR="${VAL_DIR:-$val_dir/imagenet-nette/test}"
 mkdir -p "$PATCH_ROOT" "$SYN_ROOT" "$FKD_ROOT" "$POST_ROOT" "$PER_CLASS" "$ANALYSIS" "$LOGS"
 fail(){ echo "ImageNette CiC-T full experiment failed: $*" >&2; exit 1; }
@@ -31,14 +33,29 @@ wait_jobs(){
     return "$status"
 }
 
+teacher_for_c(){
+    local c="$1"
+    if [[ "$c" == 1 && -n "$C1_TEACHER_OVERRIDE" ]]; then
+        printf '%s\n' "$C1_TEACHER_OVERRIDE"
+    else
+        printf '%s\n' "$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}/ResNet18.pth"
+    fi
+}
+
 for c in "${C_VALUES_ARRAY[@]}"; do
     data="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}"
     model="$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}"
+    teacher="$(teacher_for_c "$c")"
     [[ -f "$data/hierarchy.json" ]] || fail "missing C=$c hierarchy"
     counts="$(python -c "import json; q=json.load(open('$data/hierarchy.json')); print(q.get('source_train_images'), q.get('source_val_images'), q.get('source_validation_split'))")"
     [[ "$counts" == "9469 3925 test" ]] || fail "C=$c partition is not the official train/test split: $counts"
-    [[ -f "$model/.training_complete.json" && -f "$model/ResNet18.pth" ]] \
-        || fail "C=$c Teacher is not marked complete"
+    if [[ "$c" == 1 && -n "$C1_TEACHER_OVERRIDE" ]]; then
+        [[ -f "$teacher" && "$(basename "$teacher")" == "ResNet18.pth" ]] \
+            || fail "invalid C1 Teacher override (must exist and be named ResNet18.pth): $teacher"
+    else
+        [[ -f "$model/.training_complete.json" && -f "$teacher" ]] \
+            || fail "C=$c Teacher is not marked complete"
+    fi
 done
 [[ -d "$VAL_DIR" ]] || fail "missing official validation directory: $VAL_DIR"
 VAL_IMAGE_COUNT="$(find "$VAL_DIR" -type f \( -iname '*.jpeg' -o -iname '*.jpg' -o -iname '*.png' -o -iname '*.bmp' -o -iname '*.webp' \) | wc -l)"
@@ -53,6 +70,8 @@ patch_one(){
     local gpu="$1"
     local c="$2"
     local heads=$((10*c))
+    local teacher
+    teacher="$(teacher_for_c "$c")"
     local patch_root="$PATCH_ROOT/c${c}"
     local output="$patch_root/medium" count=0 archive
     [[ -d "$output" ]] && count="$(find "$output" -type f -name '*.jpg' | wc -l)"
@@ -69,7 +88,7 @@ patch_one(){
     fi
     if ! CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT/class_in_class/generate_patches.py" --data-dir "$REAL_ROOT" \
-        --teacher "$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}/ResNet18.pth" \
+        --teacher "$teacher" \
         --teacher-num-classes "$heads" \
         --teacher-mapping "$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}/hierarchy.json" \
         --teacher-architecture torchvision --num-classes 10 --patches-per-class 10 \
@@ -105,7 +124,7 @@ recover_one(){
     local heads=$((10*c))
     local exp="cic_t_c${c}_ipc10_rseed${rseed}" output="$SYN_ROOT/cic_t_c${c}_ipc10_rseed${rseed}"
     local count=0 marker="$output/.protocol" patch_sha archive
-    teacher="$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}/ResNet18.pth"
+    teacher="$(teacher_for_c "$c")"
     mapping="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}/hierarchy.json"
     patch_sha="$(find "$PATCH_ROOT/c${c}/medium" -type f -name '*.jpg' -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
     expected="c=$c:rseed=$rseed:teacher=$(sha256sum "$teacher"|awk '{print $1}'):mapping=$(sha256sum "$mapping"|awk '{print $1}'):patch=$patch_sha:iter=4000"
@@ -151,6 +170,8 @@ relabel_one(){
     local c="$2"
     local rseed="$3"
     local heads=$((10*c))
+    local teacher
+    teacher="$(teacher_for_c "$c")"
     local syn="$SYN_ROOT/cic_t_c${c}_ipc10_rseed${rseed}"
     local base="$FKD_ROOT/cic_t_c${c}_rseed${rseed}"
     local final="${base}_bs${FKD_BATCH_SIZE}_ipc10"
@@ -169,7 +190,7 @@ relabel_one(){
     fi
     if ! CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT/relabel/relabel.py" --syn-data-path "$syn" --fkd-path "$base" \
-        --model-pool-dir "$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}" \
+        --model-pool-dir "$(dirname "$teacher")" \
         --teacher-model-name ResNet18 --teacher-num-classes "$heads" \
         --teacher-mapping "$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}/hierarchy.json" \
         --marginalize-temperature "$TEMPERATURE" --gpu 0 --batch-size "$FKD_BATCH_SIZE" --workers "$WORKERS" \

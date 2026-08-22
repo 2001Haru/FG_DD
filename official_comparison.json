@@ -1,0 +1,2328 @@
+{
+  "checkpoints": {
+    "official": {
+      "path": "/linxi/dataset/CV-DD/offline_models/imagenet-nette/ResNet18.pth",
+      "sha256": "1241938824a90230e5939d459b7f7ec1d011d215c263152be25c7de3245c0f03"
+    },
+    "controlled_c1": {
+      "path": "/linxi/dataset/CV-DD/class_in_class/imagenette_released_exact_teacher/run1/resnet18.pth",
+      "sha256": "ecc92875cec334b7840df7f717233b770df2f883bc58b646fdb9f879107174ce"
+    }
+  },
+  "architecture": {
+    "official": {
+      "root_type": "torchvision.models.resnet.ResNet",
+      "total_parameters": 11181642,
+      "trainable_parameters": 11181642,
+      "module_count": 68,
+      "signature_sha256": "8d7af554af11e6b29941a01b7296b6d2a057f47b96228c7b1c5f3446605582c1",
+      "modules": [
+        {
+          "name": "",
+          "type": "torchvision.models.resnet.ResNet"
+        },
+        {
+          "name": "conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "maxpool",
+          "type": "torch.nn.modules.pooling.MaxPool2d"
+        },
+        {
+          "name": "layer1",
+          "type": "torch.nn.modules.container.Sequential"
+        },
+        {
+          "name": "layer1.0",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer1.0.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer1.0.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer1.0.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer1.0.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer1.0.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer1.1",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer1.1.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer1.1.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer1.1.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer1.1.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer1.1.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer2",
+          "type": "torch.nn.modules.container.Sequential"
+        },
+        {
+          "name": "layer2.0",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer2.0.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer2.0.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer2.0.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer2.0.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer2.0.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer2.0.downsample",
+          "type": "torch.nn.modules.container.Sequential"
+        },
+        {
+          "name": "layer2.0.downsample.0",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer2.0.downsample.1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer2.1",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer2.1.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer2.1.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer2.1.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer2.1.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer2.1.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer3",
+          "type": "torch.nn.modules.container.Sequential"
+        },
+        {
+          "name": "layer3.0",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer3.0.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer3.0.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer3.0.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer3.0.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer3.0.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer3.0.downsample",
+          "type": "torch.nn.modules.container.Sequential"
+        },
+        {
+          "name": "layer3.0.downsample.0",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer3.0.downsample.1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer3.1",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer3.1.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer3.1.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer3.1.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer3.1.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer3.1.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer4",
+          "type": "torch.nn.modules.container.Sequential"
+        },
+        {
+          "name": "layer4.0",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer4.0.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer4.0.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer4.0.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer4.0.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer4.0.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer4.0.downsample",
+          "type": "torch.nn.modules.container.Sequential"
+        },
+        {
+          "name": "layer4.0.downsample.0",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer4.0.downsample.1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer4.1",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer4.1.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer4.1.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer4.1.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer4.1.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer4.1.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "avgpool",
+          "type": "torch.nn.modules.pooling.AdaptiveAvgPool2d"
+        },
+        {
+          "name": "fc",
+          "type": "torch.nn.modules.linear.Linear"
+        }
+      ],
+      "parameter_shapes": {
+        "conv1.weight": {
+          "shape": [
+            64,
+            3,
+            7,
+            7
+          ],
+          "dtype": "torch.float32"
+        },
+        "bn1.weight": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "bn1.bias": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.0.conv1.weight": {
+          "shape": [
+            64,
+            64,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.0.bn1.weight": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.0.bn1.bias": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.0.conv2.weight": {
+          "shape": [
+            64,
+            64,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.0.bn2.weight": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.0.bn2.bias": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.1.conv1.weight": {
+          "shape": [
+            64,
+            64,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.1.bn1.weight": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.1.bn1.bias": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.1.conv2.weight": {
+          "shape": [
+            64,
+            64,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.1.bn2.weight": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.1.bn2.bias": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.conv1.weight": {
+          "shape": [
+            128,
+            64,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.bn1.weight": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.bn1.bias": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.conv2.weight": {
+          "shape": [
+            128,
+            128,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.bn2.weight": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.bn2.bias": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.downsample.0.weight": {
+          "shape": [
+            128,
+            64,
+            1,
+            1
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.downsample.1.weight": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.downsample.1.bias": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.1.conv1.weight": {
+          "shape": [
+            128,
+            128,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.1.bn1.weight": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.1.bn1.bias": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.1.conv2.weight": {
+          "shape": [
+            128,
+            128,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.1.bn2.weight": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.1.bn2.bias": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.conv1.weight": {
+          "shape": [
+            256,
+            128,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.bn1.weight": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.bn1.bias": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.conv2.weight": {
+          "shape": [
+            256,
+            256,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.bn2.weight": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.bn2.bias": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.downsample.0.weight": {
+          "shape": [
+            256,
+            128,
+            1,
+            1
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.downsample.1.weight": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.downsample.1.bias": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.1.conv1.weight": {
+          "shape": [
+            256,
+            256,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.1.bn1.weight": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.1.bn1.bias": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.1.conv2.weight": {
+          "shape": [
+            256,
+            256,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.1.bn2.weight": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.1.bn2.bias": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.conv1.weight": {
+          "shape": [
+            512,
+            256,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.bn1.weight": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.bn1.bias": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.conv2.weight": {
+          "shape": [
+            512,
+            512,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.bn2.weight": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.bn2.bias": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.downsample.0.weight": {
+          "shape": [
+            512,
+            256,
+            1,
+            1
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.downsample.1.weight": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.downsample.1.bias": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.1.conv1.weight": {
+          "shape": [
+            512,
+            512,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.1.bn1.weight": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.1.bn1.bias": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.1.conv2.weight": {
+          "shape": [
+            512,
+            512,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.1.bn2.weight": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.1.bn2.bias": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "fc.weight": {
+          "shape": [
+            10,
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "fc.bias": {
+          "shape": [
+            10
+          ],
+          "dtype": "torch.float32"
+        }
+      }
+    },
+    "controlled_c1": {
+      "root_type": "torchvision.models.resnet.ResNet",
+      "total_parameters": 11181642,
+      "trainable_parameters": 11181642,
+      "module_count": 68,
+      "signature_sha256": "8d7af554af11e6b29941a01b7296b6d2a057f47b96228c7b1c5f3446605582c1",
+      "modules": [
+        {
+          "name": "",
+          "type": "torchvision.models.resnet.ResNet"
+        },
+        {
+          "name": "conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "maxpool",
+          "type": "torch.nn.modules.pooling.MaxPool2d"
+        },
+        {
+          "name": "layer1",
+          "type": "torch.nn.modules.container.Sequential"
+        },
+        {
+          "name": "layer1.0",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer1.0.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer1.0.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer1.0.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer1.0.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer1.0.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer1.1",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer1.1.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer1.1.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer1.1.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer1.1.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer1.1.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer2",
+          "type": "torch.nn.modules.container.Sequential"
+        },
+        {
+          "name": "layer2.0",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer2.0.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer2.0.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer2.0.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer2.0.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer2.0.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer2.0.downsample",
+          "type": "torch.nn.modules.container.Sequential"
+        },
+        {
+          "name": "layer2.0.downsample.0",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer2.0.downsample.1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer2.1",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer2.1.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer2.1.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer2.1.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer2.1.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer2.1.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer3",
+          "type": "torch.nn.modules.container.Sequential"
+        },
+        {
+          "name": "layer3.0",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer3.0.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer3.0.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer3.0.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer3.0.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer3.0.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer3.0.downsample",
+          "type": "torch.nn.modules.container.Sequential"
+        },
+        {
+          "name": "layer3.0.downsample.0",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer3.0.downsample.1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer3.1",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer3.1.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer3.1.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer3.1.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer3.1.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer3.1.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer4",
+          "type": "torch.nn.modules.container.Sequential"
+        },
+        {
+          "name": "layer4.0",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer4.0.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer4.0.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer4.0.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer4.0.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer4.0.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer4.0.downsample",
+          "type": "torch.nn.modules.container.Sequential"
+        },
+        {
+          "name": "layer4.0.downsample.0",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer4.0.downsample.1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer4.1",
+          "type": "torchvision.models.resnet.BasicBlock"
+        },
+        {
+          "name": "layer4.1.conv1",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer4.1.bn1",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "layer4.1.relu",
+          "type": "torch.nn.modules.activation.ReLU"
+        },
+        {
+          "name": "layer4.1.conv2",
+          "type": "torch.nn.modules.conv.Conv2d"
+        },
+        {
+          "name": "layer4.1.bn2",
+          "type": "torch.nn.modules.batchnorm.BatchNorm2d"
+        },
+        {
+          "name": "avgpool",
+          "type": "torch.nn.modules.pooling.AdaptiveAvgPool2d"
+        },
+        {
+          "name": "fc",
+          "type": "torch.nn.modules.linear.Linear"
+        }
+      ],
+      "parameter_shapes": {
+        "conv1.weight": {
+          "shape": [
+            64,
+            3,
+            7,
+            7
+          ],
+          "dtype": "torch.float32"
+        },
+        "bn1.weight": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "bn1.bias": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.0.conv1.weight": {
+          "shape": [
+            64,
+            64,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.0.bn1.weight": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.0.bn1.bias": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.0.conv2.weight": {
+          "shape": [
+            64,
+            64,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.0.bn2.weight": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.0.bn2.bias": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.1.conv1.weight": {
+          "shape": [
+            64,
+            64,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.1.bn1.weight": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.1.bn1.bias": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.1.conv2.weight": {
+          "shape": [
+            64,
+            64,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.1.bn2.weight": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer1.1.bn2.bias": {
+          "shape": [
+            64
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.conv1.weight": {
+          "shape": [
+            128,
+            64,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.bn1.weight": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.bn1.bias": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.conv2.weight": {
+          "shape": [
+            128,
+            128,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.bn2.weight": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.bn2.bias": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.downsample.0.weight": {
+          "shape": [
+            128,
+            64,
+            1,
+            1
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.downsample.1.weight": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.0.downsample.1.bias": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.1.conv1.weight": {
+          "shape": [
+            128,
+            128,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.1.bn1.weight": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.1.bn1.bias": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.1.conv2.weight": {
+          "shape": [
+            128,
+            128,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.1.bn2.weight": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer2.1.bn2.bias": {
+          "shape": [
+            128
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.conv1.weight": {
+          "shape": [
+            256,
+            128,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.bn1.weight": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.bn1.bias": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.conv2.weight": {
+          "shape": [
+            256,
+            256,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.bn2.weight": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.bn2.bias": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.downsample.0.weight": {
+          "shape": [
+            256,
+            128,
+            1,
+            1
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.downsample.1.weight": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.0.downsample.1.bias": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.1.conv1.weight": {
+          "shape": [
+            256,
+            256,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.1.bn1.weight": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.1.bn1.bias": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.1.conv2.weight": {
+          "shape": [
+            256,
+            256,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.1.bn2.weight": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer3.1.bn2.bias": {
+          "shape": [
+            256
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.conv1.weight": {
+          "shape": [
+            512,
+            256,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.bn1.weight": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.bn1.bias": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.conv2.weight": {
+          "shape": [
+            512,
+            512,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.bn2.weight": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.bn2.bias": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.downsample.0.weight": {
+          "shape": [
+            512,
+            256,
+            1,
+            1
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.downsample.1.weight": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.0.downsample.1.bias": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.1.conv1.weight": {
+          "shape": [
+            512,
+            512,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.1.bn1.weight": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.1.bn1.bias": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.1.conv2.weight": {
+          "shape": [
+            512,
+            512,
+            3,
+            3
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.1.bn2.weight": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "layer4.1.bn2.bias": {
+          "shape": [
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "fc.weight": {
+          "shape": [
+            10,
+            512
+          ],
+          "dtype": "torch.float32"
+        },
+        "fc.bias": {
+          "shape": [
+            10
+          ],
+          "dtype": "torch.float32"
+        }
+      }
+    },
+    "exact_signature_match": true,
+    "both_strictly_loaded_into_torchvision_resnet18": true
+  },
+  "state_dict_comparison": {
+    "state_dict_keys_exact_match": true,
+    "state_dict_shapes_exact_match": true,
+    "global_relative_l2_official_denominator": 0.8812819928277632,
+    "global_cosine": 0.616003637688824
+  },
+  "batchnorm_state_comparison": {
+    "layers": [
+      {
+        "layer": "bn1",
+        "running_mean_relative_l2_official_denominator": 1.4983335145402628,
+        "running_var_relative_l2_official_denominator": 0.7274091293376154,
+        "weight_relative_l2_official_denominator": 0.23709089180335435,
+        "bias_relative_l2_official_denominator": 1.3297613522663396,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer1.0.bn1",
+        "running_mean_relative_l2_official_denominator": 1.0859752732349985,
+        "running_var_relative_l2_official_denominator": 0.5152041149056041,
+        "weight_relative_l2_official_denominator": 0.1561316879072838,
+        "bias_relative_l2_official_denominator": 1.00233806326591,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer1.0.bn2",
+        "running_mean_relative_l2_official_denominator": 1.478461185073559,
+        "running_var_relative_l2_official_denominator": 0.5916124102196935,
+        "weight_relative_l2_official_denominator": 0.13977981296945488,
+        "bias_relative_l2_official_denominator": 1.4512143056967057,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer1.1.bn1",
+        "running_mean_relative_l2_official_denominator": 1.265246940222532,
+        "running_var_relative_l2_official_denominator": 0.46343469890748384,
+        "weight_relative_l2_official_denominator": 0.09760911472704376,
+        "bias_relative_l2_official_denominator": 0.9623199487821296,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer1.1.bn2",
+        "running_mean_relative_l2_official_denominator": 1.2615040450678303,
+        "running_var_relative_l2_official_denominator": 0.45563940944498216,
+        "weight_relative_l2_official_denominator": 0.1260163333198864,
+        "bias_relative_l2_official_denominator": 1.3716657631341191,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer2.0.bn1",
+        "running_mean_relative_l2_official_denominator": 1.2808645499901608,
+        "running_var_relative_l2_official_denominator": 0.34090282377495773,
+        "weight_relative_l2_official_denominator": 0.0878066486144223,
+        "bias_relative_l2_official_denominator": 0.5700466196319911,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer2.0.bn2",
+        "running_mean_relative_l2_official_denominator": 1.0566593508618236,
+        "running_var_relative_l2_official_denominator": 0.29630601561449754,
+        "weight_relative_l2_official_denominator": 0.08644678981164881,
+        "bias_relative_l2_official_denominator": 0.509360032564741,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer2.0.downsample.1",
+        "running_mean_relative_l2_official_denominator": 1.4658241044958003,
+        "running_var_relative_l2_official_denominator": 0.2886471583536096,
+        "weight_relative_l2_official_denominator": 0.06475497889425331,
+        "bias_relative_l2_official_denominator": 0.509360032564741,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer2.1.bn1",
+        "running_mean_relative_l2_official_denominator": 1.2930656668634446,
+        "running_var_relative_l2_official_denominator": 0.26794215110368835,
+        "weight_relative_l2_official_denominator": 0.0879639548040224,
+        "bias_relative_l2_official_denominator": 0.46698858558245393,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer2.1.bn2",
+        "running_mean_relative_l2_official_denominator": 1.3644131154142294,
+        "running_var_relative_l2_official_denominator": 0.2554884986599261,
+        "weight_relative_l2_official_denominator": 0.07517529358572324,
+        "bias_relative_l2_official_denominator": 0.6661230547180266,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer3.0.bn1",
+        "running_mean_relative_l2_official_denominator": 1.3489226678559787,
+        "running_var_relative_l2_official_denominator": 0.23594519367581485,
+        "weight_relative_l2_official_denominator": 0.042822551615323286,
+        "bias_relative_l2_official_denominator": 0.44839806671465204,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer3.0.bn2",
+        "running_mean_relative_l2_official_denominator": 1.093233350257889,
+        "running_var_relative_l2_official_denominator": 0.2533738874235458,
+        "weight_relative_l2_official_denominator": 0.04373933430564865,
+        "bias_relative_l2_official_denominator": 0.3744280142441538,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer3.0.downsample.1",
+        "running_mean_relative_l2_official_denominator": 1.426046985243384,
+        "running_var_relative_l2_official_denominator": 0.23783850059997874,
+        "weight_relative_l2_official_denominator": 0.03940668816396557,
+        "bias_relative_l2_official_denominator": 0.3744280142441538,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer3.1.bn1",
+        "running_mean_relative_l2_official_denominator": 1.078992591648244,
+        "running_var_relative_l2_official_denominator": 0.24767823287641744,
+        "weight_relative_l2_official_denominator": 0.045670607352460243,
+        "bias_relative_l2_official_denominator": 0.45109573017099236,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer3.1.bn2",
+        "running_mean_relative_l2_official_denominator": 1.3173452790904443,
+        "running_var_relative_l2_official_denominator": 0.24315265565618008,
+        "weight_relative_l2_official_denominator": 0.03584431324929997,
+        "bias_relative_l2_official_denominator": 0.5682284428452712,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer4.0.bn1",
+        "running_mean_relative_l2_official_denominator": 1.2848958900302767,
+        "running_var_relative_l2_official_denominator": 0.28814703994269025,
+        "weight_relative_l2_official_denominator": 0.02545032679824758,
+        "bias_relative_l2_official_denominator": 0.521131689700713,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer4.0.bn2",
+        "running_mean_relative_l2_official_denominator": 1.180685173937528,
+        "running_var_relative_l2_official_denominator": 0.3287968465221792,
+        "weight_relative_l2_official_denominator": 0.02699281715817557,
+        "bias_relative_l2_official_denominator": 0.3342090587066102,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer4.0.downsample.1",
+        "running_mean_relative_l2_official_denominator": 1.4147816634181454,
+        "running_var_relative_l2_official_denominator": 0.24821057330888338,
+        "weight_relative_l2_official_denominator": 0.02797332590756358,
+        "bias_relative_l2_official_denominator": 0.3342090587066102,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer4.1.bn1",
+        "running_mean_relative_l2_official_denominator": 1.3350253986182685,
+        "running_var_relative_l2_official_denominator": 0.34067574477221946,
+        "weight_relative_l2_official_denominator": 0.02575367477499859,
+        "bias_relative_l2_official_denominator": 0.44601046809780986,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      },
+      {
+        "layer": "layer4.1.bn2",
+        "running_mean_relative_l2_official_denominator": 0.7616284856836214,
+        "running_var_relative_l2_official_denominator": 0.2897118457387936,
+        "weight_relative_l2_official_denominator": 0.029000729267335216,
+        "bias_relative_l2_official_denominator": 0.2042358330036339,
+        "official_num_batches_tracked": 44400,
+        "controlled_num_batches_tracked": 44400
+      }
+    ],
+    "mean_running_mean_relative_l2": 1.2645952615774212,
+    "mean_running_var_relative_l2": 0.345805846541938,
+    "mean_affine_weight_relative_l2": 0.0750714937515056,
+    "mean_affine_bias_relative_l2": 0.6447776067320882
+  },
+  "splits": {
+    "train": {
+      "class_order": [
+        "00000",
+        "00001",
+        "00002",
+        "00003",
+        "00004",
+        "00005",
+        "00006",
+        "00007",
+        "00008",
+        "00009"
+      ],
+      "controlled_hierarchy_class_order": [
+        "00000",
+        "00001",
+        "00002",
+        "00003",
+        "00004",
+        "00005",
+        "00006",
+        "00007",
+        "00008",
+        "00009"
+      ],
+      "class_names_exact_match": true,
+      "teachers": {
+        "official": {
+          "images": 9469,
+          "top1": 100.0,
+          "top5": 100.0,
+          "cross_entropy": 0.0010311372030503976,
+          "negative_log_likelihood": 0.0010311372030503976,
+          "mean_max_probability": 0.9990009665489197,
+          "mean_entropy": 0.005896896123886108,
+          "mean_top1_top2_margin": 0.9982959628105164,
+          "mean_logits_l2_norm": 19.799102783203125,
+          "std_logits_l2_norm": 5.015275955200195,
+          "mean_within_sample_logits_std": 6.260616779327393,
+          "temperature_20": {
+            "negative_log_likelihood": 1.56548789617869,
+            "mean_max_probability": 0.21329540014266968,
+            "mean_entropy": 2.2295916080474854,
+            "mean_entropy_over_log_num_classes": 0.9682993322728207
+          },
+          "ece_15_bins": 0.0009991016410360598,
+          "per_class_top1": [
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0
+          ],
+          "confusion_counts": [
+            [
+              963,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              955,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              993,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              858,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              941,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              956,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              961,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              931,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              951,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              960
+            ]
+          ]
+        },
+        "controlled_c1": {
+          "images": 9469,
+          "top1": 100.0,
+          "top5": 100.0,
+          "cross_entropy": 0.0009493928413284606,
+          "negative_log_likelihood": 0.0009493928413284606,
+          "mean_max_probability": 0.9990841746330261,
+          "mean_entropy": 0.005543635226786137,
+          "mean_top1_top2_margin": 0.9984325766563416,
+          "mean_logits_l2_norm": 19.44983673095703,
+          "std_logits_l2_norm": 4.939361095428467,
+          "mean_within_sample_logits_std": 6.149178504943848,
+          "temperature_20": {
+            "negative_log_likelihood": 1.5720366577573859,
+            "mean_max_probability": 0.21179814636707306,
+            "mean_entropy": 2.2318663597106934,
+            "mean_entropy_over_log_num_classes": 0.9692872443678522
+          },
+          "ece_15_bins": 0.0009158541398876811,
+          "per_class_top1": [
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0
+          ],
+          "confusion_counts": [
+            [
+              963,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              955,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              993,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              858,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              941,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              956,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              961,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              931,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              951,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              960
+            ]
+          ]
+        }
+      },
+      "pair": {
+        "prediction_agreement": 1.0,
+        "mean_probability_l1": 0.002428939611849582,
+        "mean_symmetric_kl": 0.0021812898404986744
+      }
+    },
+    "test": {
+      "class_order": [
+        "00000",
+        "00001",
+        "00002",
+        "00003",
+        "00004",
+        "00005",
+        "00006",
+        "00007",
+        "00008",
+        "00009"
+      ],
+      "controlled_hierarchy_class_order": [
+        "00000",
+        "00001",
+        "00002",
+        "00003",
+        "00004",
+        "00005",
+        "00006",
+        "00007",
+        "00008",
+        "00009"
+      ],
+      "class_names_exact_match": true,
+      "teachers": {
+        "official": {
+          "images": 3925,
+          "top1": 91.10828025477707,
+          "top5": 99.23566878980891,
+          "cross_entropy": 0.32089527397398737,
+          "negative_log_likelihood": 0.32089527397398737,
+          "mean_max_probability": 0.9502816200256348,
+          "mean_entropy": 0.14157350361347198,
+          "mean_top1_top2_margin": 0.915529727935791,
+          "mean_logits_l2_norm": 18.652544021606445,
+          "std_logits_l2_norm": 5.833237648010254,
+          "mean_within_sample_logits_std": 5.89805793762207,
+          "temperature_20": {
+            "negative_log_likelihood": 1.6647031242224821,
+            "mean_max_probability": 0.19870835542678833,
+            "mean_entropy": 2.2369778156280518,
+            "mean_entropy_over_log_num_classes": 0.9715071214672526
+          },
+          "ece_15_bins": 0.040183045705231506,
+          "per_class_top1": [
+            94.83204134366925,
+            94.68354430379746,
+            92.99719887955182,
+            83.67875647668394,
+            93.8875305623472,
+            91.6243654822335,
+            92.54498714652956,
+            85.68019093078759,
+            90.47619047619048,
+            91.02564102564102
+          ],
+          "confusion_counts": [
+            [
+              367,
+              1,
+              2,
+              11,
+              0,
+              2,
+              0,
+              1,
+              0,
+              3
+            ],
+            [
+              1,
+              374,
+              1,
+              9,
+              2,
+              3,
+              1,
+              0,
+              2,
+              2
+            ],
+            [
+              2,
+              0,
+              332,
+              4,
+              2,
+              2,
+              6,
+              8,
+              0,
+              1
+            ],
+            [
+              2,
+              4,
+              10,
+              323,
+              8,
+              10,
+              13,
+              4,
+              4,
+              8
+            ],
+            [
+              1,
+              0,
+              2,
+              0,
+              384,
+              1,
+              6,
+              7,
+              2,
+              6
+            ],
+            [
+              3,
+              2,
+              4,
+              6,
+              5,
+              361,
+              2,
+              3,
+              3,
+              5
+            ],
+            [
+              0,
+              0,
+              5,
+              5,
+              5,
+              1,
+              360,
+              10,
+              0,
+              3
+            ],
+            [
+              0,
+              1,
+              11,
+              13,
+              14,
+              4,
+              13,
+              359,
+              1,
+              3
+            ],
+            [
+              5,
+              6,
+              6,
+              7,
+              2,
+              1,
+              1,
+              3,
+              361,
+              7
+            ],
+            [
+              1,
+              3,
+              1,
+              10,
+              10,
+              3,
+              3,
+              0,
+              4,
+              355
+            ]
+          ]
+        },
+        "controlled_c1": {
+          "images": 3925,
+          "top1": 91.51592356687898,
+          "top5": 99.10828025477707,
+          "cross_entropy": 0.32494124297123805,
+          "negative_log_likelihood": 0.32494124297123805,
+          "mean_max_probability": 0.9499074816703796,
+          "mean_entropy": 0.14287516474723816,
+          "mean_top1_top2_margin": 0.9151130318641663,
+          "mean_logits_l2_norm": 18.278289794921875,
+          "std_logits_l2_norm": 5.821613788604736,
+          "mean_within_sample_logits_std": 5.778655529022217,
+          "temperature_20": {
+            "negative_log_likelihood": 1.6715696726027567,
+            "mean_max_probability": 0.19734890758991241,
+            "mean_entropy": 2.239063262939453,
+            "mean_entropy_over_log_num_classes": 0.9724128197268942
+          },
+          "ece_15_bins": 0.03474823188478479,
+          "per_class_top1": [
+            95.60723514211887,
+            95.18987341772151,
+            88.23529411764706,
+            86.78756476683938,
+            94.62102689486552,
+            91.37055837563452,
+            94.08740359897172,
+            86.39618138424821,
+            89.97493734335839,
+            92.82051282051282
+          ],
+          "confusion_counts": [
+            [
+              370,
+              2,
+              0,
+              9,
+              0,
+              2,
+              0,
+              1,
+              0,
+              3
+            ],
+            [
+              1,
+              376,
+              1,
+              9,
+              1,
+              3,
+              1,
+              1,
+              0,
+              2
+            ],
+            [
+              2,
+              1,
+              315,
+              7,
+              3,
+              3,
+              8,
+              17,
+              0,
+              1
+            ],
+            [
+              2,
+              4,
+              8,
+              335,
+              6,
+              7,
+              8,
+              5,
+              3,
+              8
+            ],
+            [
+              1,
+              0,
+              2,
+              4,
+              387,
+              3,
+              6,
+              2,
+              1,
+              3
+            ],
+            [
+              1,
+              1,
+              4,
+              8,
+              3,
+              360,
+              5,
+              3,
+              2,
+              7
+            ],
+            [
+              2,
+              1,
+              2,
+              2,
+              5,
+              3,
+              366,
+              6,
+              0,
+              2
+            ],
+            [
+              0,
+              1,
+              8,
+              12,
+              11,
+              1,
+              19,
+              362,
+              3,
+              2
+            ],
+            [
+              3,
+              3,
+              5,
+              8,
+              4,
+              6,
+              0,
+              4,
+              359,
+              7
+            ],
+            [
+              0,
+              4,
+              2,
+              7,
+              6,
+              3,
+              4,
+              0,
+              2,
+              362
+            ]
+          ]
+        }
+      },
+      "pair": {
+        "prediction_agreement": 0.9273885350318471,
+        "mean_probability_l1": 0.14829856726773985,
+        "mean_symmetric_kl": 0.16073661901388958
+      }
+    }
+  }
+}

@@ -324,7 +324,14 @@ def main_worker(gpu, ngpus_per_node, args):
             model.eval()
         print('Not Applying BSSL')
     else:
-        print("Applying BSSL")
+        # BSSL requires batch statistics from the current synthetic batch.
+        # Make the intended state explicit instead of relying on nn.Module's
+        # default construction state.
+        for model in teacher_model_lis:
+            model.train()
+        if not all(model.training for model in teacher_model_lis):
+            raise RuntimeError('BSSL requires every Teacher to be in train mode')
+        print("Applying BSSL: Teacher train mode=True")
 
     for epoch in tqdm([i for i in range(args.epochs)]):
         dir_path = os.path.join(args.fkd_path, 'epoch_{}'.format(epoch))

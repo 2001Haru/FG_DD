@@ -10,6 +10,11 @@ def main():
     parser.add_argument("--per-class-dir", required=True)
     parser.add_argument("--recovery-seed", type=int, required=True)
     parser.add_argument("--student-seeds", nargs="+", type=int, required=True)
+    parser.add_argument("--batch-size", type=int, required=True)
+    parser.add_argument("--adamw-lr", type=float, required=True)
+    parser.add_argument("--eta", type=float, required=True)
+    parser.add_argument("--temperature", type=float, default=20.0)
+    parser.add_argument("--recovery-iterations", type=int, default=4000)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
 
@@ -24,9 +29,10 @@ def main():
 
     summary = {
         "protocol": (
-            "ImageNette IPC10 ResNet18 official Teacher+patches; recovery iter4000 "
-            f"seed{args.recovery_seed}; relabel/post BS16; AdamW LR0.001; "
-            "eta2; T20; 300 epochs"
+            "ImageNette IPC10 ResNet18 official Teacher+patches; "
+            f"recovery iter{args.recovery_iterations} seed{args.recovery_seed}; "
+            f"relabel/post BS{args.batch_size}; AdamW LR{args.adamw_lr:g}; "
+            f"eta{args.eta:g}; T{args.temperature:g}; 300 epochs"
         ),
         "recovery_seeds": [args.recovery_seed],
         "student_seeds": args.student_seeds,

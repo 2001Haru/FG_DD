@@ -11,6 +11,9 @@ def main():
     parser.add_argument('--recovery-seeds', nargs='+', type=int, required=True)
     parser.add_argument('--student-seeds', nargs='+', type=int, required=True)
     parser.add_argument('--c-values', nargs='+', type=int, default=(1, 2, 5, 10))
+    parser.add_argument('--recovery-iterations', type=int, required=True)
+    parser.add_argument('--recovery-lr', type=float, required=True)
+    parser.add_argument('--r-bn', type=float, required=True)
     parser.add_argument('--output', required=True)
     args = parser.parse_args()
     root = Path(args.per_class_dir)
@@ -24,7 +27,11 @@ def main():
                     raise ValueError(f'{path} was not evaluated on 3925 images')
                 values[c][(recovery_seed, student_seed)] = float(payload['best_top1'])
     summary = {
-        'protocol': 'ImageNette IPC10 ResNet18 CiC-T only, marg10, T20, official split',
+        'protocol': (
+            'ImageNette IPC10 ResNet18 CiC-T only, marg10, T20, official split; '
+            f'recovery iter{args.recovery_iterations} LR{args.recovery_lr:g} '
+            f'r_bn{args.r_bn:g}'
+        ),
         'c_values': args.c_values,
         'recovery_seeds': args.recovery_seeds,
         'student_seeds': args.student_seeds,

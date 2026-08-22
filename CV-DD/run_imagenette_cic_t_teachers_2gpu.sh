@@ -11,7 +11,7 @@ PARTITION_SEED="${PARTITION_SEED:-42}"; TEACHER_SEED="${TEACHER_SEED:-42}"
 TEACHER_EPOCHS="${TEACHER_EPOCHS:-300}"
 C_VALUES_TEXT="${C_VALUES:-1 2 5 10}"; read -r -a C_VALUES_ARRAY <<< "$C_VALUES_TEXT"
 DATA_ROOT="$EXP_ROOT/data"; MODEL_ROOT="$EXP_ROOT/models"; AUDIT_ROOT="$EXP_ROOT/audits"
-LOGS="$ROOT/logs/imagenette_cic_t_official_split/teachers"
+LOGS="${LOGS:-$ROOT/logs/imagenette_cic_t_official_split/teachers}"
 mkdir -p "$DATA_ROOT" "$MODEL_ROOT" "$AUDIT_ROOT" "$LOGS"
 fail(){ echo "ImageNette CiC-T Teacher stage failed: $*" >&2; exit 1; }
 wait_jobs(){ local status=0 pid; for pid in "$@"; do wait "$pid" || status=$?; done; return "$status"; }

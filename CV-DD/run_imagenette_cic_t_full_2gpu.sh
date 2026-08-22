@@ -8,6 +8,10 @@ SSEEDS_TEXT="${STUDENT_SEEDS:-42 43 44}"; read -r -a SSEEDS <<< "$SSEEDS_TEXT"
 C_VALUES_TEXT="${C_VALUES:-1 2 5 10}"; read -r -a C_VALUES_ARRAY <<< "$C_VALUES_TEXT"
 PARTITION_SEED="${PARTITION_SEED:-42}"; TEACHER_SEED="${TEACHER_SEED:-42}"
 VIEW_SEED="${VIEW_SEED:-42}"; TEMPERATURE="${TEMPERATURE:-20}"
+RECOVERY_ITERATIONS="${RECOVERY_ITERATIONS:-4000}"
+RECOVERY_LR="${RECOVERY_LR:-0.25}"
+RECOVERY_R_BN="${RECOVERY_R_BN:-0.01}"
+readonly RECOVERY_ITERATIONS RECOVERY_LR RECOVERY_R_BN
 # FKD batches are serialized as a unit: saved views, CutMix metadata and soft
 # labels must be loaded with exactly the same batch size.  ImageNette relabel
 # uses 10; gradient accumulation below only splits this batch for forward/backward.
@@ -127,7 +131,7 @@ recover_one(){
     teacher="$(teacher_for_c "$c")"
     mapping="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}/hierarchy.json"
     patch_sha="$(find "$PATCH_ROOT/c${c}/medium" -type f -name '*.jpg' -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
-    expected="c=$c:rseed=$rseed:teacher=$(sha256sum "$teacher"|awk '{print $1}'):mapping=$(sha256sum "$mapping"|awk '{print $1}'):patch=$patch_sha:iter=4000"
+    expected="c=$c:rseed=$rseed:teacher=$(sha256sum "$teacher"|awk '{print $1}'):mapping=$(sha256sum "$mapping"|awk '{print $1}'):patch=$patch_sha:iter=$RECOVERY_ITERATIONS:lr=$RECOVERY_LR:r_bn=$RECOVERY_R_BN"
     if [[ -d "$output" ]]; then
         count="$(find "$output" -type f -name '*.jpg' | wc -l)"
         if [[ -f "$marker" && "$(tr -d '[:space:]' < "$marker")" == "$expected" ]]; then
@@ -146,7 +150,8 @@ recover_one(){
         --patch-dir "$PATCH_ROOT/c${c}" --model-pool-dir "$(dirname "$teacher")" \
         --pretrained-model-type offline --model-setting 0 --sre2l-model ResNet18 \
         --teacher-num-classes "$heads" --teacher-mapping "$mapping" \
-        --voter-type equal --selected-size 1 --lr 0.25 --iteration 4000 --r-bn 0.01 \
+        --voter-type equal --selected-size 1 --lr "$RECOVERY_LR" \
+        --iteration "$RECOVERY_ITERATIONS" --r-bn "$RECOVERY_R_BN" \
         --store-best-images --ipc-start 0 --ipc-end 10 --initialisation-method Patches \
         --patch-diff medium --seed "$rseed" --skip-completed \
         > "$LOGS/recover_c${c}_rseed${rseed}.log" 2>&1; then
@@ -157,7 +162,7 @@ recover_one(){
     (( count == 100 )) || { echo "C=$c rseed=$rseed recovery incomplete ($count/100)" >&2; return 1; }
 }
 
-echo "[2/4] Recovery: C=${C_VALUES_ARRAY[*]}, seeds=${RSEEDS[*]}"
+echo "[2/4] Recovery: C=${C_VALUES_ARRAY[*]}, seeds=${RSEEDS[*]}, iter=$RECOVERY_ITERATIONS, lr=$RECOVERY_LR, r_bn=$RECOVERY_R_BN"
 pids=(); for rseed in "${RSEEDS[@]}"; do for c in "${C_VALUES_ARRAY[@]}"; do
     gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
     recover_one "$gpu" "$c" "$rseed" & pids+=("$!")
@@ -257,5 +262,7 @@ fi
 python "$ROOT/class_in_class/summarize_imagenette_cic_t.py" --per-class-dir "$PER_CLASS" \
     --recovery-seeds "${RSEEDS[@]}" --student-seeds "${SSEEDS[@]}" \
     --c-values "${C_VALUES_ARRAY[@]}" \
+    --recovery-iterations "$RECOVERY_ITERATIONS" --recovery-lr "$RECOVERY_LR" \
+    --r-bn "$RECOVERY_R_BN" \
     --output "$SUMMARY_OUTPUT" > "$LOGS/summary.log" 2>&1
 echo "Complete: $SUMMARY_OUTPUT"

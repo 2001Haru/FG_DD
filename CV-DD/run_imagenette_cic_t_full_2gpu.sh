@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; source "$ROOT/config.sh"
 GPU0="${GPU0:-0}"; GPU1="${GPU1:-1}"; WORKERS="${WORKERS:-8}"
 RSEEDS_TEXT="${RECOVERY_SEEDS:-41 42 43}"; read -r -a RSEEDS <<< "$RSEEDS_TEXT"
 SSEEDS_TEXT="${STUDENT_SEEDS:-42 43 44}"; read -r -a SSEEDS <<< "$SSEEDS_TEXT"
+C_VALUES_TEXT="${C_VALUES:-1 2 5 10}"; read -r -a C_VALUES_ARRAY <<< "$C_VALUES_TEXT"
 PARTITION_SEED="${PARTITION_SEED:-42}"; TEACHER_SEED="${TEACHER_SEED:-42}"
 VIEW_SEED="${VIEW_SEED:-42}"; TEMPERATURE="${TEMPERATURE:-20}"
 # FKD batches are serialized as a unit: saved views, CutMix metadata and soft
@@ -24,7 +25,7 @@ mkdir -p "$PATCH_ROOT" "$SYN_ROOT" "$FKD_ROOT" "$POST_ROOT" "$PER_CLASS" "$ANALY
 fail(){ echo "ImageNette CiC-T full experiment failed: $*" >&2; exit 1; }
 wait_jobs(){ local status=0 pid; for pid in "$@"; do wait "$pid" || status=$?; done; return "$status"; }
 
-for c in 1 2 5 10; do
+for c in "${C_VALUES_ARRAY[@]}"; do
     data="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}"
     model="$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}"
     [[ -f "$data/hierarchy.json" ]] || fail "missing C=$c hierarchy"
@@ -64,7 +65,7 @@ patch_one(){
 }
 
 echo "[1/4] Teacher-specific coarse10 patches"
-pids=(); for c in 1 2 5 10; do
+pids=(); for c in "${C_VALUES_ARRAY[@]}"; do
     gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
     patch_one "$gpu" "$c" & pids+=("$!")
     if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail patches; pids=(); fi
@@ -101,7 +102,7 @@ recover_one(){
 }
 
 echo "[2/4] Recovery: 4 arms x 3 seeds"
-pids=(); for rseed in "${RSEEDS[@]}"; do for c in 1 2 5 10; do
+pids=(); for rseed in "${RSEEDS[@]}"; do for c in "${C_VALUES_ARRAY[@]}"; do
     gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
     recover_one "$gpu" "$c" "$rseed" & pids+=("$!")
     if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail recovery; pids=(); fi
@@ -135,7 +136,7 @@ relabel_one(){
 }
 
 echo "[3/4] Relabel marg10"
-pids=(); for rseed in "${RSEEDS[@]}"; do for c in 1 2 5 10; do
+pids=(); for rseed in "${RSEEDS[@]}"; do for c in "${C_VALUES_ARRAY[@]}"; do
     gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
     relabel_one "$gpu" "$c" "$rseed" & pids+=("$!")
     if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail relabel; pids=(); fi
@@ -166,13 +167,19 @@ validate_one(){
 }
 
 echo "[4/4] Post-eval: 4 x 3 x 3"
-pids=(); for sseed in "${SSEEDS[@]}"; do for rseed in "${RSEEDS[@]}"; do for c in 1 2 5 10; do
+pids=(); for sseed in "${SSEEDS[@]}"; do for rseed in "${RSEEDS[@]}"; do for c in "${C_VALUES_ARRAY[@]}"; do
     gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
     validate_one "$gpu" "$c" "$rseed" "$sseed" & pids+=("$!")
     if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail post_eval; pids=(); fi
 done; done; done
 
+SUMMARY_OUTPUT="$ANALYSIS/summary.json"
+if [[ "${C_VALUES_ARRAY[*]}" != "1 2 5 10" ]]; then
+    c_tag="${C_VALUES_ARRAY[*]}"; c_tag="${c_tag// /_}"
+    SUMMARY_OUTPUT="$ANALYSIS/summary_c${c_tag}.json"
+fi
 python "$ROOT/class_in_class/summarize_imagenette_cic_t.py" --per-class-dir "$PER_CLASS" \
     --recovery-seeds "${RSEEDS[@]}" --student-seeds "${SSEEDS[@]}" \
-    --output "$ANALYSIS/summary.json" > "$LOGS/summary.log" 2>&1
-echo "Complete: $ANALYSIS/summary.json"
+    --c-values "${C_VALUES_ARRAY[@]}" \
+    --output "$SUMMARY_OUTPUT" > "$LOGS/summary.log" 2>&1
+echo "Complete: $SUMMARY_OUTPUT"

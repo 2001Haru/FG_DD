@@ -32,7 +32,9 @@ def balanced_chunks(items, groups):
     return chunks
 
 
-def existing_partition_is_valid(output, source, subclasses, seed):
+def existing_partition_is_valid(
+    output, source, subclasses, seed, source_validation_split="val"
+):
     manifest_path = output / "hierarchy.json"
     if not manifest_path.is_file():
         return False, "manifest missing"
@@ -48,6 +50,8 @@ def existing_partition_is_valid(output, source, subclasses, seed):
         (int(manifest.get("num_pseudo_classes", -1)) == expected_classes,
          "class count mismatch in manifest"),
         (Path(manifest.get("source_root", "")).resolve() == source.resolve(), "source mismatch"),
+        (manifest.get("source_validation_split", "val") == source_validation_split,
+         "source validation split mismatch"),
     )
     for passed, reason in checks:
         if not passed:
@@ -75,6 +79,10 @@ def main():
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--subclasses", type=int, required=True)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--source-validation-split", choices=("val", "test"), default="val",
+        help="source split materialized as output/val",
+    )
     parser.add_argument("--repair-invalid-output", action="store_true")
     args = parser.parse_args()
     source, output = Path(args.source_root), Path(args.output_dir)
@@ -85,11 +93,14 @@ def main():
     if len(coarse_dirs) != 10:
         raise RuntimeError(f"expected 10 ImageNette train classes, found {len(coarse_dirs)}")
     coarse_names = [path.name for path in coarse_dirs]
-    if sorted(path.name for path in (source / "val").iterdir() if path.is_dir()) != coarse_names:
-        raise RuntimeError("train/val coarse class directories do not match")
+    source_validation = source / args.source_validation_split
+    if sorted(path.name for path in source_validation.iterdir() if path.is_dir()) != coarse_names:
+        raise RuntimeError(
+            f"train/{args.source_validation_split} coarse class directories do not match"
+        )
 
     valid, reason = existing_partition_is_valid(
-        output, source, args.subclasses, args.seed
+        output, source, args.subclasses, args.seed, args.source_validation_split
     ) if output.exists() else (False, "output missing")
     if valid:
         print(f"Existing partition is valid, reusing: {output}")
@@ -115,11 +126,12 @@ def main():
         )
 
     split_counts, started = {}, time.time()
-    for split_index, split in enumerate(("train", "val")):
+    source_splits = (("train", "train"), ("val", args.source_validation_split))
+    for split_index, (output_split, source_split) in enumerate(source_splits):
         per_pseudo = {}
         for coarse_id, coarse_name in enumerate(coarse_names):
             images = sorted(
-                path for path in (source / split / coarse_name).iterdir()
+                path for path in (source / source_split / coarse_name).iterdir()
                 if path.is_file() and path.suffix.lower() in EXTENSIONS
             )
             rng = random.Random(
@@ -133,17 +145,18 @@ def main():
                 modes = {"hardlink": 0, "copy": 0, "existing": 0}
                 for image in chunk:
                     modes[materialize(
-                        image, output / split / f"{pseudo_id:03d}" / image.name
+                        image, output / output_split / f"{pseudo_id:03d}" / image.name
                     )] += 1
                 per_pseudo[str(pseudo_id)] = len(chunk)
                 print(
-                    f"split={split} coarse={coarse_id + 1}/10 subclass={local_subclass + 1}/"
+                    f"split={output_split} source_split={source_split} "
+                    f"coarse={coarse_id + 1}/10 subclass={local_subclass + 1}/"
                     f"{args.subclasses} images={len(chunk)} hardlink={modes['hardlink']} "
                     f"copy={modes['copy']} existing={modes['existing']} "
                     f"elapsed={time.time() - started:.1f}s",
                     flush=True,
                 )
-        split_counts[split] = per_pseudo
+        split_counts[output_split] = per_pseudo
 
     total_classes = 10 * args.subclasses
     fine_to_coarse = {
@@ -158,6 +171,7 @@ def main():
     manifest = {
         "kind": "imagenette_balanced_random_subclasses",
         "source_root": str(source.resolve()),
+        "source_validation_split": args.source_validation_split,
         "partition_seed": args.seed,
         "num_coarse_classes": 10,
         "subclasses_per_coarse": args.subclasses,
@@ -172,7 +186,9 @@ def main():
     (output / "hierarchy.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
     )
-    valid, reason = existing_partition_is_valid(output, source, args.subclasses, args.seed)
+    valid, reason = existing_partition_is_valid(
+        output, source, args.subclasses, args.seed, args.source_validation_split
+    )
     if not valid:
         raise RuntimeError(f"newly generated partition failed validation: {reason}")
     print(

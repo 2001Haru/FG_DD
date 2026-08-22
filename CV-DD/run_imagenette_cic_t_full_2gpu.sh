@@ -14,11 +14,11 @@ readonly FKD_BATCH_SIZE=10
 PATCH_SCORING_BATCH="${PATCH_SCORING_BATCH:-256}"
 PATCH_CROP_WORKERS="${PATCH_CROP_WORKERS:-16}"
 RELABEL_PERSISTENT_WORKERS="${RELABEL_PERSISTENT_WORKERS:-1}"
-REAL_ROOT="${REAL_ROOT:-/linxi/dataset/VLCP/ImageNette}"
-EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/imagenette_cic_t}"
+REAL_ROOT="${REAL_ROOT:-$val_dir/imagenet-nette}"
+EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/imagenette_cic_t_official_split}"
 DATA_ROOT="$EXP_ROOT/data"; MODEL_ROOT="$EXP_ROOT/models"; PATCH_ROOT="$EXP_ROOT/patches"
 SYN_ROOT="$EXP_ROOT/synthetic"; FKD_ROOT="$EXP_ROOT/fkd"; POST_ROOT="$EXP_ROOT/post_eval"
-PER_CLASS="$EXP_ROOT/per_class"; ANALYSIS="$EXP_ROOT/analysis"; LOGS="$ROOT/logs/imagenette_cic_t/full"
+PER_CLASS="$EXP_ROOT/per_class"; ANALYSIS="$EXP_ROOT/analysis"; LOGS="$ROOT/logs/imagenette_cic_t_official_split/full"
 VAL_DIR="${VAL_DIR:-$val_dir/imagenet-nette/test}"
 mkdir -p "$PATCH_ROOT" "$SYN_ROOT" "$FKD_ROOT" "$POST_ROOT" "$PER_CLASS" "$ANALYSIS" "$LOGS"
 fail(){ echo "ImageNette CiC-T full experiment failed: $*" >&2; exit 1; }
@@ -28,6 +28,8 @@ for c in 1 2 5 10; do
     data="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}"
     model="$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}"
     [[ -f "$data/hierarchy.json" ]] || fail "missing C=$c hierarchy"
+    counts="$(python -c "import json; q=json.load(open('$data/hierarchy.json')); print(q.get('source_train_images'), q.get('source_val_images'), q.get('source_validation_split'))")"
+    [[ "$counts" == "9469 3925 test" ]] || fail "C=$c partition is not the official train/test split: $counts"
     [[ -f "$model/.training_complete.json" && -f "$model/ResNet18.pth" ]] \
         || fail "C=$c Teacher is not marked complete"
 done

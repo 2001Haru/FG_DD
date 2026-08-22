@@ -4,29 +4,34 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$ROOT/config.sh"
 GPU0="${GPU0:-0}"; GPU1="${GPU1:-1}"; WORKERS="${WORKERS:-8}"
-SOURCE_ROOT="${SOURCE_ROOT:-/linxi/dataset/VLCP/ImageNette}"
-EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/imagenette_cic_t}"
+SOURCE_ROOT="${SOURCE_ROOT:-$val_dir/imagenet-nette}"
+SOURCE_VALIDATION_SPLIT="${SOURCE_VALIDATION_SPLIT:-test}"
+EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/imagenette_cic_t_official_split}"
 PARTITION_SEED="${PARTITION_SEED:-42}"; TEACHER_SEED="${TEACHER_SEED:-42}"
 TEACHER_EPOCHS="${TEACHER_EPOCHS:-300}"
+C_VALUES_TEXT="${C_VALUES:-1 2 5 10}"; read -r -a C_VALUES_ARRAY <<< "$C_VALUES_TEXT"
 DATA_ROOT="$EXP_ROOT/data"; MODEL_ROOT="$EXP_ROOT/models"; AUDIT_ROOT="$EXP_ROOT/audits"
-LOGS="$ROOT/logs/imagenette_cic_t/teachers"
+LOGS="$ROOT/logs/imagenette_cic_t_official_split/teachers"
 mkdir -p "$DATA_ROOT" "$MODEL_ROOT" "$AUDIT_ROOT" "$LOGS"
 fail(){ echo "ImageNette CiC-T Teacher stage failed: $*" >&2; exit 1; }
 wait_jobs(){ local status=0 pid; for pid in "$@"; do wait "$pid" || status=$?; done; return "$status"; }
 
-for split in train val; do
+for split in train "$SOURCE_VALIDATION_SPLIT"; do
     [[ -d "$SOURCE_ROOT/$split" ]] || fail "missing source split: $SOURCE_ROOT/$split"
     classes="$(find "$SOURCE_ROOT/$split" -mindepth 1 -maxdepth 1 -type d | wc -l)"
     [[ "$classes" == 10 ]] || fail "$split contains $classes class directories, expected 10"
 done
 
 echo "[1/3] Preparing random subclass ImageFolders"
-for c in 1 2 5 10; do
+for c in "${C_VALUES_ARRAY[@]}"; do
     output="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}"
     python "$ROOT/class_in_class/prepare_imagenette_random_subclasses.py" \
         --source-root "$SOURCE_ROOT" --output-dir "$output" \
+        --source-validation-split "$SOURCE_VALIDATION_SPLIT" \
         --subclasses "$c" --seed "$PARTITION_SEED" --repair-invalid-output \
         > "$LOGS/partition_c${c}.log" 2>&1
+    counts="$(python -c "import json; q=json.load(open('$output/hierarchy.json')); print(q['source_train_images'], q['source_val_images'], q.get('source_validation_split'))")"
+    [[ "$counts" == "9469 3925 test" ]] || fail "C=$c partition has unsafe source counts/split: $counts"
 done
 
 train_one(){
@@ -54,18 +59,14 @@ train_one(){
         > "$LOGS/train_c${c}.log" 2>&1
 }
 
-echo "[2/3] Training C=2/5, then C=1/10 Teachers"
+echo "[2/3] Training Teachers: C=${C_VALUES_ARRAY[*]}"
 pids=()
-for c in 2 5; do
+for c in "${C_VALUES_ARRAY[@]}"; do
     gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
     train_one "$gpu" "$c" & pids+=("$!")
     if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail teacher_training; pids=(); fi
 done
 if (( ${#pids[@]} )); then wait_jobs "${pids[@]}" || fail teacher_training; fi
-pids=()
-train_one "$GPU0" 1 & pids+=("$!")
-train_one "$GPU1" 10 & pids+=("$!")
-wait_jobs "${pids[@]}" || fail teacher_training
 
 audit_one(){
     local gpu="$1" c="$2"
@@ -85,13 +86,21 @@ audit_one(){
 
 echo "[3/3] Auditing memorization and hierarchy collapse"
 pids=()
-for c in 1 2 5 10; do
+for c in "${C_VALUES_ARRAY[@]}"; do
     gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
     audit_one "$gpu" "$c" & pids+=("$!")
     if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail teacher_audit; pids=(); fi
 done
 if (( ${#pids[@]} )); then wait_jobs "${pids[@]}" || fail teacher_audit; fi
 
-python "$ROOT/class_in_class/summarize_imagenette_teacher_audits.py" \
-    --audit-dir "$AUDIT_ROOT" --output "$AUDIT_ROOT/summary.json"
-echo "Teacher-only stage complete: $AUDIT_ROOT/summary.json"
+all_ready=1
+for c in 1 2 5 10; do
+    [[ -f "$AUDIT_ROOT/random_c${c}_teacher_audit.json" ]] || all_ready=0
+done
+if (( all_ready )); then
+    python "$ROOT/class_in_class/summarize_imagenette_teacher_audits.py" \
+        --audit-dir "$AUDIT_ROOT" --output "$AUDIT_ROOT/summary.json"
+    echo "Teacher-only stage complete: $AUDIT_ROOT/summary.json"
+else
+    echo "Selected Teacher/audit stage complete for C=${C_VALUES_ARRAY[*]}; full summary waits for C=1,2,5,10"
+fi

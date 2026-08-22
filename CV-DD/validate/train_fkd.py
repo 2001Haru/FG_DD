@@ -95,6 +95,10 @@ def get_args():
                         default=1e-4, help='sgd weight decay')  # checked
     parser.add_argument('--adamw-weight-decay', type=float,
                         default=0.01, help='adamw weight decay')
+    parser.add_argument('--adamw-lr-override', type=float, default=None,
+                        help='override the dataset/model-specific AdamW learning rate')
+    parser.add_argument('--eta-override', type=float, default=None,
+                        help='override the dataset/model-specific cosine eta')
     parser.add_argument('--model', type=str,
                         default='ResNet18', help='student model name')
     parser.add_argument('--keep-topk', type=int, default=1000,
@@ -253,6 +257,15 @@ def get_args():
         args.eta = 2
     else:
         raise ValueError('dataset not supported')
+
+    if args.adamw_lr_override is not None:
+        if args.adamw_lr_override <= 0:
+            raise ValueError('--adamw-lr-override must be positive')
+        args.adamw_lr = args.adamw_lr_override
+    if args.eta_override is not None:
+        if args.eta_override <= 0:
+            raise ValueError('--eta-override must be positive')
+        args.eta = args.eta_override
 
     args.eval_fine_to_coarse = None
     args.eval_coarse_names = None

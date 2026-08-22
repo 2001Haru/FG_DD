@@ -15,7 +15,7 @@ VIEW_SEED="${VIEW_SEED:-42}"
 TEMPERATURE="${TEMPERATURE:-20}"
 readonly FKD_BATCH_SIZE=10
 
-EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/imagenette_cic_t}"
+EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/imagenette_cic_t_official_split}"
 CONTROL_DATA="$EXP_ROOT/data/random_c1_pseed${PARTITION_SEED}"
 CONTROL_TEACHER_DIR="$EXP_ROOT/models/random_c1_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}"
 CONTROL_PATCH_DIR="$EXP_ROOT/patches/c1"
@@ -30,20 +30,36 @@ FKD_ROOT="$ABL_ROOT/fkd"
 POST_ROOT="$ABL_ROOT/post_eval"
 PER_CLASS="$ABL_ROOT/per_class"
 ANALYSIS="$ABL_ROOT/analysis"
-LOGS="$ROOT/logs/imagenette_cic_t/c1_teacher_patch_ablation"
+LOGS="$ROOT/logs/imagenette_cic_t_official_split/c1_teacher_patch_ablation"
 ARMS=(official_teacher_c1_patches c1_teacher_official_patches)
 
 mkdir -p "$SYN_ROOT" "$FKD_ROOT" "$POST_ROOT" "$PER_CLASS" "$ANALYSIS" "$LOGS"
 fail(){ echo "ImageNette C1 Teacher/Patch ablation failed: $*" >&2; exit 1; }
-wait_jobs(){ local status=0 pid; for pid in "$@"; do wait "$pid" || status=$?; done; return "$status"; }
+wait_jobs(){
+    local status=0 pid
+    for pid in "$@"; do
+        if ! wait "$pid"; then status=1; fi
+    done
+    return "$status"
+}
 
 [[ -f "$CONTROL_DATA/hierarchy.json" ]] || fail "missing controlled C1 hierarchy"
+SOURCE_COUNTS="$(python -c "import json; q=json.load(open('$CONTROL_DATA/hierarchy.json')); print(q.get('source_train_images'), q.get('source_val_images'), q.get('source_validation_split'))")"
+[[ "$SOURCE_COUNTS" == "9469 3925 test" ]] || fail "controlled C1 uses unsafe source split: $SOURCE_COUNTS"
 [[ -f "$CONTROL_TEACHER_DIR/ResNet18.pth" ]] || fail "missing controlled C1 Teacher"
 [[ -f "$OFFICIAL_TEACHER_DIR/ResNet18.pth" ]] || fail "missing official offline ResNet18"
 CONTROL_PATCH_COUNT="$(find "$CONTROL_PATCH_DIR/medium" -type f -name '*.jpg' | wc -l)"
 OFFICIAL_PATCH_COUNT="$(find "$OFFICIAL_PATCH_DIR/medium" -type f -name '*.jpg' | wc -l)"
 (( CONTROL_PATCH_COUNT == 100 )) || fail "controlled C1 patches=$CONTROL_PATCH_COUNT, expected 100"
 (( OFFICIAL_PATCH_COUNT == 500 )) || fail "official patches=$OFFICIAL_PATCH_COUNT, expected 500"
+python "$ROOT/class_in_class/validate_cvdd_patch_tree.py" \
+    --patch-dir "$CONTROL_PATCH_DIR" --classes 10 --patches-per-class 10 --image-size 224 \
+    > "$LOGS/patch_validate_controlled.log" 2>&1 \
+    || fail "controlled C1 patch tree invalid; see $LOGS/patch_validate_controlled.log"
+python "$ROOT/class_in_class/validate_cvdd_patch_tree.py" \
+    --patch-dir "$OFFICIAL_PATCH_DIR" --classes 10 --patches-per-class 50 --image-size 224 \
+    > "$LOGS/patch_validate_official.log" 2>&1 \
+    || fail "official patch tree invalid; see $LOGS/patch_validate_official.log"
 VAL_IMAGE_COUNT="$(find "$VAL_DIR" -type f \( -iname '*.jpeg' -o -iname '*.jpg' -o -iname '*.png' -o -iname '*.bmp' -o -iname '*.webp' \) | wc -l)"
 VAL_CLASS_COUNT="$(find "$VAL_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)"
 (( VAL_IMAGE_COUNT == 3925 )) || fail "validation images=$VAL_IMAGE_COUNT, expected 3925: $VAL_DIR"

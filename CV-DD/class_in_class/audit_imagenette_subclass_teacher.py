@@ -8,6 +8,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, models, transforms
 
+from imagenette_subclass_dataset import EncodedSubclassFolder
+
 
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
@@ -19,7 +21,12 @@ def evaluate(model, root, split, mapping, groups, workers):
         transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor(),
         transforms.Normalize(MEAN, STD),
     ])
-    dataset = datasets.ImageFolder(str(root / split), transform)
+    if split == "val":
+        dataset = EncodedSubclassFolder(
+            root / split, num_classes=mapping.numel(), transform=transform
+        )
+    else:
+        dataset = datasets.ImageFolder(str(root / split), transform)
     loader = DataLoader(
         dataset, batch_size=256, shuffle=False, num_workers=workers,
         pin_memory=True, persistent_workers=workers > 0,

@@ -4,6 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$ROOT/config.sh"
 GPU0="${GPU0:-0}"; GPU1="${GPU1:-1}"; WORKERS="${WORKERS:-8}"
+PARALLEL_JOBS="${PARALLEL_JOBS:-2}"
+[[ "$PARALLEL_JOBS" == 1 || "$PARALLEL_JOBS" == 2 ]] || {
+    echo "PARALLEL_JOBS must be 1 or 2" >&2; exit 1;
+}
 SOURCE_ROOT="${SOURCE_ROOT:-$val_dir/imagenet-nette}"
 SOURCE_VALIDATION_SPLIT="${SOURCE_VALIDATION_SPLIT:-test}"
 EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/imagenette_cic_t_official_split}"
@@ -21,6 +25,9 @@ for split in train "$SOURCE_VALIDATION_SPLIT"; do
     classes="$(find "$SOURCE_ROOT/$split" -mindepth 1 -maxdepth 1 -type d | wc -l)"
     [[ "$classes" == 10 ]] || fail "$split contains $classes class directories, expected 10"
 done
+MIN_VALIDATION_PARENT_IMAGES="$(find "$SOURCE_ROOT/$SOURCE_VALIDATION_SPLIT" -mindepth 1 -maxdepth 1 -type d -print0 | while IFS= read -r -d '' directory; do find "$directory" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) | wc -l; done | sort -n | head -n1)"
+[[ "$MIN_VALIDATION_PARENT_IMAGES" =~ ^[0-9]+$ ]] || fail "cannot determine minimum validation parent size"
+echo "Teacher pseudo-validation is defined only for C <= $MIN_VALIDATION_PARENT_IMAGES"
 
 echo "[1/3] Preparing random subclass ImageFolders"
 for c in "${C_VALUES_ARRAY[@]}"; do
@@ -40,15 +47,21 @@ train_one(){
     local classes=$((10*c))
     local data="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}"
     local model_dir="$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}"
+    local validation_enabled=True
+    local validation_args=()
+    if (( c > MIN_VALIDATION_PARENT_IMAGES )); then
+        validation_enabled=False
+        validation_args+=(--skip-validation)
+    fi
     manifest_hash="$(sha256sum "$data/hierarchy.json" | awk '{print $1}')"
     if [[ -f "$model_dir/.training_complete.json" ]]; then
-        marker_valid="$(python -c "import json; q=json.load(open('$model_dir/.training_complete.json')); print(int(q.get('epochs',-1))==$TEACHER_EPOCHS and int(q.get('classes',-1))==$classes and int(q.get('seed',-1))==$TEACHER_SEED and q.get('data_manifest_sha256')=='$manifest_hash')")"
+        marker_valid="$(python -c "import json; q=json.load(open('$model_dir/.training_complete.json')); print(int(q.get('epochs',-1))==$TEACHER_EPOCHS and int(q.get('classes',-1))==$classes and int(q.get('seed',-1))==$TEACHER_SEED and q.get('data_manifest_sha256')=='$manifest_hash' and bool(q.get('validation_enabled',True)) is $validation_enabled)")"
         [[ "$marker_valid" == "True" ]] && return
     fi
     if [[ -f "$model_dir/ResNet18.pth" && -f "$model_dir/training_history.json" ]]; then
         completed_epochs="$(python -c "import json; print(len(json.load(open('$model_dir/training_history.json'))))")"
         if [[ "$completed_epochs" == "$TEACHER_EPOCHS" ]]; then
-            python -c "import json; json.dump({'epochs': $TEACHER_EPOCHS, 'classes': $classes, 'seed': $TEACHER_SEED, 'checkpoint': 'ResNet18.pth', 'data_manifest_sha256': '$manifest_hash'}, open('$model_dir/.training_complete.json','w'), indent=2)"
+            python -c "import json; json.dump({'epochs': $TEACHER_EPOCHS, 'classes': $classes, 'seed': $TEACHER_SEED, 'checkpoint': 'ResNet18.pth', 'data_manifest_sha256': '$manifest_hash', 'validation_enabled': $validation_enabled}, open('$model_dir/.training_complete.json','w'), indent=2)"
             return
         fi
     fi
@@ -56,15 +69,20 @@ train_one(){
     python -u "$ROOT/class_in_class/train_imagenette_subclass_teacher.py" \
         --data-dir "$data" --output-dir "$model_dir" --classes "$classes" \
         --batch-size 64 --epochs "$TEACHER_EPOCHS" --workers "$WORKERS" --seed "$TEACHER_SEED" \
+        "${validation_args[@]}" \
         > "$LOGS/train_c${c}.log" 2>&1
 }
 
 echo "[2/3] Training Teachers: C=${C_VALUES_ARRAY[*]}"
 pids=()
 for c in "${C_VALUES_ARRAY[@]}"; do
-    gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
+    if (( c > MIN_VALIDATION_PARENT_IMAGES )); then
+        echo "Skipping pseudo-label Teacher audit for C=$c (> $MIN_VALIDATION_PARENT_IMAGES validation images in the smallest parent)"
+        continue
+    fi
+    gpu="$GPU0"; (( PARALLEL_JOBS == 2 && ${#pids[@]}==1 )) && gpu="$GPU1"
     train_one "$gpu" "$c" & pids+=("$!")
-    if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail teacher_training; pids=(); fi
+    if (( ${#pids[@]}==PARALLEL_JOBS )); then wait_jobs "${pids[@]}" || fail teacher_training; pids=(); fi
 done
 if (( ${#pids[@]} )); then wait_jobs "${pids[@]}" || fail teacher_training; fi
 
@@ -87,9 +105,9 @@ audit_one(){
 echo "[3/3] Auditing memorization and hierarchy collapse"
 pids=()
 for c in "${C_VALUES_ARRAY[@]}"; do
-    gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
+    gpu="$GPU0"; (( PARALLEL_JOBS == 2 && ${#pids[@]}==1 )) && gpu="$GPU1"
     audit_one "$gpu" "$c" & pids+=("$!")
-    if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail teacher_audit; pids=(); fi
+    if (( ${#pids[@]}==PARALLEL_JOBS )); then wait_jobs "${pids[@]}" || fail teacher_audit; pids=(); fi
 done
 if (( ${#pids[@]} )); then wait_jobs "${pids[@]}" || fail teacher_audit; fi
 

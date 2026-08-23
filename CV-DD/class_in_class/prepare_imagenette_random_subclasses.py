@@ -93,6 +93,16 @@ def main():
     if len(coarse_dirs) != 10:
         raise RuntimeError(f"expected 10 ImageNette train classes, found {len(coarse_dirs)}")
     coarse_names = [path.name for path in coarse_dirs]
+    minimum_train_images = min(
+        len([path for path in directory.iterdir()
+             if path.is_file() and path.suffix.lower() in EXTENSIONS])
+        for directory in coarse_dirs
+    )
+    if args.subclasses > minimum_train_images:
+        raise ValueError(
+            f"C={args.subclasses} exceeds the smallest parent train class "
+            f"({minimum_train_images}); empty train subclasses are not allowed"
+        )
     source_validation = source / args.source_validation_split
     if sorted(path.name for path in source_validation.iterdir() if path.is_dir()) != coarse_names:
         raise RuntimeError(
@@ -142,10 +152,12 @@ def main():
             chunks = balanced_chunks(images, args.subclasses)
             for local_subclass, chunk in enumerate(chunks):
                 pseudo_id = coarse_id * args.subclasses + local_subclass
+                destination_dir = output / output_split / f"{pseudo_id:03d}"
+                destination_dir.mkdir(parents=True, exist_ok=True)
                 modes = {"hardlink": 0, "copy": 0, "existing": 0}
                 for image in chunk:
                     modes[materialize(
-                        image, output / output_split / f"{pseudo_id:03d}" / image.name
+                        image, destination_dir / image.name
                     )] += 1
                 per_pseudo[str(pseudo_id)] = len(chunk)
                 print(
@@ -182,6 +194,7 @@ def main():
         "split_counts": split_counts,
         "source_train_images": sum(split_counts["train"].values()),
         "source_val_images": sum(split_counts["val"].values()),
+        "minimum_parent_train_images": minimum_train_images,
     }
     (output / "hierarchy.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"

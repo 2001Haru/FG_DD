@@ -12,12 +12,14 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 from torchvision import datasets, models, transforms
 
+from imagenette_subclass_dataset import EncodedSubclassFolder
+
 
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
 
 
-def make_loaders(root, batch_size, workers, seed):
+def make_loaders(root, batch_size, workers, seed, expected_classes, skip_validation):
     train_transform = transforms.Compose([
         transforms.RandomResizedCrop(224),
         transforms.RandomHorizontalFlip(),
@@ -31,7 +33,9 @@ def make_loaders(root, batch_size, workers, seed):
         transforms.Normalize(MEAN, STD),
     ])
     train = datasets.ImageFolder(str(root / "train"), train_transform)
-    val = datasets.ImageFolder(str(root / "val"), val_transform)
+    val = None if skip_validation else EncodedSubclassFolder(
+        root / "val", num_classes=expected_classes, transform=val_transform
+    )
     generator = torch.Generator().manual_seed(seed)
     options = dict(
         num_workers=workers, pin_memory=True,
@@ -42,7 +46,8 @@ def make_loaders(root, batch_size, workers, seed):
     return (
         DataLoader(train, batch_size=batch_size, shuffle=True,
                    generator=generator, **options),
-        DataLoader(val, batch_size=256, shuffle=False, **options),
+        (None if val is None else
+         DataLoader(val, batch_size=256, shuffle=False, **options)),
         len(train.classes),
     )
 
@@ -67,6 +72,10 @@ def main():
     parser.add_argument("--epochs", type=int, default=300)
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--skip-validation", action="store_true",
+        help="train only; used when C exceeds images in a validation parent class",
+    )
     args = parser.parse_args()
     random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
@@ -75,7 +84,8 @@ def main():
     manifest_path = Path(args.data_dir) / "hierarchy.json"
     manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
     train_loader, val_loader, classes = make_loaders(
-        Path(args.data_dir), args.batch_size, args.workers, args.seed
+        Path(args.data_dir), args.batch_size, args.workers, args.seed, args.classes,
+        args.skip_validation,
     )
     if classes != args.classes:
         raise RuntimeError(
@@ -110,7 +120,7 @@ def main():
             "train_augmented_loss": loss_sum / total,
             "seconds": time.time() - started,
         }
-        if epoch % 10 == 0 or epoch == args.epochs - 1:
+        if (not args.skip_validation) and (epoch % 10 == 0 or epoch == args.epochs - 1):
             val_acc, val_loss = evaluate(model, val_loader, criterion)
             record.update({"val_native_accuracy": val_acc, "val_native_loss": val_loss})
             torch.save(model.state_dict(), output / "ResNet18.pth")
@@ -128,6 +138,7 @@ def main():
             "seed": args.seed,
             "checkpoint": "ResNet18.pth",
             "data_manifest_sha256": manifest_sha256,
+            "validation_enabled": not args.skip_validation,
         }, indent=2) + "\n",
         encoding="utf-8",
     )

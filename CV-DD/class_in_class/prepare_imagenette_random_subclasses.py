@@ -43,12 +43,15 @@ def existing_partition_is_valid(
     except (json.JSONDecodeError, OSError) as error:
         return False, f"manifest unreadable: {error}"
     expected_classes = 10 * subclasses
+    expected_width = max(3, len(str(expected_classes - 1)))
     checks = (
         (manifest.get("kind") == "imagenette_balanced_random_subclasses", "kind mismatch"),
         (int(manifest.get("partition_seed", -1)) == seed, "seed mismatch"),
         (int(manifest.get("subclasses_per_coarse", -1)) == subclasses, "C mismatch"),
         (int(manifest.get("num_pseudo_classes", -1)) == expected_classes,
          "class count mismatch in manifest"),
+        (int(manifest.get("class_name_width", 3)) == expected_width,
+         "class-name width mismatch"),
         (Path(manifest.get("source_root", "")).resolve() == source.resolve(), "source mismatch"),
         (manifest.get("source_validation_split", "val") == source_validation_split,
          "source validation split mismatch"),
@@ -59,7 +62,7 @@ def existing_partition_is_valid(
     for split in ("train", "val"):
         directories = sorted(path for path in (output / split).iterdir() if path.is_dir()) \
             if (output / split).is_dir() else []
-        expected_names = [f"{index:03d}" for index in range(expected_classes)]
+        expected_names = [f"{index:0{expected_width}d}" for index in range(expected_classes)]
         if [path.name for path in directories] != expected_names:
             return False, f"{split} directory set/count mismatch"
         expected_counts = manifest.get("split_counts", {}).get(split, {})
@@ -88,6 +91,8 @@ def main():
     source, output = Path(args.source_root), Path(args.output_dir)
     if args.subclasses < 1:
         raise ValueError("subclasses must be at least 1")
+    total_classes = 10 * args.subclasses
+    class_name_width = max(3, len(str(total_classes - 1)))
 
     coarse_dirs = sorted(path for path in (source / "train").iterdir() if path.is_dir())
     if len(coarse_dirs) != 10:
@@ -152,7 +157,9 @@ def main():
             chunks = balanced_chunks(images, args.subclasses)
             for local_subclass, chunk in enumerate(chunks):
                 pseudo_id = coarse_id * args.subclasses + local_subclass
-                destination_dir = output / output_split / f"{pseudo_id:03d}"
+                destination_dir = (
+                    output / output_split / f"{pseudo_id:0{class_name_width}d}"
+                )
                 destination_dir.mkdir(parents=True, exist_ok=True)
                 modes = {"hardlink": 0, "copy": 0, "existing": 0}
                 for image in chunk:
@@ -170,7 +177,6 @@ def main():
                 )
         split_counts[output_split] = per_pseudo
 
-    total_classes = 10 * args.subclasses
     fine_to_coarse = {
         str(index): index // args.subclasses for index in range(total_classes)
     }
@@ -188,6 +194,7 @@ def main():
         "num_coarse_classes": 10,
         "subclasses_per_coarse": args.subclasses,
         "num_pseudo_classes": total_classes,
+        "class_name_width": class_name_width,
         "coarse_names": coarse_names,
         "fine_to_coarse": fine_to_coarse,
         "coarse_to_fine": coarse_to_fine,

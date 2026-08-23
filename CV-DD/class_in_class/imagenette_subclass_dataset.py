@@ -12,7 +12,10 @@ class EncodedSubclassFolder(Dataset):
         self.transform = transform
         self.target_transform = None
         self.loader = default_loader
-        self.classes = [f"{index:03d}" for index in range(num_classes)]
+        class_name_width = max(3, len(str(num_classes - 1)))
+        self.classes = [
+            f"{index:0{class_name_width}d}" for index in range(num_classes)
+        ]
         self.class_to_idx = {name: index for index, name in enumerate(self.classes)}
         root = Path(root)
         actual_dirs = sorted(path.name for path in root.iterdir() if path.is_dir())

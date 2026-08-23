@@ -3,6 +3,10 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; source "$ROOT/config.sh"
 GPU0="${GPU0:-0}"; GPU1="${GPU1:-1}"; WORKERS="${WORKERS:-8}"
+PARALLEL_JOBS="${PARALLEL_JOBS:-2}"
+[[ "$PARALLEL_JOBS" == 1 || "$PARALLEL_JOBS" == 2 ]] || {
+    echo "PARALLEL_JOBS must be 1 or 2" >&2; exit 1;
+}
 RSEEDS_TEXT="${RECOVERY_SEEDS:-41 42 43}"; read -r -a RSEEDS <<< "$RSEEDS_TEXT"
 SSEEDS_TEXT="${STUDENT_SEEDS:-42 43 44}"; read -r -a SSEEDS <<< "$SSEEDS_TEXT"
 C_VALUES_TEXT="${C_VALUES:-1 2 5 10}"; read -r -a C_VALUES_ARRAY <<< "$C_VALUES_TEXT"
@@ -115,9 +119,9 @@ patch_one(){
 
 echo "[1/4] Teacher-specific coarse10 patches"
 pids=(); for c in "${C_VALUES_ARRAY[@]}"; do
-    gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
+    gpu="$GPU0"; (( PARALLEL_JOBS == 2 && ${#pids[@]}==1 )) && gpu="$GPU1"
     patch_one "$gpu" "$c" & pids+=("$!")
-    if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail patches; pids=(); fi
+    if (( ${#pids[@]}==PARALLEL_JOBS )); then wait_jobs "${pids[@]}" || fail patches; pids=(); fi
 done
 if (( ${#pids[@]} )); then wait_jobs "${pids[@]}" || fail patches; fi
 
@@ -164,9 +168,9 @@ recover_one(){
 
 echo "[2/4] Recovery: C=${C_VALUES_ARRAY[*]}, seeds=${RSEEDS[*]}, iter=$RECOVERY_ITERATIONS, lr=$RECOVERY_LR, r_bn=$RECOVERY_R_BN"
 pids=(); for rseed in "${RSEEDS[@]}"; do for c in "${C_VALUES_ARRAY[@]}"; do
-    gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
+    gpu="$GPU0"; (( PARALLEL_JOBS == 2 && ${#pids[@]}==1 )) && gpu="$GPU1"
     recover_one "$gpu" "$c" "$rseed" & pids+=("$!")
-    if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail recovery; pids=(); fi
+    if (( ${#pids[@]}==PARALLEL_JOBS )); then wait_jobs "${pids[@]}" || fail recovery; pids=(); fi
 done; done
 if (( ${#pids[@]} )); then wait_jobs "${pids[@]}" || fail recovery; fi
 
@@ -212,9 +216,9 @@ relabel_one(){
 
 echo "[3/4] Relabel marg10"
 pids=(); for rseed in "${RSEEDS[@]}"; do for c in "${C_VALUES_ARRAY[@]}"; do
-    gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
+    gpu="$GPU0"; (( PARALLEL_JOBS == 2 && ${#pids[@]}==1 )) && gpu="$GPU1"
     relabel_one "$gpu" "$c" "$rseed" & pids+=("$!")
-    if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail relabel; pids=(); fi
+    if (( ${#pids[@]}==PARALLEL_JOBS )); then wait_jobs "${pids[@]}" || fail relabel; pids=(); fi
 done; done
 if (( ${#pids[@]} )); then wait_jobs "${pids[@]}" || fail relabel; fi
 
@@ -248,9 +252,9 @@ validate_one(){
 
 echo "[4/4] Post-eval: C=${C_VALUES_ARRAY[*]}, recovery=${RSEEDS[*]}, student=${SSEEDS[*]}"
 pids=(); for sseed in "${SSEEDS[@]}"; do for rseed in "${RSEEDS[@]}"; do for c in "${C_VALUES_ARRAY[@]}"; do
-    gpu="$GPU0"; (( ${#pids[@]}==1 )) && gpu="$GPU1"
+    gpu="$GPU0"; (( PARALLEL_JOBS == 2 && ${#pids[@]}==1 )) && gpu="$GPU1"
     validate_one "$gpu" "$c" "$rseed" "$sseed" & pids+=("$!")
-    if (( ${#pids[@]}==2 )); then wait_jobs "${pids[@]}" || fail post_eval; pids=(); fi
+    if (( ${#pids[@]}==PARALLEL_JOBS )); then wait_jobs "${pids[@]}" || fail post_eval; pids=(); fi
 done; done; done
 if (( ${#pids[@]} )); then wait_jobs "${pids[@]}" || fail post_eval; fi
 

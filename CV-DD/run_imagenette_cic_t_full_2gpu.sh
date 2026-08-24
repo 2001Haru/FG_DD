@@ -11,6 +11,8 @@ RSEEDS_TEXT="${RECOVERY_SEEDS:-41 42 43}"; read -r -a RSEEDS <<< "$RSEEDS_TEXT"
 SSEEDS_TEXT="${STUDENT_SEEDS:-42 43 44}"; read -r -a SSEEDS <<< "$SSEEDS_TEXT"
 C_VALUES_TEXT="${C_VALUES:-1 2 5 10}"; read -r -a C_VALUES_ARRAY <<< "$C_VALUES_TEXT"
 PARTITION_SEED="${PARTITION_SEED:-42}"; TEACHER_SEED="${TEACHER_SEED:-42}"
+PARTITION_PREFIX="${PARTITION_PREFIX:-random}"
+PARTITION_SEED_TOKEN="${PARTITION_SEED_TOKEN:-pseed}"
 VIEW_SEED="${VIEW_SEED:-42}"; TEMPERATURE="${TEMPERATURE:-20}"
 RECOVERY_ITERATIONS="${RECOVERY_ITERATIONS:-4000}"
 RECOVERY_LR="${RECOVERY_LR:-0.25}"
@@ -27,7 +29,9 @@ REAL_ROOT="${REAL_ROOT:-$val_dir/imagenet-nette}"
 EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/imagenette_cic_t_official_split}"
 ASSET_ROOT="${ASSET_ROOT:-$EXP_ROOT}"
 C1_TEACHER_OVERRIDE="${C1_TEACHER_OVERRIDE:-}"
-DATA_ROOT="$ASSET_ROOT/data"; MODEL_ROOT="$ASSET_ROOT/models"; PATCH_ROOT="$EXP_ROOT/patches"
+DATA_ROOT="${DATA_ROOT_OVERRIDE:-$ASSET_ROOT/data}"
+MODEL_ROOT="${MODEL_ROOT_OVERRIDE:-$ASSET_ROOT/models}"
+PATCH_ROOT="$EXP_ROOT/patches"
 SYN_ROOT="$EXP_ROOT/synthetic"; FKD_ROOT="$EXP_ROOT/fkd"; POST_ROOT="$EXP_ROOT/post_eval"
 PER_CLASS="$EXP_ROOT/per_class"; ANALYSIS="$EXP_ROOT/analysis"; LOGS="${LOGS:-$ROOT/logs/imagenette_cic_t_official_split/full}"
 VAL_DIR="${VAL_DIR:-$val_dir/imagenet-nette/test}"
@@ -41,18 +45,31 @@ wait_jobs(){
     return "$status"
 }
 
+partition_name(){
+    local c="$1"
+    printf '%s\n' "${PARTITION_PREFIX}_c${c}_${PARTITION_SEED_TOKEN}${PARTITION_SEED}"
+}
+
+partition_for_c(){
+    printf '%s\n' "$DATA_ROOT/$(partition_name "$1")"
+}
+
+model_dir_for_c(){
+    printf '%s\n' "$MODEL_ROOT/$(partition_name "$1")_tseed${TEACHER_SEED}"
+}
+
 teacher_for_c(){
     local c="$1"
     if [[ "$c" == 1 && -n "$C1_TEACHER_OVERRIDE" ]]; then
         printf '%s\n' "$C1_TEACHER_OVERRIDE"
     else
-        printf '%s\n' "$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}/ResNet18.pth"
+        printf '%s\n' "$(model_dir_for_c "$c")/ResNet18.pth"
     fi
 }
 
 for c in "${C_VALUES_ARRAY[@]}"; do
-    data="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}"
-    model="$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}"
+    data="$(partition_for_c "$c")"
+    model="$(model_dir_for_c "$c")"
     teacher="$(teacher_for_c "$c")"
     [[ -f "$data/hierarchy.json" ]] || fail "missing C=$c hierarchy"
     counts="$(python -c "import json; q=json.load(open('$data/hierarchy.json')); print(q.get('source_train_images'), q.get('source_val_images'), q.get('source_validation_split'))")"
@@ -98,7 +115,7 @@ patch_one(){
     python -u "$ROOT/class_in_class/generate_patches.py" --data-dir "$REAL_ROOT" \
         --teacher "$teacher" \
         --teacher-num-classes "$heads" \
-        --teacher-mapping "$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}/hierarchy.json" \
+        --teacher-mapping "$(partition_for_c "$c")/hierarchy.json" \
         --teacher-architecture torchvision --num-classes 10 --patches-per-class 10 \
         --candidate-images 100 --crops-per-image 5 --image-size 224 --normalization imagenet \
         --scoring-batch-size "$PATCH_SCORING_BATCH" --crop-workers "$PATCH_CROP_WORKERS" \
@@ -133,7 +150,7 @@ recover_one(){
     local exp="cic_t_c${c}_ipc10_rseed${rseed}" output="$SYN_ROOT/cic_t_c${c}_ipc10_rseed${rseed}"
     local count=0 marker="$output/.protocol" patch_sha archive
     teacher="$(teacher_for_c "$c")"
-    mapping="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}/hierarchy.json"
+    mapping="$(partition_for_c "$c")/hierarchy.json"
     patch_sha="$(find "$PATCH_ROOT/c${c}/medium" -type f -name '*.jpg' -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
     expected="c=$c:rseed=$rseed:teacher=$(sha256sum "$teacher"|awk '{print $1}'):mapping=$(sha256sum "$mapping"|awk '{print $1}'):patch=$patch_sha:iter=$RECOVERY_ITERATIONS:lr=$RECOVERY_LR:r_bn=$RECOVERY_R_BN"
     if [[ -d "$output" ]]; then
@@ -201,7 +218,7 @@ relabel_one(){
     python -u "$ROOT/relabel/relabel.py" --syn-data-path "$syn" --fkd-path "$base" \
         --model-pool-dir "$(dirname "$teacher")" \
         --teacher-model-name ResNet18 --teacher-num-classes "$heads" \
-        --teacher-mapping "$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}/hierarchy.json" \
+        --teacher-mapping "$(partition_for_c "$c")/hierarchy.json" \
         --marginalize-temperature "$TEMPERATURE" --gpu 0 --batch-size "$FKD_BATCH_SIZE" --workers "$WORKERS" \
         "${worker_args[@]}" \
         --dataset-name imagenet-nette --epochs 300 --fkd-seed "$VIEW_SEED" --seed "$VIEW_SEED" \

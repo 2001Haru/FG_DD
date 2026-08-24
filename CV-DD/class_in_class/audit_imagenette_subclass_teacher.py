@@ -72,6 +72,10 @@ def main():
     parser.add_argument("--mapping", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument(
+        "--train-only", action="store_true",
+        help="audit the clean training split only; do not construct or evaluate validation data",
+    )
     args = parser.parse_args()
     hierarchy = json.loads(Path(args.mapping).read_text(encoding="utf-8"))
     classes = int(hierarchy["num_pseudo_classes"])
@@ -112,20 +116,22 @@ def main():
                 "two_sided_p": min(two_sided, 1.0)}
 
     train = evaluate(model, Path(args.data_dir), "train", mapping, groups, args.workers)
-    val = evaluate(model, Path(args.data_dir), "val", mapping, groups, args.workers)
-    val["conditional_ratio_binomial_test"] = binomial_test(
-        val["native_and_coarse_correct"], val["collapsed_coarse_correct"],
-        1.0 / subclasses,
-    )
     result = {
         "audit_schema_version": 2,
+        "audit_scope": "train_only" if args.train_only else "train_and_validation",
         "subclasses_per_coarse": subclasses,
         "num_pseudo_classes": classes,
-        "expected_test_native_to_coarse_ratio": 1.0 / subclasses,
         "max_uniform_within_parent_entropy": float(torch.tensor(float(subclasses)).log()),
         "train": train,
-        "val": val,
     }
+    if not args.train_only:
+        val = evaluate(model, Path(args.data_dir), "val", mapping, groups, args.workers)
+        val["conditional_ratio_binomial_test"] = binomial_test(
+            val["native_and_coarse_correct"], val["collapsed_coarse_correct"],
+            1.0 / subclasses,
+        )
+        result["expected_test_native_to_coarse_ratio"] = 1.0 / subclasses
+        result["val"] = val
     serialized = json.dumps(result, indent=2)
     output = Path(args.output); output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(serialized + "\n", encoding="utf-8"); print(serialized)

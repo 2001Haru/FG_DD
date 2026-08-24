@@ -12,6 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 import torchvision.models as models
+from torchvision import datasets
 try:
     import wandb
 except ImportError:
@@ -62,8 +63,10 @@ def get_args():
     parser.add_argument('--original-data-path', required='True', type=str,
                         help='name of the original data')
     parser.add_argument('--simple', default=False,action='store_true',)
-    parser.add_argument('--fkd-path', required='True', type=str,
+    parser.add_argument('--fkd-path', default=None, type=str,
                         help='path to the fkd labels')
+    parser.add_argument('--hard-label', action='store_true',
+                        help='train directly from ImageFolder class IDs with cross-entropy; do not load FKD labels')
     parser.add_argument('--output-dir', required='True', type=str,
                         help='output directory')
     parser.add_argument('--dataset-name',default='cifar100',type=str,
@@ -125,6 +128,11 @@ def get_args():
                         help='select best checkpoint using hierarchy-collapsed coarse Top1')
 
     args = parser.parse_args()
+
+    if not args.hard_label and args.fkd_path is None:
+        parser.error('--fkd-path is required unless --hard-label is specified')
+    if args.hard_label and args.mix_type is not None:
+        parser.error('--hard-label does not use FKD MixUp/CutMix; omit --mix-type')
 
     args.mode = 'fkd_load'
 
@@ -326,20 +334,43 @@ def main():
 
     # Data loading
     normalize = transforms.Normalize(mean=args.mean_norm, std=args.std_norm)
-    train_dataset = ImageFolder_FKD_MIX(
-        fkd_path=args.fkd_path,
-        mode=args.mode,
-        args_epoch=args.epochs,
-        args_bs=args.batch_size,
-        root=args.original_data_path,
-        transform=ComposeWithCoords(transforms=[
-            RandomResizedCropWithCoords(size=args.input_size,
-                                        scale=(args.min_scale, 1),
-                                        interpolation=InterpolationMode.BILINEAR),
-            RandomHorizontalFlipWithRes(),
-            transforms.ToTensor(),
-            normalize,
-        ]))
+    if args.hard_label:
+        train_dataset = datasets.ImageFolder(
+            root=args.original_data_path,
+            transform=transforms.Compose([
+                transforms.RandomResizedCrop(
+                    size=args.input_size, scale=(args.min_scale, 1),
+                    interpolation=InterpolationMode.BILINEAR,
+                ),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                normalize,
+            ]),
+        )
+        if len(train_dataset.classes) != args.ncls:
+            raise ValueError(
+                f'hard-label ImageFolder has {len(train_dataset.classes)} classes, '
+                f'expected {args.ncls}: {args.original_data_path}'
+            )
+        print(
+            f'=> hard-label training: images={len(train_dataset)}, '
+            f'classes={len(train_dataset.classes)}, loss=cross_entropy'
+        )
+    else:
+        train_dataset = ImageFolder_FKD_MIX(
+            fkd_path=args.fkd_path,
+            mode=args.mode,
+            args_epoch=args.epochs,
+            args_bs=args.batch_size,
+            root=args.original_data_path,
+            transform=ComposeWithCoords(transforms=[
+                RandomResizedCropWithCoords(size=args.input_size,
+                                            scale=(args.min_scale, 1),
+                                            interpolation=InterpolationMode.BILINEAR),
+                RandomHorizontalFlipWithRes(),
+                transforms.ToTensor(),
+                normalize,
+            ]))
 
     generator = torch.Generator()
     generator.manual_seed(args.fkd_seed)
@@ -469,11 +500,39 @@ def train(model, args, epoch=None):
     optimizer = args.optimizer
     scheduler = args.scheduler
     loss_function_kl = nn.KLDivLoss(reduction='batchmean')
+    loss_function_ce = nn.CrossEntropyLoss()
 
     model.train()
     t1 = time.time()
-    args.train_loader.dataset.set_epoch(epoch)
+    if hasattr(args.train_loader.dataset, 'set_epoch'):
+        args.train_loader.dataset.set_epoch(epoch)
     for batch_idx, batch_data in enumerate(args.train_loader):
+        if args.hard_label:
+            images, target = batch_data
+            images = images.cuda(non_blocking=True)
+            target = target.cuda(non_blocking=True)
+            optimizer.zero_grad()
+            assert args.batch_size % args.gradient_accumulation_steps == 0
+            small_bs = args.batch_size // args.gradient_accumulation_steps
+            accum_step = math.ceil(images.shape[0] / small_bs)
+
+            for accum_id in range(accum_step):
+                partial_images = images[accum_id * small_bs: (accum_id + 1) * small_bs]
+                partial_target = target[accum_id * small_bs: (accum_id + 1) * small_bs]
+                output = model(partial_images)
+                prec1, prec5 = accuracy(output, partial_target, topk=(1, 5))
+                loss = loss_function_ce(output, partial_target)
+                loss = loss / accum_step
+                loss.backward()
+
+                n = partial_images.size(0)
+                objs.update(loss.item(), n)
+                top1.update(prec1.item(), n)
+                top5.update(prec5.item(), n)
+
+            optimizer.step()
+            continue
+
         images, target, flip_status, coords_status = batch_data[0]
         mix_index, mix_lam, mix_bbox, soft_label = batch_data[1:]
 
@@ -631,6 +690,7 @@ def export_per_class_accuracy(model, args, best_acc1):
         })
     payload = {
         'best_top1': float(best_acc1),
+        'training_target': ('hard_coarse_label' if args.hard_label else 'fkd_soft_label'),
         'num_classes': output_classes,
         'validation_dir': os.path.abspath(args.val_dir),
         'validation_images': len(args.val_loader.dataset),

@@ -70,13 +70,15 @@ def main():
     parser.add_argument("--recovery-seeds", nargs="+", type=int, required=True)
     parser.add_argument("--student-seeds", nargs="+", type=int, required=True)
     parser.add_argument("--c-values", nargs="+", type=int, default=(1, 2, 5, 10))
+    parser.add_argument("--per-class-subdir", default="per_class")
+    parser.add_argument("--protocol", default=None)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
 
     root = Path(args.master_root)
     values = {c: {} for c in args.c_values}
     for teacher in args.teacher_seeds:
-        per_class = root / f"tseed{teacher}" / "per_class"
+        per_class = root / f"tseed{teacher}" / args.per_class_subdir
         for c in args.c_values:
             for recovery in args.recovery_seeds:
                 for student in args.student_seeds:
@@ -89,7 +91,7 @@ def main():
                     )
 
     summary = {
-        "protocol": (
+        "protocol": args.protocol or (
             "ImageNette IPC10 ResNet18 random CiC-T, official split, Teacher "
             "seeds43/44, recovery iter4000 LR0.1 r_bn0.01, marg10 T20"
         ),

@@ -54,7 +54,7 @@ train_one(){
         validation_args+=(--skip-validation)
     fi
     manifest_hash="$(sha256sum "$data/hierarchy.json" | awk '{print $1}')"
-    if [[ -f "$model_dir/.training_complete.json" ]]; then
+    if [[ -f "$model_dir/.training_complete.json" && -f "$model_dir/ResNet18.pth" ]]; then
         marker_valid="$(python -c "import json; q=json.load(open('$model_dir/.training_complete.json')); print(int(q.get('epochs',-1))==$TEACHER_EPOCHS and int(q.get('classes',-1))==$classes and int(q.get('seed',-1))==$TEACHER_SEED and q.get('data_manifest_sha256')=='$manifest_hash' and bool(q.get('validation_enabled',True)) is $validation_enabled)")"
         [[ "$marker_valid" == "True" ]] && return
     fi
@@ -71,26 +71,35 @@ train_one(){
         --batch-size 64 --epochs "$TEACHER_EPOCHS" --workers "$WORKERS" --seed "$TEACHER_SEED" \
         "${validation_args[@]}" \
         > "$LOGS/train_c${c}.log" 2>&1
+    [[ -f "$model_dir/ResNet18.pth" && -f "$model_dir/.training_complete.json" ]] || {
+        echo "C=$c Teacher process ended without checkpoint/completion marker: $model_dir" >&2
+        return 1
+    }
 }
 
 echo "[2/3] Training Teachers: C=${C_VALUES_ARRAY[*]}"
 pids=()
 for c in "${C_VALUES_ARRAY[@]}"; do
-    if (( c > MIN_VALIDATION_PARENT_IMAGES )); then
-        echo "Skipping pseudo-label Teacher audit for C=$c (> $MIN_VALIDATION_PARENT_IMAGES validation images in the smallest parent)"
-        continue
-    fi
     gpu="$GPU0"; (( PARALLEL_JOBS == 2 && ${#pids[@]}==1 )) && gpu="$GPU1"
     train_one "$gpu" "$c" & pids+=("$!")
     if (( ${#pids[@]}==PARALLEL_JOBS )); then wait_jobs "${pids[@]}" || fail teacher_training; pids=(); fi
 done
 if (( ${#pids[@]} )); then wait_jobs "${pids[@]}" || fail teacher_training; fi
+for c in "${C_VALUES_ARRAY[@]}"; do
+    model_dir="$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}"
+    [[ -f "$model_dir/ResNet18.pth" && -f "$model_dir/.training_complete.json" ]] \
+        || fail "C=$c Teacher missing after training stage: $model_dir"
+done
 
 audit_one(){
     local gpu="$1" c="$2"
     local data="$DATA_ROOT/random_c${c}_pseed${PARTITION_SEED}"
     local model_dir="$MODEL_ROOT/random_c${c}_pseed${PARTITION_SEED}_tseed${TEACHER_SEED}"
     local output="$AUDIT_ROOT/random_c${c}_teacher_audit.json"
+    [[ -f "$model_dir/ResNet18.pth" ]] || {
+        echo "C=$c audit blocked: missing checkpoint $model_dir/ResNet18.pth" >&2
+        return 1
+    }
     if [[ -f "$output" ]]; then
         schema="$(python -c "import json; print(json.load(open('$output')).get('audit_schema_version', 0))")"
         [[ "$schema" == "2" ]] && return
@@ -105,6 +114,10 @@ audit_one(){
 echo "[3/3] Auditing memorization and hierarchy collapse"
 pids=()
 for c in "${C_VALUES_ARRAY[@]}"; do
+    if (( c > MIN_VALIDATION_PARENT_IMAGES )); then
+        echo "Skipping pseudo-label Teacher audit for C=$c (> $MIN_VALIDATION_PARENT_IMAGES validation images in the smallest parent)"
+        continue
+    fi
     gpu="$GPU0"; (( PARALLEL_JOBS == 2 && ${#pids[@]}==1 )) && gpu="$GPU1"
     audit_one "$gpu" "$c" & pids+=("$!")
     if (( ${#pids[@]}==PARALLEL_JOBS )); then wait_jobs "${pids[@]}" || fail teacher_audit; pids=(); fi

@@ -340,10 +340,11 @@ def load_model(args, model_name):
 
 
 def count_jpg_files(directory):
-    jpg_count = 0
-    # 遍历目录及其子目录
+    """Count image files accepted by the ImageFolder-based relabel dataset."""
+    extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.webp'}
+    image_count = 0
     for root, dirs, files in os.walk(directory):
-        # 统计所有 .jpg 和 .JPG 文件
-        jpg_count += len([file for file in files if file.lower().endswith('.jpg')])
-    
-    return jpg_count
+        image_count += sum(
+            os.path.splitext(file)[1].lower() in extensions for file in files
+        )
+    return image_count

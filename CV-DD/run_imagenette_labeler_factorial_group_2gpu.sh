@@ -103,13 +103,34 @@ relabel_one(){
     final="${base}_bs10_ipc10"
     log="$LOG_ROOT/tseed${teacher_seed}/relabel_${row}__${column}_r${recovery_seed}.log"
     mkdir -p "$(dirname "$log")" "$(dirname "$base")"
+    # Recover outputs created by the historical .jpg-only counter (real .JPEG
+    # subsets were incorrectly named ipc0). IPC only affected the directory
+    # suffix, so a complete 3000-tar tree can be atomically renamed and reused.
+    shopt -s nullglob
+    for candidate in "${base}_bs10_ipc"*; do
+        ipc_suffix="${candidate#${base}_bs10_ipc}"
+        [[ "$ipc_suffix" =~ ^[0-9]+$ ]] || continue
+        if [[ "$candidate" != "$final" && -d "$candidate" ]]; then
+            candidate_count="$(find "$candidate" -type f -name 'batch_*.tar' | wc -l)"
+            if [[ "$ipc_suffix" == 0 && "$candidate_count" == 3000 && ! -e "$final" ]]; then
+                mv "$candidate" "$final"
+                echo "Recovered complete mislabeled FKD tree: $candidate -> $final"
+                continue
+            fi
+            stale_archive="${candidate}.invalid_image_count_$(date +%Y%m%d_%H%M%S)"
+            [[ ! -e "$stale_archive" ]] || { echo "stale archive exists: $stale_archive" >&2; shopt -u nullglob; return 1; }
+            mv "$candidate" "$stale_archive"
+            echo "Archived stale FKD directory: $candidate -> $stale_archive"
+        fi
+    done
+    shopt -u nullglob
     count=0; [[ -d "$final" ]] && count="$(find "$final" -type f -name 'batch_*.tar' | wc -l)"
     (( count == 3000 )) && return
     if (( count > 0 )); then
         archive="${final}.invalid_$(date +%Y%m%d_%H%M%S)"
         mv "$final" "$archive"
     fi
-    CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+    if ! CUDA_VISIBLE_DEVICES="$gpu" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python -u "$ROOT/relabel/relabel.py" \
         --syn-data-path "$source" --fkd-path "$base" \
         --model-pool-dir "$(dirname "$teacher")" --teacher-model-name ResNet18 \
@@ -118,8 +139,11 @@ relabel_one(){
         --persistent-workers --prefetch-factor 4 --dataset-name imagenet-nette \
         --epochs 300 --fkd-seed "$VIEW_SEED" --seed "$VIEW_SEED" \
         --min-scale-crops 0.08 --max-scale-crops 1 --use-fp16 \
-        --mode fkd_save --mix-type cutmix > "$log" 2>&1
-    count="$(find "$final" -type f -name 'batch_*.tar' | wc -l)"
+        --mode fkd_save --mix-type cutmix > "$log" 2>&1; then
+        echo "Relabel failed: row=$row column=$column tseed=$teacher_seed rseed=$recovery_seed; log=$log" >&2
+        return 1
+    fi
+    count=0; [[ -d "$final" ]] && count="$(find "$final" -type f -name 'batch_*.tar' | wc -l)"
     (( count == 3000 )) || { echo "incomplete FKD: $final ($count/3000)" >&2; return 1; }
 }
 

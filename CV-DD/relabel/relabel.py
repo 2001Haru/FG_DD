@@ -162,7 +162,13 @@ def main():
     
     
     # compute current ipc
-    ipc = int(count_jpg_files(args.syn_data_path) / args.ncls)
+    image_count = count_jpg_files(args.syn_data_path)
+    if image_count <= 0 or image_count % args.ncls != 0:
+        raise RuntimeError(
+            f'invalid relabel ImageFolder image count: images={image_count}, '
+            f'classes={args.ncls}, path={args.syn_data_path}'
+        )
+    ipc = image_count // args.ncls
     
     # set up the fkd path
     args.fkd_path = args.fkd_path + f'_bs{args.batch_size}_ipc{ipc}'

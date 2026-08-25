@@ -14,6 +14,7 @@ SSEEDS_TEXT="${STUDENT_SEEDS:-42 43 44}"
 read -r -a RSEEDS <<< "$RSEEDS_TEXT"
 read -r -a SSEEDS <<< "$SSEEDS_TEXT"
 MASTER_ROOT="${MASTER_ROOT:-$Main_Data_Path/class_in_class/imagenette_cic_t_official_split_lr0p1_tseeds43_44}"
+HARD_PROTOCOL="${HARD_PROTOCOL:-ImageNette IPC10 ResNet18; existing CiC-T synthetic images; hard coarse10 labels; no FKD/relabel; 300 epochs BS10 AdamW LR5e-4 eta1}"
 VAL_DIR="${VAL_DIR:-$val_dir/imagenet-nette/test}"
 LOG_ROOT="${LOG_ROOT:-$ROOT/logs/imagenette_hard_label_eval}"
 mkdir -p "$LOG_ROOT"
@@ -102,6 +103,6 @@ python "$ROOT/class_in_class/summarize_imagenette_cic_t_teacher_seeds.py" \
     --master-root "$MASTER_ROOT" --teacher-seeds 43 44 \
     --recovery-seeds "${RSEED_ARRAY[@]}" --student-seeds "${SSEED_ARRAY[@]}" \
     --c-values "${C_VALUES_ARRAY[@]}" --per-class-subdir hard_per_class \
-    --protocol "ImageNette IPC10 ResNet18; existing CiC-T synthetic images; hard coarse10 labels; no FKD/relabel; 300 epochs BS10 AdamW LR5e-4 eta1" \
+    --protocol "$HARD_PROTOCOL" \
     --output "$summary"
 echo "Complete: $summary"

@@ -5,10 +5,10 @@ from pathlib import Path
 from summarize_imagenette_cic_t_teacher_seeds import three_level_summary
 
 
-def load_values(root, c_values, teacher_seeds, recovery_seeds, student_seeds):
+def load_values(root, subdir, c_values, teacher_seeds, recovery_seeds, student_seeds):
     values = {c: {} for c in c_values}
     for teacher in teacher_seeds:
-        per_class = root / f"tseed{teacher}" / "per_class"
+        per_class = root / f"tseed{teacher}" / subdir
         for c in c_values:
             for recovery in recovery_seeds:
                 for student in student_seeds:
@@ -24,6 +24,8 @@ def main():
     parser = argparse.ArgumentParser("Paired DINO-cluster versus random CiC-T comparison")
     parser.add_argument("--cluster-root", required=True)
     parser.add_argument("--random-root", required=True)
+    parser.add_argument("--cluster-subdir", default="per_class")
+    parser.add_argument("--random-subdir", default="per_class")
     parser.add_argument("--c-values", nargs="+", type=int, required=True)
     parser.add_argument("--teacher-seeds", nargs="+", type=int, default=(43, 44))
     parser.add_argument("--recovery-seeds", nargs="+", type=int, default=(41, 42, 43))
@@ -31,11 +33,11 @@ def main():
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
     cluster = load_values(
-        Path(args.cluster_root), args.c_values, args.teacher_seeds,
+        Path(args.cluster_root), args.cluster_subdir, args.c_values, args.teacher_seeds,
         args.recovery_seeds, args.student_seeds,
     )
     random = load_values(
-        Path(args.random_root), args.c_values, args.teacher_seeds,
+        Path(args.random_root), args.random_subdir, args.c_values, args.teacher_seeds,
         args.recovery_seeds, args.student_seeds,
     )
     arms, paired = {}, {}

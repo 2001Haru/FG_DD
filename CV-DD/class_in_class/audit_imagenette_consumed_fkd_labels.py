@@ -15,6 +15,11 @@ METRIC_FIELDS = (
     "effective_class_count_exp_entropy",
     "target_probability",
     "non_target_mass",
+    "cutmix_constituent_class_mass",
+    "cutmix_non_constituent_mass",
+    "cutmix_area_weighted_constituent_probability",
+    "cutmix_hard_mixture_cross_entropy",
+    "cutmix_realized_base_fraction",
     "maximum_probability",
     "top1_margin",
     "argmax_matches_original_target",
@@ -73,6 +78,7 @@ def analyze_root(task):
     generator = torch.Generator().manual_seed(sampler_seed)
     selected_epochs = set(range(0, epochs, epoch_stride))
     probabilities, aligned_targets = [], []
+    paired_targets, realized_base_fractions = [], []
     files_loaded = 0
 
     for epoch in range(epochs):
@@ -96,7 +102,22 @@ def analyze_root(task):
                 raise ValueError(f"expected marginalized 10-way logits: {batch_file}")
             size = logits.shape[0]
             probabilities.append(torch.softmax(logits / temperature, dim=1))
-            aligned_targets.append(targets[permutation[offset:offset + size]])
+            batch_targets = targets[permutation[offset:offset + size]]
+            mix_index = config[2].long()
+            if mix_index.numel() != size:
+                raise ValueError(f"CutMix index size mismatch: {batch_file}")
+            bbox = config[4]
+            if bbox is None or len(bbox) != 4:
+                raise ValueError(f"expected CutMix bbox: {batch_file}")
+            x1, y1, x2, y2 = [int(value) for value in bbox]
+            mixed_area = max(0, x2 - x1) * max(0, y2 - y1)
+            # Relabel and post-eval both operate on 224x224 ImageNette crops.
+            realized_base_fraction = 1.0 - mixed_area / float(224 * 224)
+            aligned_targets.append(batch_targets)
+            paired_targets.append(batch_targets[mix_index])
+            realized_base_fractions.append(
+                torch.full((size,), realized_base_fraction, dtype=torch.float64)
+            )
             offset += size
             files_loaded += 1
         if offset != len(targets):
@@ -104,7 +125,22 @@ def analyze_root(task):
 
     q = torch.cat(probabilities).double()
     target = torch.cat(aligned_targets)
+    paired_target = torch.cat(paired_targets)
+    base_fraction = torch.cat(realized_base_fractions)
     target_probability = q.gather(1, target[:, None]).squeeze(1)
+    paired_probability = q.gather(1, paired_target[:, None]).squeeze(1)
+    same_class = paired_target.eq(target)
+    constituent_mass = target_probability + torch.where(
+        same_class, torch.zeros_like(paired_probability), paired_probability
+    )
+    weighted_constituent_probability = (
+        base_fraction * target_probability
+        + (1.0 - base_fraction) * paired_probability
+    )
+    hard_mixture_ce = -(
+        base_fraction * target_probability.clamp_min(1e-15).log()
+        + (1.0 - base_fraction) * paired_probability.clamp_min(1e-15).log()
+    )
     entropy = -(q * q.clamp_min(1e-15).log()).sum(1)
     top2 = q.topk(2, dim=1).values
     centered_rank, participation_rank, uncentered_rank = effective_ranks(q)
@@ -124,6 +160,13 @@ def analyze_root(task):
         "effective_class_count_exp_entropy": float(torch.exp(entropy).mean()),
         "target_probability": float(target_probability.mean()),
         "non_target_mass": float((1.0 - target_probability).mean()),
+        "cutmix_constituent_class_mass": float(constituent_mass.mean()),
+        "cutmix_non_constituent_mass": float((1.0 - constituent_mass).mean()),
+        "cutmix_area_weighted_constituent_probability": float(
+            weighted_constituent_probability.mean()
+        ),
+        "cutmix_hard_mixture_cross_entropy": float(hard_mixture_ce.mean()),
+        "cutmix_realized_base_fraction": float(base_fraction.mean()),
         "maximum_probability": float(q.max(1).values.mean()),
         "top1_margin": float((top2[:, 0] - top2[:, 1]).mean()),
         "argmax_matches_original_target": float(q.argmax(1).eq(target).double().mean()),
@@ -265,14 +308,25 @@ def main():
         "definition": {
             "consumed_distribution": "softmax(saved marginalized 10-way FKD logits / T20)",
             "entropy": "row-wise Shannon entropy of the consumed 10-way distribution",
-            "non_target_mass": "1 - probability assigned to the original synthetic coarse class",
+            "target_probability": (
+                "probability assigned to the original row's coarse class; retained only "
+                "as a diagnostic, not the correct CutMix target-mass definition"
+            ),
+            "cutmix_constituent_mass": (
+                "sum of probability on the two CutMix constituent coarse classes "
+                "(counted once when both classes are equal)"
+            ),
+            "cutmix_area_weighted_probability": (
+                "realized bbox-area weighted probability of the two constituent classes"
+            ),
             "effective_rank": (
                 "spectral effective rank and covariance participation rank of the "
                 "collected 10-way probability matrix"
             ),
             "cutmix_note": (
-                "Saved FKD logits are generated on origin_images and loaded as the KL target "
-                "for the corresponding row while CutMix is replayed on images."
+                "Official/current code aliases origin_images=images, then CutMix mutates images "
+                "in place. Teacher logits are therefore generated on the post-CutMix image, "
+                "and student loading replays the same mix_index and bbox."
             ),
         },
         "teacher_seeds": args.teacher_seeds,

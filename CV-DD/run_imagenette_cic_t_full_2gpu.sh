@@ -13,6 +13,7 @@ C_VALUES_TEXT="${C_VALUES:-1 2 5 10}"; read -r -a C_VALUES_ARRAY <<< "$C_VALUES_
 PARTITION_SEED="${PARTITION_SEED:-42}"; TEACHER_SEED="${TEACHER_SEED:-42}"
 PARTITION_PREFIX="${PARTITION_PREFIX:-random}"
 PARTITION_SEED_TOKEN="${PARTITION_SEED_TOKEN:-pseed}"
+EXPECTED_PARTITION_KIND="${EXPECTED_PARTITION_KIND:-}"
 VIEW_SEED="${VIEW_SEED:-42}"; TEMPERATURE="${TEMPERATURE:-20}"
 RECOVERY_ITERATIONS="${RECOVERY_ITERATIONS:-4000}"
 RECOVERY_LR="${RECOVERY_LR:-0.25}"
@@ -74,6 +75,11 @@ for c in "${C_VALUES_ARRAY[@]}"; do
     [[ -f "$data/hierarchy.json" ]] || fail "missing C=$c hierarchy"
     counts="$(python -c "import json; q=json.load(open('$data/hierarchy.json')); print(q.get('source_train_images'), q.get('source_val_images'), q.get('source_validation_split'))")"
     [[ "$counts" == "9469 3925 test" ]] || fail "C=$c partition is not the official train/test split: $counts"
+    if [[ -n "$EXPECTED_PARTITION_KIND" ]]; then
+        manifest_valid="$(python -c "import json; q=json.load(open('$data/hierarchy.json')); c=$c; n=10*c; m=q.get('fine_to_coarse',{}); print(q.get('kind')=='$EXPECTED_PARTITION_KIND' and int(q.get('subclasses_per_coarse',-1))==c and int(q.get('num_pseudo_classes',-1))==n and len(m)==n and all(int(m[str(i)])==i//c for i in range(n)))")"
+        [[ "$manifest_valid" == "True" ]] \
+            || fail "C=$c partition kind/count/fine_to_coarse mapping failed strict validation"
+    fi
     if [[ "$c" == 1 && -n "$C1_TEACHER_OVERRIDE" ]]; then
         [[ -f "$teacher" && "$(basename "$teacher")" == "ResNet18.pth" ]] \
             || fail "invalid C1 Teacher override (must exist and be named ResNet18.pth): $teacher"

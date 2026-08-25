@@ -47,6 +47,11 @@ for teacher_seed in 43 44; do
         audit="$MASTER_ROOT/tseed${teacher_seed}/audits/dinov2_cluster_c${c}_teacher_audit.json"
         [[ -f "$model/ResNet18.pth" && -f "$model/.training_complete.json" ]] \
             || fail "missing completed Teacher after barrier: tseed=$teacher_seed C=$c"
+        hierarchy="$MASTER_ROOT/data/dinov2_cluster_c${c}_seed${CLUSTER_SEED}/hierarchy.json"
+        hierarchy_hash="$(sha256sum "$hierarchy" | awk '{print $1}')"
+        marker_valid="$(python -c "import json; q=json.load(open('$model/.training_complete.json')); print(int(q.get('classes',-1))==10*$c and int(q.get('seed',-1))==$teacher_seed and q.get('data_manifest_sha256')=='$hierarchy_hash' and bool(q.get('validation_enabled',False)))")"
+        [[ "$marker_valid" == "True" ]] \
+            || fail "Teacher marker/hierarchy provenance mismatch: tseed=$teacher_seed C=$c"
         [[ -f "$audit" ]] || fail "missing Teacher audit after barrier: tseed=$teacher_seed C=$c"
         valid="$(python -c "import json; q=json.load(open('$audit')); print(q.get('audit_scope')=='train_and_validation' and int(q.get('subclasses_per_coarse',-1))==$c and int(q.get('train',{}).get('images',-1))==9469 and int(q.get('val',{}).get('images',-1))==3925)")"
         [[ "$valid" == "True" ]] || fail "invalid audit after barrier: tseed=$teacher_seed C=$c"
@@ -59,6 +64,7 @@ full_stream(){
     TEACHER_SEED="$teacher_seed" C_VALUES="$C_VALUES_TEXT" \
     RECOVERY_SEEDS="$RSEEDS_TEXT" STUDENT_SEEDS="$SSEEDS_TEXT" \
     PARTITION_SEED="$CLUSTER_SEED" PARTITION_PREFIX=dinov2_cluster PARTITION_SEED_TOKEN=seed \
+    EXPECTED_PARTITION_KIND=imagenette_balanced_dinov2_clusters \
     DATA_ROOT_OVERRIDE="$MASTER_ROOT/data" MODEL_ROOT_OVERRIDE="$teacher_root/models" \
     EXP_ROOT="$teacher_root" REAL_ROOT="$val_dir/imagenet-nette" \
     VAL_DIR="$val_dir/imagenet-nette/test" VIEW_SEED=42 TEMPERATURE=20 \

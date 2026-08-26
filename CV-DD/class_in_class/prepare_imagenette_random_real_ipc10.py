@@ -44,10 +44,11 @@ def valid(output, expected):
     classes = sorted(path for path in output.iterdir() if path.is_dir())
     if len(classes) != 10:
         return False
+    expected_per_class = int(expected["images_per_class"])
     return all(sum(
         path.is_file() and path.suffix.lower() in EXTENSIONS
         for path in directory.iterdir()
-    ) == 10 for directory in classes)
+    ) == expected_per_class for directory in classes)
 
 
 def main():

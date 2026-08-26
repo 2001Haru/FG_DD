@@ -76,7 +76,10 @@ def main():
         print(f"Reusing valid random-real subset: {output}")
         return
     if output.exists():
-        if not args.repair_invalid_output or not output.name.startswith("tseed"):
+        safe_derived_name = (
+            output.name.startswith("tseed") or output.name.startswith("real_ipc")
+        )
+        if not args.repair_invalid_output or not safe_derived_name:
             raise RuntimeError(f"invalid output; refusing replacement: {output}")
         archive = Path(str(output) + f".invalid_{time.strftime('%Y%m%d_%H%M%S')}")
         output.rename(archive)

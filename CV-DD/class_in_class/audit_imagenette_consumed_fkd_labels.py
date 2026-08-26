@@ -44,8 +44,14 @@ def synthetic_targets(synthetic_root):
             if path.is_file() and path.suffix.lower() in {".jpg", ".jpeg", ".png"}
         )
         targets.extend([class_id] * len(images))
-    if len(targets) != 100:
-        raise ValueError(f"expected 100 synthetic images, found {len(targets)}: {synthetic_root}")
+    if len(targets) <= 0 or len(targets) % 10 != 0:
+        raise ValueError(
+            f"expected a non-empty, class-balanced ImageNette ImageFolder; "
+            f"found {len(targets)} images: {synthetic_root}"
+        )
+    counts = torch.bincount(torch.tensor(targets, dtype=torch.long), minlength=10)
+    if counts.numel() != 10 or not torch.all(counts.eq(counts[0])):
+        raise ValueError(f"ImageNette classes are not balanced: {counts.tolist()}")
     return torch.tensor(targets, dtype=torch.long)
 
 
@@ -92,8 +98,8 @@ def analyze_root(task):
             epoch_root.glob("batch_*.tar"),
             key=lambda path: int(path.stem.split("_")[1]),
         )
-        if len(batch_files) != 10:
-            raise ValueError(f"expected 10 FKD batches: {epoch_root}")
+        if not batch_files:
+            raise ValueError(f"no FKD batches found: {epoch_root}")
         offset = 0
         for batch_file in batch_files:
             config = torch.load(batch_file, map_location="cpu", weights_only=False)

@@ -56,7 +56,8 @@ python "$ROOT/class_in_class/validate_cvdd_patch_tree.py" \
 
 recover_one(){
     local recovery_seed="$1" gpu="$2"
-    local exp="c1_ipc50_rseed${recovery_seed}" output="$SYN_ROOT/$exp"
+    local exp="c1_ipc50_rseed${recovery_seed}"
+    local output="$SYN_ROOT/$exp"
     local marker="$output/.protocol" count=0 expected archive
     expected="teacher=$(sha256sum "$TEACHER_C1"|awk '{print $1}'):mapping=$(sha256sum "$MAP_C1"|awk '{print $1}'):patch=$(find "$PATCH_ROOT/medium" -type f -name '*.jpg' -print0|sort -z|xargs -0 sha256sum|sha256sum|awk '{print $1}'):rseed=$recovery_seed:ipc=50:iter=4000:lr=0.1:r_bn=0.01"
     [[ -d "$output" ]] && count="$(find "$output" -type f -name '*.jpg' | wc -l)"
@@ -170,7 +171,7 @@ post_one(){
         --exp-name "ipc${ipc}_${row}__${column}_t${TEACHER_SEED}_r${recovery_seed}_s${student_seed}" \
         --original-data-path "$source" --output-dir "$POST_ROOT" --batch-size 10 --epochs 300 \
         --dataset-name imagenet-nette --gradient-accumulation-steps 2 --cos --workers "$WORKERS" \
-        --fkd_seed 42 --adamw-weight-decay 0.01 --adamw-lr-override 0.0005 --eta-override 1 \
+        --fkd_seed 42 --adamw-weight-decay 0.01 --adamw-lr-override 0.0005 --eta-override 2 \
         --train-seed "$student_seed" --persistent-workers --val-dir "$VAL_DIR" --disable-wandb \
         --per-class-output "$result" > "$LOG_ROOT/post_ipc${ipc}_${row}__${column}_r${recovery_seed}_s${student_seed}.log" 2>&1
 }

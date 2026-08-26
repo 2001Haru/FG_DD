@@ -110,7 +110,8 @@ def main():
     result = {
         "protocol": (
             "ImageNette IPC1/10/50 x rows{independent stratified real,C1 synthetic} "
-            "x columns{Hard,C1 Teacher,RandomC100 Teacher}; 2x3x3 cells"
+            "x columns{Hard,C1 Teacher,RandomC100 Teacher}; 2x3x3 cells; "
+            "IPC1/50 post-eval AdamW LR5e-4 eta2; IPC10 retained historical eta1"
         ),
         "rows": ROWS,
         "columns": COLS,

@@ -26,8 +26,8 @@ python -u "$ROOT/class_in_class/select_imagenette_early_teacher_checkpoints.py" 
     --teacher-seed "$TEACHER_SEED" --output-root "$EXP_ROOT" \
     > "$LOG_ROOT/selection.log" 2>&1 || fail selection
 PLAN="$SEED_ROOT/selection_early.tsv"
-[[ "$(wc -l < "$PLAN")" == 10 ]] \
-    || fail "selection plan must contain C1: five targets+final and C100: three targets+final"
+[[ "$(wc -l < "$PLAN")" == 18 ]] \
+    || fail "selection plan must contain nine fixed epochs for both C1 and C100"
 
 source_for(){
     local source="$1" rseed="$2"
@@ -80,7 +80,7 @@ relabel_one(){
     [[ "$(find "$final" -type f -name 'batch_*.tar' | wc -l)" == 3000 ]]
 }
 
-echo "[2/4] Relabel asymmetric ten-checkpoint plan x two temperatures x two sources"
+echo "[2/4] Relabel C1/C100 at nine fixed epochs x two temperatures x two sources"
 pids=(); task=0
 while IFS=$'\t' read -r c label epoch actual_val sd_z predicted teacher_view; do
     for source in real c1; do for mode in ref pred; do for rseed in "${RSEEDS[@]}"; do

@@ -18,12 +18,12 @@ import sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
-print("seed C label epoch train_acc val_acc sd_z predicted_T")
+print("seed C label training_epoch checkpoint_index train_acc val_acc sd_z predicted_T")
 for seed in (43, 44):
     payload = json.loads((root / f"tseed{seed}" / "selection.json").read_text())
     for row in payload["selections"]:
         print(
-            seed, row["C"], row["label"], row["epoch"],
+            seed, row["C"], row["label"], row["training_epoch"], row["epoch"],
             f'{row["actual_train_accuracy"]:.3f}',
             f'{row["actual_val_accuracy"]:.3f}',
             f'{row["sd_z"]:.6f}',

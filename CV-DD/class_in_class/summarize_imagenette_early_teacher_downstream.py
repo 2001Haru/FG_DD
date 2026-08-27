@@ -1,6 +1,5 @@
 import argparse
 import json
-import statistics
 from pathlib import Path
 
 from summarize_imagenette_cic_t_teacher_seeds import three_level_summary
@@ -11,10 +10,8 @@ RECOVERY_SEEDS = (41, 42)
 STUDENT_SEEDS = (42, 43)
 SOURCES = ("real", "c1")
 MODES = ("ref", "pred")
-LABELS_BY_C = {
-    1: ("v65", "v72", "v79", "v85", "v89", "final"),
-    100: ("v65", "v72", "v79", "final"),
-}
+TRAINING_EPOCHS = (8, 16, 32, 64, 100, 150, 200, 250, 300)
+LABELS = tuple(f"e{epoch:03d}" for epoch in TRAINING_EPOCHS)
 
 
 def load_best(path):
@@ -51,7 +48,7 @@ def main():
 
     values = {}
     for c in (1, 100):
-        for label in LABELS_BY_C[c]:
+        for label in LABELS:
             for source in SOURCES:
                 for mode in MODES:
                     current = {}
@@ -71,7 +68,7 @@ def main():
         for (c, label, source, mode), current in values.items()
     }
     comparisons = {}
-    for label in ("v65", "v72", "v79", "final"):
+    for label in LABELS:
         for source in SOURCES:
             for mode in MODES:
                 delta = {
@@ -87,32 +84,16 @@ def main():
                     )
                 )
 
-    # Core matched-accuracy comparison: the C1 v79 checkpoint is selected to
-    # match the same-seed C100 final validation accuracy.
-    for source in SOURCES:
-        for mode in MODES:
-            delta = {
-                key: (
-                    values[(100, "final", source, mode)][key]
-                    - values[(1, "v79", source, mode)][key]
-                )
-                for key in values[(1, "v79", source, mode)]
-            }
-            comparisons[f"core_c100_final_minus_c1_v79_{source}_{mode}"] = (
-                three_level_summary(
-                    delta, TEACHER_SEEDS, RECOVERY_SEEDS, STUDENT_SEEDS
-                )
-            )
-
     checkpoint_table = []
     for teacher in TEACHER_SEEDS:
         for c in (1, 100):
-            for label in LABELS_BY_C[c]:
+            for label in LABELS:
                 record = plans[(teacher, c, label)]
                 checkpoint_table.append({
                     "teacher_seed": teacher,
                     "C": c,
                     "label": label,
+                    "training_epoch": record["training_epoch"],
                     "epoch": record["epoch"],
                     "train_accuracy": record["actual_train_accuracy"],
                     "val_accuracy": record["actual_val_accuracy"],
@@ -124,26 +105,16 @@ def main():
                         "trajectory_final_exactly_matches_reused_checkpoint"
                     ),
                 })
-    core_val_mismatch = []
-    for teacher in TEACHER_SEEDS:
-        c1 = plans[(teacher, 1, "v79")]["actual_val_accuracy"]
-        c100 = plans[(teacher, 100, "final")]["actual_val_accuracy"]
-        core_val_mismatch.append(float(c1) - float(c100))
-
     result = {
         "protocol": (
-            "ImageNette IPC10 early Teacher matched-validation experiment; native "
+            "ImageNette IPC10 fixed-epoch Teacher trajectory experiment; native "
             "FP16 FKD, T20 and sd(z)-predicted temperature, Real/C1-synthetic sources"
         ),
         "teacher_seeds": list(TEACHER_SEEDS),
         "recovery_seeds": list(RECOVERY_SEEDS),
         "student_seeds": list(STUDENT_SEEDS),
         "checkpoint_table": checkpoint_table,
-        "core_c1_v79_minus_c100_final_val_accuracy": {
-            "by_teacher_seed": dict(zip(map(str, TEACHER_SEEDS), core_val_mismatch)),
-            "mean": statistics.fmean(core_val_mismatch),
-            "sample_sd": statistics.stdev(core_val_mismatch),
-        },
+        "training_epochs": list(TRAINING_EPOCHS),
         "arms": arms,
         "comparisons": comparisons,
         "selection_manifests": selection_summary,

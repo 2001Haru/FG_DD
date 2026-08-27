@@ -6,47 +6,8 @@ from pathlib import Path
 import torch
 
 
-TARGET_LABELS_BY_C = {
-    1: ("v65", "v72", "v79", "v85", "v89"),
-    100: ("v65", "v72", "v79"),
-}
-BASE_TARGETS_BY_C = {
-    1: (65.0, 72.0, 79.0, 85.0, 89.0),
-    100: (65.0, 72.0, 79.0),
-}
+TRAINING_EPOCHS = (8, 16, 32, 64, 100, 150, 200, 250, 300)
 BASE_OPTIMAL_TEMPERATURE = {1: 800.0, 100: 200.0}
-
-
-def ordered_nearest(records, targets):
-    """Minimum total absolute error subject to strictly increasing epochs."""
-    candidates = records[:-1]
-    count = len(targets)
-    infinity = float("inf")
-    dp = [[infinity] * len(candidates) for _ in range(count)]
-    parent = [[None] * len(candidates) for _ in range(count)]
-    for index, record in enumerate(candidates):
-        dp[0][index] = abs(float(record["val_acc"]) - targets[0])
-    for target_index in range(1, count):
-        best_cost, best_index = infinity, None
-        for index, record in enumerate(candidates):
-            previous = index - 1
-            if previous >= 0 and dp[target_index - 1][previous] < best_cost:
-                best_cost = dp[target_index - 1][previous]
-                best_index = previous
-            if best_index is not None:
-                dp[target_index][index] = (
-                    best_cost + abs(float(record["val_acc"]) - targets[target_index])
-                )
-                parent[target_index][index] = best_index
-    end = min(range(len(candidates)), key=lambda index: dp[-1][index])
-    selected = [end]
-    for target_index in range(count - 1, 0, -1):
-        end = parent[target_index][end]
-        if end is None:
-            raise RuntimeError("cannot select strictly ordered early checkpoints")
-        selected.append(end)
-    selected.reverse()
-    return [candidates[index] for index in selected]
 
 
 def compare_state_dicts(left_path, right_path):
@@ -117,16 +78,10 @@ def main():
             raise ValueError(f"expected 300 epochs: {directory}")
         metrics_by_c[c] = metrics
 
-    c100_final_val = float(metrics_by_c[100][-1]["val_acc"])
     selections = []
     endpoint_audit = {}
     for c in (1, 100):
         metrics = metrics_by_c[c]
-        labels = TARGET_LABELS_BY_C[c]
-        targets = list(BASE_TARGETS_BY_C[c])
-        if c == 1:
-            targets[2] = c100_final_val
-        selected = ordered_nearest(metrics, targets)
         final_sd = float(metrics[-1]["sd_z"])
         if final_sd <= 0:
             raise ValueError(f"invalid final sd(z): C={c}")
@@ -144,7 +99,9 @@ def main():
             "state_dict_exact_match": match,
             "state_dict_comparison": comparison,
         }
-        for label, target, record in zip(labels, targets, selected):
+        for training_epoch in TRAINING_EPOCHS:
+            record = metrics[training_epoch - 1]
+            label = f"e{training_epoch:03d}"
             epoch = int(record["epoch"])
             checkpoint = trajectory_dir / "checkpoints" / record["checkpoint"]
             predicted_temperature = (
@@ -157,7 +114,8 @@ def main():
                 "teacher_seed": args.teacher_seed,
                 "C": c,
                 "label": label,
-                "requested_val_accuracy": target,
+                "training_epoch": training_epoch,
+                "checkpoint_epoch_index": epoch,
                 "epoch": epoch,
                 "actual_train_accuracy": float(record["train_acc"]),
                 "actual_val_accuracy": float(record["val_acc"]),
@@ -167,28 +125,6 @@ def main():
                 "checkpoint": str(checkpoint),
                 "teacher_view": str(view),
             })
-        final = metrics[-1]
-        final_view = output_root / "teacher_views" / f"c{c}_final_e299"
-        materialize_teacher_view(trajectory_final, final_view)
-        selections.append({
-            "teacher_seed": args.teacher_seed,
-            "C": c,
-            "label": "final",
-            "requested_val_accuracy": float(final["val_acc"]),
-            "epoch": int(final["epoch"]),
-            "actual_train_accuracy": float(final["train_acc"]),
-            "actual_val_accuracy": float(final["val_acc"]),
-            "sd_z": float(final["sd_z"]),
-            "final_sd_z": final_sd,
-            "predicted_temperature": BASE_OPTIMAL_TEMPERATURE[c],
-            "checkpoint": str(trajectory_final),
-            "historical_seed_matched_checkpoint": str(existing),
-            "teacher_view": str(final_view),
-            "reused_existing_downstream_results": False,
-            "trajectory_final_exactly_matches_reused_checkpoint": match,
-            "metrics_source": "newly instrumented trajectory epoch299",
-            "downstream_result_source": "newly instrumented trajectory epoch299",
-        })
 
     result = {
         "protocol": (
@@ -196,11 +132,7 @@ def main():
             "accuracy; predicted T = final optimal T * sd(z_e)/sd(z_final)"
         ),
         "teacher_seed": args.teacher_seed,
-        "targets_by_C": {
-            "C1": list(TARGET_LABELS_BY_C[1]) + ["final"],
-            "C100": list(TARGET_LABELS_BY_C[100]) + ["final"],
-        },
-        "c100_final_val_accuracy_target_for_c1_v79": c100_final_val,
+        "training_epochs": list(TRAINING_EPOCHS),
         "base_optimal_temperature": {
             "C1": BASE_OPTIMAL_TEMPERATURE[1],
             "C100": BASE_OPTIMAL_TEMPERATURE[100],

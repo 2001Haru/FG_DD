@@ -8,7 +8,7 @@ from summarize_imagenette_cic_t_teacher_seeds import three_level_summary
 TEACHER_SEEDS = (43, 44)
 RECOVERY_SEEDS = (41, 42)
 STUDENT_SEEDS = (42, 43)
-TEMPERATURES = (1, 2, 4, 8, 20, 46, 100, 200)
+TEMPERATURES = (1, 2, 4, 8, 20, 46, 100, 200, 400)
 ROWS = ("real", "c1")
 COLS = ("c1", "random100")
 

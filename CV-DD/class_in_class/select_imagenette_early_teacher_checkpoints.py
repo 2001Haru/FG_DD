@@ -6,8 +6,14 @@ from pathlib import Path
 import torch
 
 
-TARGET_LABELS = ("v45", "v60", "v66", "v72", "v79")
-BASE_TARGETS = (45.0, 60.0, 66.0, 72.0, 79.0)
+TARGET_LABELS_BY_C = {
+    1: ("v65", "v72", "v79", "v85", "v89"),
+    100: ("v65", "v72", "v79"),
+}
+BASE_TARGETS_BY_C = {
+    1: (65.0, 72.0, 79.0, 85.0, 89.0),
+    100: (65.0, 72.0, 79.0),
+}
 BASE_OPTIMAL_TEMPERATURE = {1: 800.0, 100: 200.0}
 
 
@@ -116,9 +122,10 @@ def main():
     endpoint_audit = {}
     for c in (1, 100):
         metrics = metrics_by_c[c]
-        targets = list(BASE_TARGETS)
+        labels = TARGET_LABELS_BY_C[c]
+        targets = list(BASE_TARGETS_BY_C[c])
         if c == 1:
-            targets[-1] = c100_final_val
+            targets[2] = c100_final_val
         selected = ordered_nearest(metrics, targets)
         final_sd = float(metrics[-1]["sd_z"])
         if final_sd <= 0:
@@ -137,7 +144,7 @@ def main():
             "state_dict_exact_match": match,
             "state_dict_comparison": comparison,
         }
-        for label, target, record in zip(TARGET_LABELS, targets, selected):
+        for label, target, record in zip(labels, targets, selected):
             epoch = int(record["epoch"])
             checkpoint = trajectory_dir / "checkpoints" / record["checkpoint"]
             predicted_temperature = (
@@ -161,6 +168,8 @@ def main():
                 "teacher_view": str(view),
             })
         final = metrics[-1]
+        final_view = output_root / "teacher_views" / f"c{c}_final_e299"
+        materialize_teacher_view(trajectory_final, final_view)
         selections.append({
             "teacher_seed": args.teacher_seed,
             "C": c,
@@ -172,18 +181,13 @@ def main():
             "sd_z": float(final["sd_z"]),
             "final_sd_z": final_sd,
             "predicted_temperature": BASE_OPTIMAL_TEMPERATURE[c],
-            # By experimental design final downstream cells are historical
-            # native-FP16 results and are never rerun in this early-checkpoint
-            # screen. Keep both paths and the exact-match audit explicit: when
-            # false, the historical endpoint is seed-matched but is not the
-            # strict endpoint of this newly instrumented trajectory.
-            "checkpoint": str(existing),
-            "trajectory_final_checkpoint": str(trajectory_final),
-            "teacher_view": str(existing.parent),
-            "reused_existing_downstream_results": True,
+            "checkpoint": str(trajectory_final),
+            "historical_seed_matched_checkpoint": str(existing),
+            "teacher_view": str(final_view),
+            "reused_existing_downstream_results": False,
             "trajectory_final_exactly_matches_reused_checkpoint": match,
             "metrics_source": "newly instrumented trajectory epoch299",
-            "downstream_result_source": "historical seed-matched native-FP16 endpoint",
+            "downstream_result_source": "newly instrumented trajectory epoch299",
         })
 
     result = {
@@ -192,7 +196,10 @@ def main():
             "accuracy; predicted T = final optimal T * sd(z_e)/sd(z_final)"
         ),
         "teacher_seed": args.teacher_seed,
-        "targets": list(TARGET_LABELS),
+        "targets_by_C": {
+            "C1": list(TARGET_LABELS_BY_C[1]) + ["final"],
+            "C100": list(TARGET_LABELS_BY_C[100]) + ["final"],
+        },
         "c100_final_val_accuracy_target_for_c1_v79": c100_final_val,
         "base_optimal_temperature": {
             "C1": BASE_OPTIMAL_TEMPERATURE[1],
@@ -206,8 +213,6 @@ def main():
     tsv = output_root / "selection_early.tsv"
     with tsv.open("w", encoding="utf-8") as handle:
         for row in selections:
-            if row["label"] == "final":
-                continue
             handle.write("\t".join(map(str, (
                 row["C"], row["label"], row["epoch"],
                 row["actual_val_accuracy"], row["sd_z"],

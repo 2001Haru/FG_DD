@@ -27,7 +27,7 @@ python -u "$ROOT/class_in_class/select_imagenette_early_teacher_checkpoints.py" 
     > "$LOG_ROOT/selection.log" 2>&1 || fail selection
 PLAN="$SEED_ROOT/selection_early.tsv"
 [[ "$(wc -l < "$PLAN")" == 10 ]] \
-    || fail "selection plan must contain exactly five early checkpoints for C1 and C100"
+    || fail "selection plan must contain C1: five targets+final and C100: three targets+final"
 
 source_for(){
     local source="$1" rseed="$2"
@@ -80,7 +80,7 @@ relabel_one(){
     [[ "$(find "$final" -type f -name 'batch_*.tar' | wc -l)" == 3000 ]]
 }
 
-echo "[2/4] Relabel five early checkpoints x two Teachers x two temperatures x two sources"
+echo "[2/4] Relabel asymmetric ten-checkpoint plan x two temperatures x two sources"
 pids=(); task=0
 while IFS=$'\t' read -r c label epoch actual_val sd_z predicted teacher_view; do
     for source in real c1; do for mode in ref pred; do for rseed in "${RSEEDS[@]}"; do
@@ -123,4 +123,4 @@ while IFS=$'\t' read -r c label epoch actual_val sd_z predicted teacher_view; do
 done < "$PLAN"
 (( ${#pids[@]} == 0 )) || wait_jobs "${pids[@]}" || fail post
 
-echo "[4/4] Complete Teacher seed=$TEACHER_SEED; final endpoint cells are reused during joint summary"
+echo "[4/4] Complete Teacher seed=$TEACHER_SEED; trajectory final endpoints were evaluated directly"

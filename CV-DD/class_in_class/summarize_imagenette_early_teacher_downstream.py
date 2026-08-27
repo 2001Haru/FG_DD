@@ -11,7 +11,10 @@ RECOVERY_SEEDS = (41, 42)
 STUDENT_SEEDS = (42, 43)
 SOURCES = ("real", "c1")
 MODES = ("ref", "pred")
-LABELS = ("v45", "v60", "v66", "v72", "v79", "final")
+LABELS_BY_C = {
+    1: ("v65", "v72", "v79", "v85", "v89", "final"),
+    100: ("v65", "v72", "v79", "final"),
+}
 
 
 def load_best(path):
@@ -24,15 +27,9 @@ def load_best(path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment-root", required=True)
-    parser.add_argument("--existing-root", required=True)
-    parser.add_argument("--factorial-root", required=True)
-    parser.add_argument("--sweep-root", required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
     experiment = Path(args.experiment_root)
-    existing = Path(args.existing_root)
-    factorial = Path(args.factorial_root)
-    sweep = Path(args.sweep_root)
 
     plans = {}
     selection_summary = {}
@@ -52,42 +49,17 @@ def main():
             / f"{source}__c{c}_{label}_e{epoch:03d}_{mode}_rseed{recovery}_sseed{student}.json"
         )
 
-    def final_path(teacher, c, source, mode, recovery, student):
-        if mode == "pred":
-            column = "c1_T800" if c == 1 else "random100_T200"
-            return (
-                sweep / f"tseed{teacher}" / "per_class"
-                / f"{source}__{column}_rseed{recovery}_sseed{student}.json"
-            )
-        if source == "real":
-            column = "c1" if c == 1 else "random100"
-            return (
-                factorial / f"tseed{teacher}" / "per_class"
-                / f"real__{column}_rseed{recovery}_sseed{student}.json"
-            )
-        if c == 1:
-            return (
-                existing / f"tseed{teacher}" / "per_class"
-                / f"c1_rseed{recovery}_sseed{student}.json"
-            )
-        return (
-            factorial / f"tseed{teacher}" / "per_class"
-            / f"c1__random100_rseed{recovery}_sseed{student}.json"
-        )
-
     values = {}
     for c in (1, 100):
-        for label in LABELS:
+        for label in LABELS_BY_C[c]:
             for source in SOURCES:
                 for mode in MODES:
                     current = {}
                     for teacher in TEACHER_SEEDS:
                         for recovery in RECOVERY_SEEDS:
                             for student in STUDENT_SEEDS:
-                                path = (
-                                    final_path(teacher, c, source, mode, recovery, student)
-                                    if label == "final" else
-                                    early_path(teacher, c, label, source, mode, recovery, student)
+                                path = early_path(
+                                    teacher, c, label, source, mode, recovery, student
                                 )
                                 current[(teacher, recovery, student)] = load_best(path)
                     values[(c, label, source, mode)] = current
@@ -99,7 +71,7 @@ def main():
         for (c, label, source, mode), current in values.items()
     }
     comparisons = {}
-    for label in ("v45", "v60", "v66", "v72", "v79", "final"):
+    for label in ("v65", "v72", "v79", "final"):
         for source in SOURCES:
             for mode in MODES:
                 delta = {
@@ -135,7 +107,7 @@ def main():
     checkpoint_table = []
     for teacher in TEACHER_SEEDS:
         for c in (1, 100):
-            for label in LABELS:
+            for label in LABELS_BY_C[c]:
                 record = plans[(teacher, c, label)]
                 checkpoint_table.append({
                     "teacher_seed": teacher,

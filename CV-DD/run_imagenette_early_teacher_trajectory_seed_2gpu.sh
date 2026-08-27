@@ -31,7 +31,12 @@ for c in 1 100; do
 done
 
 train_one(){
-    local c="$1" gpu="$2" classes=$((10*c))
+    # Do not derive classes in the same `local` declaration as c. Bash expands
+    # the arithmetic expression before the new local c is assigned, which can
+    # accidentally read the outer partition-loop value (C=100) and launch the
+    # C=1 job with 1000 heads.
+    local c="$1" gpu="$2"
+    local classes=$((10 * c))
     local data="$DATA_ROOT/random_c${c}_pseed42"
     local output="$MODEL_ROOT/c${c}_tseed${TEACHER_SEED}"
     if [[ -d "$output" && ! -f "$output/.training_complete.json" ]]; then

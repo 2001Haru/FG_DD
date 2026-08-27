@@ -1,0 +1,246 @@
+{
+  "protocol": "ImageNette IPC10 Real source, native FP16 FKD protocol; C1 T800 versus Random C100 T200; 4 Teacher x 2 source/recovery x 2 student seeds",
+  "teacher_seeds": [
+    43,
+    44,
+    45,
+    46
+  ],
+  "recovery_seeds": [
+    41,
+    42
+  ],
+  "student_seeds": [
+    42,
+    43
+  ],
+  "arms": {
+    "c1_T800": {
+      "cells": 16,
+      "grand_mean": 67.7229299967456,
+      "sample_sd_across_cells_descriptive": 0.919923985644422,
+      "pooled_within_teacher_recovery_student_seed_sd": 0.701794054920883,
+      "pooled_within_teacher_recovery_seed_sd_of_student_means": 0.9448460012986928,
+      "teacher_seed_sd_of_recovery_student_means": 0.3665050246266965,
+      "by_teacher_seed": {
+        "43": {
+          "mean_over_recovery_and_student_seeds": 67.34394913205675,
+          "sample_sd_across_nine_cells": 0.48935548066395795,
+          "recovery_seed_sd_of_student_seed_means": 0.2432086330858582,
+          "by_recovery_seed": {
+            "41": {
+              "mean_over_student_seeds": 67.17197465835864,
+              "student_seed_sample_sd": 0.7746647539113711
+            },
+            "42": {
+              "mean_over_student_seeds": 67.51592360575488,
+              "student_seed_sample_sd": 8.246822965273635e-08
+            }
+          }
+        },
+        "44": {
+          "mean_over_recovery_and_student_seeds": 68.16560516964859,
+          "sample_sd_across_nine_cells": 0.3838603587921751,
+          "recovery_seed_sd_of_student_seed_means": 0.144123621885566,
+          "by_recovery_seed": {
+            "41": {
+              "mean_over_student_seeds": 68.06369437928413,
+              "student_seed_sample_sd": 0.05404641254162522
+            },
+            "42": {
+              "mean_over_student_seeds": 68.26751596001303,
+              "student_seed_sample_sd": 0.6305410959459546
+            }
+          }
+        },
+        "45": {
+          "mean_over_recovery_and_student_seeds": 67.51592361182924,
+          "sample_sd_across_nine_cells": 0.9620997457002921,
+          "recovery_seed_sd_of_student_seed_means": 0.6845874414821432,
+          "by_recovery_seed": {
+            "41": {
+              "mean_over_student_seeds": 68.00000003401641,
+              "student_seed_sample_sd": 1.297113076316729
+            },
+            "42": {
+              "mean_over_student_seeds": 67.03184718964206,
+              "student_seed_sample_sd": 0.3963401307055647
+            }
+          }
+        },
+        "46": {
+          "mean_over_recovery_and_student_seeds": 67.86624207344784,
+          "sample_sd_across_nine_cells": 1.5432250264717269,
+          "recovery_seed_sd_of_student_seed_means": 1.738491829734194,
+          "by_recovery_seed": {
+            "41": {
+              "mean_over_student_seeds": 69.0955414352903,
+              "student_seed_sample_sd": 1.0448965692148182
+            },
+            "42": {
+              "mean_over_student_seeds": 66.63694271160539,
+              "student_seed_sample_sd": 0.09007731414732599
+            }
+          }
+        }
+      }
+    },
+    "random100_T200": {
+      "cells": 16,
+      "grand_mean": 69.57006374255867,
+      "sample_sd_across_cells_descriptive": 0.9773116905972775,
+      "pooled_within_teacher_recovery_student_seed_sd": 0.5063594209079536,
+      "pooled_within_teacher_recovery_seed_sd_of_student_means": 0.929128870524922,
+      "teacher_seed_sd_of_recovery_student_means": 0.6689313329975435,
+      "by_teacher_seed": {
+        "43": {
+          "mean_over_recovery_and_student_seeds": 68.85350323573799,
+          "sample_sd_across_nine_cells": 1.074804977753541,
+          "recovery_seed_sd_of_student_seed_means": 1.2790976031787429,
+          "by_recovery_seed": {
+            "41": {
+              "mean_over_student_seeds": 67.94904464673084,
+              "student_seed_sample_sd": 0.3603092050466303
+            },
+            "42": {
+              "mean_over_student_seeds": 69.75796182474514,
+              "student_seed_sample_sd": 0.252216455559257
+            }
+          }
+        },
+        "44": {
+          "mean_over_recovery_and_student_seeds": 69.94904461635906,
+          "sample_sd_across_nine_cells": 1.062453989305957,
+          "recovery_seed_sd_of_student_seed_means": 1.0448966465287834,
+          "by_recovery_seed": {
+            "41": {
+              "mean_over_student_seeds": 69.21019111195946,
+              "student_seed_sample_sd": 0.2702318840269719
+            },
+            "42": {
+              "mean_over_student_seeds": 70.68789812075863,
+              "student_seed_sample_sd": 1.062912114512515
+            }
+          }
+        },
+        "45": {
+          "mean_over_recovery_and_student_seeds": 69.17834400614356,
+          "sample_sd_across_nine_cells": 0.42498924192225623,
+          "recovery_seed_sd_of_student_seed_means": 0.15313140999720243,
+          "by_recovery_seed": {
+            "41": {
+              "mean_over_student_seeds": 69.28662426456523,
+              "student_seed_sample_sd": 0.7026029335191085
+            },
+            "42": {
+              "mean_over_student_seeds": 69.07006374772187,
+              "student_seed_sample_sd": 0.03603092565893441
+            }
+          }
+        },
+        "46": {
+          "mean_over_recovery_and_student_seeds": 70.29936311199407,
+          "sample_sd_across_nine_cells": 0.7219308238892967,
+          "recovery_seed_sd_of_student_seed_means": 0.8377188806868537,
+          "by_recovery_seed": {
+            "41": {
+              "mean_over_student_seeds": 70.89171981325575,
+              "student_seed_sample_sd": 0.23420099960214227
+            },
+            "42": {
+              "mean_over_student_seeds": 69.70700641073239,
+              "student_seed_sample_sd": 0.3242782587706485
+            }
+          }
+        }
+      }
+    }
+  },
+  "paired_random_minus_c1": {
+    "cells": 16,
+    "grand_mean": 1.847133745813065,
+    "sample_sd_across_cells_descriptive": 0.942330820221887,
+    "pooled_within_teacher_recovery_student_seed_sd": 0.820148717482836,
+    "pooled_within_teacher_recovery_seed_sd_of_student_means": 0.8628869305161195,
+    "teacher_seed_sd_of_recovery_student_means": 0.4064140368256082,
+    "by_teacher_seed": {
+      "43": {
+        "mean_over_recovery_and_student_seeds": 1.5095541036812357,
+        "sample_sd_across_nine_cells": 0.8909612074700941,
+        "recovery_seed_sd_of_student_seed_means": 1.0358889700928697,
+        "by_recovery_seed": {
+          "41": {
+            "mean_over_student_seeds": 0.7770699883722187,
+            "student_seed_sample_sd": 0.4143555488647408
+          },
+          "42": {
+            "mean_over_student_seeds": 2.2420382189902526,
+            "student_seed_sample_sd": 0.25221653802748667
+          }
+        }
+      },
+      "44": {
+        "mean_over_recovery_and_student_seeds": 1.7834394467104744,
+        "sample_sd_across_nine_cells": 1.2298108279925577,
+        "recovery_seed_sd_of_student_seed_means": 0.9007730246432176,
+        "by_recovery_seed": {
+          "41": {
+            "mean_over_student_seeds": 1.1464967326753381,
+            "student_seed_sample_sd": 0.21618547148534667
+          },
+          "42": {
+            "mean_over_student_seeds": 2.4203821607456106,
+            "student_seed_sample_sd": 1.6934532104584699
+          }
+        }
+      },
+      "45": {
+        "mean_over_recovery_and_student_seeds": 1.6624203943143243,
+        "sample_sd_across_nine_cells": 0.6069810724875597,
+        "recovery_seed_sd_of_student_seed_means": 0.5314560314849408,
+        "by_recovery_seed": {
+          "41": {
+            "mean_over_student_seeds": 1.2866242305488313,
+            "student_seed_sample_sd": 0.5945101427976204
+          },
+          "42": {
+            "mean_over_student_seeds": 2.0382165580798173,
+            "student_seed_sample_sd": 0.4323710563644991
+          }
+        }
+      },
+      "46": {
+        "mean_over_recovery_and_student_seeds": 2.4331210385462256,
+        "sample_sd_across_nine_cells": 1.0509875490043956,
+        "recovery_seed_sd_of_student_seed_means": 0.9007729490473404,
+        "by_recovery_seed": {
+          "41": {
+            "mean_over_student_seeds": 1.7961783779654468,
+            "student_seed_sample_sd": 1.2790975688169606
+          },
+          "42": {
+            "mean_over_student_seeds": 3.0700636991270045,
+            "student_seed_sample_sd": 0.2342009446233225
+          }
+        }
+      }
+    }
+  },
+  "teacher_seed_mean_paired_t_test": {
+    "unit": "Teacher-seed mean after averaging recovery/source and student seeds",
+    "teacher_seed_means": {
+      "43": 1.5095541036812357,
+      "44": 1.7834394467104744,
+      "45": 1.6624203943143243,
+      "46": 2.4331210385462256
+    },
+    "n": 4,
+    "mean": 1.847133745813065,
+    "sample_sd": 0.4064140368256082,
+    "standard_error": 0.2032070184128041,
+    "t": 9.089911166654256,
+    "df": 3,
+    "two_sided_p": 0.0028131071116164544,
+    "one_sided_p_random_gt_c1": 0.0014065535558082272
+  }
+}

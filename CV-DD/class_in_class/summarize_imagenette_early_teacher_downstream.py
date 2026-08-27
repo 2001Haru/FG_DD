@@ -146,6 +146,11 @@ def main():
                     "val_accuracy": record["actual_val_accuracy"],
                     "sd_z": record["sd_z"],
                     "predicted_temperature": record["predicted_temperature"],
+                    "metrics_source": record.get("metrics_source", "selected trajectory checkpoint"),
+                    "downstream_result_source": record.get("downstream_result_source", "selected trajectory checkpoint"),
+                    "trajectory_final_exactly_matches_reused_checkpoint": record.get(
+                        "trajectory_final_exactly_matches_reused_checkpoint"
+                    ),
                 })
     core_val_mismatch = []
     for teacher in TEACHER_SEEDS:

@@ -26,7 +26,8 @@ python -u "$ROOT/class_in_class/select_imagenette_early_teacher_checkpoints.py" 
     --teacher-seed "$TEACHER_SEED" --output-root "$EXP_ROOT" \
     > "$LOG_ROOT/selection.log" 2>&1 || fail selection
 PLAN="$SEED_ROOT/selection_early.tsv"
-[[ "$(wc -l < "$PLAN")" == 10 ]] || fail "selection plan must contain ten early checkpoints"
+[[ "$(wc -l < "$PLAN")" == 10 ]] \
+    || fail "selection plan must contain exactly five early checkpoints for C1 and C100"
 
 source_for(){
     local source="$1" rseed="$2"

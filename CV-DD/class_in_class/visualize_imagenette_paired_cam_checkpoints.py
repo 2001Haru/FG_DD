@@ -20,6 +20,9 @@ def denormalize(tensor):
 
 
 def overlay(image, cam):
+    # Grad-CAM intentionally originates from an autograd graph, but rendering
+    # must not retain or convert that graph to NumPy.
+    cam = cam.detach()
     cam = F.interpolate(
         cam[None, None], size=image.shape[:2], mode="bilinear",
         align_corners=False,
@@ -102,8 +105,8 @@ def main():
             ]
             titles = [
                 f"image / parent {int(targets[row])}",
-                f"C1 parent\np={float(c1_probability[row, targets[row]]):.3f}",
-                f"C100 parent\np={float(c100_probability[row, targets[row]]):.3f}",
+                f"C1 parent\np={c1_probability[row, targets[row]].detach().item():.3f}",
+                f"C100 parent\np={c100_probability[row, targets[row]].detach().item():.3f}",
                 *[
                     f"C100 child top{rank + 1}\nlocal={int(selected[row, rank])}"
                     for rank in range(5)

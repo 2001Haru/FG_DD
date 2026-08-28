@@ -1,0 +1,3494 @@
+{
+  "protocol": "Paired C1/C100 same-epoch Grad-CAM trajectory; parent CAM uses marginalized parent logit; C100 subhead JS uses top5 heads within true parent",
+  "teacher_seeds": [
+    43,
+    44
+  ],
+  "training_epochs": [
+    8,
+    16,
+    32,
+    64,
+    100,
+    150,
+    200,
+    250,
+    300
+  ],
+  "summaries": {
+    "c1_epoch008": {
+      "coarse_accuracy": {
+        "mean": 68.53503184713375,
+        "sample_sd": 4.90020495497429,
+        "by_teacher_seed": {
+          "43": 65.07006369426752,
+          "44": 72.0
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9054270124029219,
+        "sample_sd": 0.008554216181611224,
+        "by_teacher_seed": {
+          "43": 0.8993782681331689,
+          "44": 0.9114757566726749
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.939287945932365,
+        "sample_sd": 0.0005156647663534417,
+        "by_teacher_seed": {
+          "43": 0.9389233158792575,
+          "44": 0.9396525759854725
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.020558040002697897,
+        "sample_sd": 0.0015917974749375316,
+        "by_teacher_seed": {
+          "43": 0.02168361079150185,
+          "44": 0.019432469213893945
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.012148066167678077,
+        "sample_sd": 0.0003434294646417702,
+        "by_teacher_seed": {
+          "43": 0.011905224864370616,
+          "44": 0.012390907470985538
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0011464968152866241,
+        "sample_sd": 0.0012610821575301484,
+        "by_teacher_seed": {
+          "43": 0.002038216560509554,
+          "44": 0.00025477707006369424
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 10.202785523883197,
+        "sample_sd": 0.8677419217166943,
+        "by_teacher_seed": {
+          "43": 9.589199326717475,
+          "44": 10.816371721048917
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 19.280102799515404,
+        "sample_sd": 0.4964996928542793,
+        "by_teacher_seed": {
+          "43": 18.929024499841105,
+          "44": 19.631181099189703
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.294785681196079,
+        "sample_sd": 0.0010574490307737013,
+        "by_teacher_seed": {
+          "43": 2.29403795181566,
+          "44": 2.2955334105764984
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 2.4235582870304073,
+        "sample_sd": 0.21746506224015022,
+        "by_teacher_seed": {
+          "43": 2.577329307211572,
+          "44": 2.2697872668492423
+        }
+      }
+    },
+    "c100_epoch008": {
+      "coarse_accuracy": {
+        "mean": 57.745222929936304,
+        "sample_sd": 0.05404637817986287,
+        "by_teacher_seed": {
+          "43": 57.70700636942675,
+          "44": 57.78343949044586
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9110213577902212,
+        "sample_sd": 0.0022058096365326907,
+        "by_teacher_seed": {
+          "43": 0.9125811007422201,
+          "44": 0.9094616148382223
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9511964952188272,
+        "sample_sd": 0.001048056793036403,
+        "by_teacher_seed": {
+          "43": 0.9519375832842519,
+          "44": 0.9504554071534026
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.025044690640568183,
+        "sample_sd": 0.0003564699193570393,
+        "by_teacher_seed": {
+          "43": 0.024792628343301797,
+          "44": 0.025296752937834566
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.010172693598812396,
+        "sample_sd": 3.967782956155077e-05,
+        "by_teacher_seed": {
+          "43": 0.010200750061158132,
+          "44": 0.010144637136466659
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.009044585987261147,
+        "sample_sd": 0.0023420097211274194,
+        "by_teacher_seed": {
+          "43": 0.01070063694267516,
+          "44": 0.007388535031847133
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 7.94234105025695,
+        "sample_sd": 0.2881488118830767,
+        "by_teacher_seed": {
+          "43": 7.738589071383579,
+          "44": 8.14609302913032
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 14.015747203050662,
+        "sample_sd": 0.09318719526976209,
+        "by_teacher_seed": {
+          "43": 14.081640500745666,
+          "44": 13.949853905355658
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.3002918181449745,
+        "sample_sd": 0.0003304751035717842,
+        "by_teacher_seed": {
+          "43": 2.3000581369582256,
+          "44": 2.3005254993317235
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 1.3292129672138722,
+        "sample_sd": 0.09374726649185462,
+        "by_teacher_seed": {
+          "43": 1.395502295067965,
+          "44": 1.2629236393597794
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_all": {
+        "mean": 0.02634587027971119,
+        "sample_sd": 3.7064102320566234e-05,
+        "by_teacher_seed": {
+          "43": 0.026319662001621724,
+          "44": 0.026372078557800653
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_coarse_correct": {
+        "mean": 0.01057678951751862,
+        "sample_sd": 0.0009888535272307814,
+        "by_teacher_seed": {
+          "43": 0.009877564482813498,
+          "44": 0.011276014552223742
+        }
+      },
+      "within_parent_top_subhead_cam.mean_valid_pair_fraction": {
+        "mean": 0.9998216560509554,
+        "sample_sd": 0.0002522164315060359,
+        "by_teacher_seed": {
+          "43": 0.9996433121019108,
+          "44": 1.0
+        }
+      }
+    },
+    "c1_epoch016": {
+      "coarse_accuracy": {
+        "mean": 77.51592356687898,
+        "sample_sd": 1.4232212920697356,
+        "by_teacher_seed": {
+          "43": 78.52229299363057,
+          "44": 76.50955414012739
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9117730622120317,
+        "sample_sd": 0.002616384785697634,
+        "by_teacher_seed": {
+          "43": 0.9099229987878715,
+          "44": 0.9136231256361917
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9318163123415572,
+        "sample_sd": 0.0020828005376841794,
+        "by_teacher_seed": {
+          "43": 0.9303435499575017,
+          "44": 0.9332890747256126
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.01902478874158843,
+        "sample_sd": 0.00023623493924974692,
+        "by_teacher_seed": {
+          "43": 0.018857745414091742,
+          "44": 0.01919183206908512
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.0134616429859563,
+        "sample_sd": 0.00015193401749960788,
+        "by_teacher_seed": {
+          "43": 0.013354209411889412,
+          "44": 0.013569076560023189
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.00038216560509554134,
+        "sample_sd": 0.00018015459393287833,
+        "by_teacher_seed": {
+          "43": 0.0005095541401273885,
+          "44": 0.00025477707006369424
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 8.44995853857695,
+        "sample_sd": 1.4371131393045424,
+        "by_teacher_seed": {
+          "43": 7.43376609244242,
+          "44": 9.46615098471148
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 16.296827719145973,
+        "sample_sd": 1.779132678598394,
+        "by_teacher_seed": {
+          "43": 15.038790937478462,
+          "44": 17.554864500813483
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.2867961315288667,
+        "sample_sd": 0.0022421104152032948,
+        "by_teacher_seed": {
+          "43": 2.2852107200501073,
+          "44": 2.2883815430076258
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 3.342231325038631,
+        "sample_sd": 0.18290323897964106,
+        "by_teacher_seed": {
+          "43": 3.471563445622119,
+          "44": 3.212899204455143
+        }
+      }
+    },
+    "c100_epoch016": {
+      "coarse_accuracy": {
+        "mean": 65.97452229299364,
+        "sample_sd": 6.035178896751431,
+        "by_teacher_seed": {
+          "43": 61.70700636942675,
+          "44": 70.24203821656052
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9142646898315028,
+        "sample_sd": 0.00937846337472634,
+        "by_teacher_seed": {
+          "43": 0.9076331147821242,
+          "44": 0.9208962648808815
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9493311622811929,
+        "sample_sd": 0.001523113790657544,
+        "by_teacher_seed": {
+          "43": 0.9504081663710856,
+          "44": 0.9482541581913002
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.023257847402254228,
+        "sample_sd": 0.0029538612543134083,
+        "by_teacher_seed": {
+          "43": 0.025346542725863442,
+          "44": 0.021169152078645018
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.011325871363174145,
+        "sample_sd": 0.00025214287252939516,
+        "by_teacher_seed": {
+          "43": 0.011504163298167535,
+          "44": 0.011147579428180754
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.005987261146496815,
+        "sample_sd": 0.001621391345395905,
+        "by_teacher_seed": {
+          "43": 0.004840764331210191,
+          "44": 0.0071337579617834395
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 14.030699606282507,
+        "sample_sd": 0.08006572678031927,
+        "by_teacher_seed": {
+          "43": 14.0873146246295,
+          "44": 13.974084587935513
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 26.1773239135885,
+        "sample_sd": 0.43667374609934756,
+        "by_teacher_seed": {
+          "43": 26.48609888062148,
+          "44": 25.868548946555517
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.2984682590946273,
+        "sample_sd": 0.0002331952377056162,
+        "by_teacher_seed": {
+          "43": 2.298303365160705,
+          "44": 2.298633153028549
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 1.754764850687111,
+        "sample_sd": 0.0599526526565986,
+        "by_teacher_seed": {
+          "43": 1.7971577779307135,
+          "44": 1.7123719234435084
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_all": {
+        "mean": 0.023913525509321347,
+        "sample_sd": 0.0023148012714891836,
+        "by_teacher_seed": {
+          "43": 0.02555033718549059,
+          "44": 0.022276713833152103
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_coarse_correct": {
+        "mean": 0.01155203589409247,
+        "sample_sd": 0.00019999213411528232,
+        "by_teacher_seed": {
+          "43": 0.011410620099875585,
+          "44": 0.011693451688309356
+        }
+      },
+      "within_parent_top_subhead_cam.mean_valid_pair_fraction": {
+        "mean": 1.0,
+        "sample_sd": 0.0,
+        "by_teacher_seed": {
+          "43": 1.0,
+          "44": 1.0
+        }
+      }
+    },
+    "c1_epoch032": {
+      "coarse_accuracy": {
+        "mean": 80.28025477707007,
+        "sample_sd": 4.035462904096474,
+        "by_teacher_seed": {
+          "43": 83.13375796178345,
+          "44": 77.4267515923567
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9093892420109397,
+        "sample_sd": 0.004547952342502806,
+        "by_teacher_seed": {
+          "43": 0.9061733540690428,
+          "44": 0.9126051299528367
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9262397699043654,
+        "sample_sd": 0.006131385554564674,
+        "by_teacher_seed": {
+          "43": 0.9219042256006634,
+          "44": 0.9305753142080673
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.019097372039657202,
+        "sample_sd": 0.00033853789679223436,
+        "by_teacher_seed": {
+          "43": 0.019336754482167623,
+          "44": 0.018857989597146782
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.014632802614189946,
+        "sample_sd": 0.000904149318291321,
+        "by_teacher_seed": {
+          "43": 0.015272132728358933,
+          "44": 0.013993472500020959
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.00025477707006369424,
+        "sample_sd": 0.0,
+        "by_teacher_seed": {
+          "43": 0.00025477707006369424,
+          "44": 0.00025477707006369424
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 6.594119639290616,
+        "sample_sd": 1.5454917323756105,
+        "by_teacher_seed": {
+          "43": 7.686947323521156,
+          "44": 5.501291955060077
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 14.10340523671962,
+        "sample_sd": 2.5319858811916864,
+        "by_teacher_seed": {
+          "43": 15.893789623178858,
+          "44": 12.313020850260383
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.2763074613528644,
+        "sample_sd": 0.004635249557433472,
+        "by_teacher_seed": {
+          "43": 2.279585077747418,
+          "44": 2.2730298449583115
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 4.057302812726749,
+        "sample_sd": 0.26257806481765555,
+        "by_teacher_seed": {
+          "43": 3.871632082503344,
+          "44": 4.242973542950154
+        }
+      }
+    },
+    "c100_epoch032": {
+      "coarse_accuracy": {
+        "mean": 76.87898089171975,
+        "sample_sd": 0.23420097211274243,
+        "by_teacher_seed": {
+          "43": 77.04458598726114,
+          "44": 76.71337579617834
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9323655855385202,
+        "sample_sd": 0.0009267081237470705,
+        "by_teacher_seed": {
+          "43": 0.9317103039400381,
+          "44": 0.9330208671370025
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9538197189499025,
+        "sample_sd": 0.00023782530300932655,
+        "by_teacher_seed": {
+          "43": 0.9539878868343981,
+          "44": 0.9536515510654068
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.017743512900618486,
+        "sample_sd": 0.0005129037803735849,
+        "by_teacher_seed": {
+          "43": 0.01810619064181686,
+          "44": 0.017380835159420106
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.010413176607939938,
+        "sample_sd": 0.00017751857380224987,
+        "by_teacher_seed": {
+          "43": 0.010538701195262073,
+          "44": 0.010287652020617802
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.001910828025477707,
+        "sample_sd": 0.0009007729696643917,
+        "by_teacher_seed": {
+          "43": 0.0012738853503184713,
+          "44": 0.0025477707006369425
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 28.607977905350268,
+        "sample_sd": 2.1414415035796632,
+        "by_teacher_seed": {
+          "43": 30.122205714045766,
+          "44": 27.093750096654773
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 53.22618871634104,
+        "sample_sd": 3.45264310276692,
+        "by_teacher_seed": {
+          "43": 55.6675760673245,
+          "44": 50.784801365357595
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.296329052098997,
+        "sample_sd": 0.0006232340071569639,
+        "by_teacher_seed": {
+          "43": 2.2967697450917237,
+          "44": 2.29588835910627
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 2.140277164415872,
+        "sample_sd": 0.10283106065187632,
+        "by_teacher_seed": {
+          "43": 2.067564624112325,
+          "44": 2.2129897047194187
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_all": {
+        "mean": 0.020643444036832506,
+        "sample_sd": 0.0009413317231923047,
+        "by_teacher_seed": {
+          "43": 0.0213090660816478,
+          "44": 0.019977821992017208
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_coarse_correct": {
+        "mean": 0.013633175357953891,
+        "sample_sd": 0.0008641057050297926,
+        "by_teacher_seed": {
+          "43": 0.01424419036164244,
+          "44": 0.013022160354265342
+        }
+      },
+      "within_parent_top_subhead_cam.mean_valid_pair_fraction": {
+        "mean": 1.0,
+        "sample_sd": 0.0,
+        "by_teacher_seed": {
+          "43": 1.0,
+          "44": 1.0
+        }
+      }
+    },
+    "c1_epoch064": {
+      "coarse_accuracy": {
+        "mean": 88.29299363057325,
+        "sample_sd": 0.4864174036187658,
+        "by_teacher_seed": {
+          "43": 88.63694267515923,
+          "44": 87.94904458598727
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.920068013509049,
+        "sample_sd": 0.004153039927164756,
+        "by_teacher_seed": {
+          "43": 0.9171313708140123,
+          "44": 0.9230046562040857
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9303379034334697,
+        "sample_sd": 0.003478915703585908,
+        "by_teacher_seed": {
+          "43": 0.9278779385482877,
+          "44": 0.9327978683186516
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.017184329851273945,
+        "sample_sd": 0.0006293959182649855,
+        "by_teacher_seed": {
+          "43": 0.01762937997313025,
+          "44": 0.01673927972941764
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.014502957751166525,
+        "sample_sd": 0.0005025081974692794,
+        "by_teacher_seed": {
+          "43": 0.014858284705198881,
+          "44": 0.014147630797134169
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0,
+        "sample_sd": 0.0,
+        "by_teacher_seed": {
+          "43": 0.0,
+          "44": 0.0
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 10.906988659920298,
+        "sample_sd": 0.27032665859766847,
+        "by_teacher_seed": {
+          "43": 10.715838846490387,
+          "44": 11.098138473350211
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 21.129087633201763,
+        "sample_sd": 0.3460526945911892,
+        "by_teacher_seed": {
+          "43": 20.884391426208456,
+          "44": 21.37378384019507
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.2649312661407857,
+        "sample_sd": 0.001271557254723659,
+        "by_teacher_seed": {
+          "43": 2.264032139383304,
+          "44": 2.265830392898268
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 4.842671934809282,
+        "sample_sd": 0.03388215518008027,
+        "by_teacher_seed": {
+          "43": 4.866630236498331,
+          "44": 4.818713633120232
+        }
+      }
+    },
+    "c100_epoch064": {
+      "coarse_accuracy": {
+        "mean": 80.50955414012739,
+        "sample_sd": 1.0809275635972673,
+        "by_teacher_seed": {
+          "43": 79.7452229299363,
+          "44": 81.27388535031847
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9463043643197515,
+        "sample_sd": 0.0011722057706622868,
+        "by_teacher_seed": {
+          "43": 0.9454754896703702,
+          "44": 0.9471332389691328
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9625156552228381,
+        "sample_sd": 9.942328125952846e-05,
+        "by_teacher_seed": {
+          "43": 0.9624453523464517,
+          "44": 0.9625859580992245
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.014268544419426127,
+        "sample_sd": 0.0002600493631323383,
+        "by_teacher_seed": {
+          "43": 0.014452427087540246,
+          "44": 0.014084661751312007
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.008619186057202646,
+        "sample_sd": 0.0001845518274436778,
+        "by_teacher_seed": {
+          "43": 0.00874968390586844,
+          "44": 0.008488688208536852
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0011464968152866241,
+        "sample_sd": 0.00018015459393287835,
+        "by_teacher_seed": {
+          "43": 0.0012738853503184713,
+          "44": 0.001019108280254777
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 48.145436984284814,
+        "sample_sd": 1.0427445211508382,
+        "by_teacher_seed": {
+          "43": 48.882768706235694,
+          "44": 47.40810526233394
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 92.24922388851411,
+        "sample_sd": 2.0727789676549255,
+        "by_teacher_seed": {
+          "43": 93.71489995244376,
+          "44": 90.78354782458446
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.293163302081406,
+        "sample_sd": 0.0003210297854285035,
+        "by_teacher_seed": {
+          "43": 2.293390304419645,
+          "44": 2.2929362997431664
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 2.5941952379051583,
+        "sample_sd": 0.04192260775910788,
+        "by_teacher_seed": {
+          "43": 2.5645514776736693,
+          "44": 2.6238389981366472
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_all": {
+        "mean": 0.02130572781401846,
+        "sample_sd": 0.0009703668441222848,
+        "by_teacher_seed": {
+          "43": 0.021991880789735917,
+          "44": 0.020619574838301003
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_coarse_correct": {
+        "mean": 0.015522928036584116,
+        "sample_sd": 0.0007194055847306004,
+        "by_teacher_seed": {
+          "43": 0.016031624603970597,
+          "44": 0.015014231469197635
+        }
+      },
+      "within_parent_top_subhead_cam.mean_valid_pair_fraction": {
+        "mean": 1.0,
+        "sample_sd": 0.0,
+        "by_teacher_seed": {
+          "43": 1.0,
+          "44": 1.0
+        }
+      }
+    },
+    "c1_epoch100": {
+      "coarse_accuracy": {
+        "mean": 89.85987261146497,
+        "sample_sd": 0.2882473502926053,
+        "by_teacher_seed": {
+          "43": 89.65605095541402,
+          "44": 90.06369426751593
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9241744606651733,
+        "sample_sd": 0.0029002001784447376,
+        "by_teacher_seed": {
+          "43": 0.9221237094521966,
+          "44": 0.92622521187815
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9332942283983254,
+        "sample_sd": 0.002680762560645862,
+        "by_teacher_seed": {
+          "43": 0.9313986430129417,
+          "44": 0.9351898137837091
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.016318961064991297,
+        "sample_sd": 0.0006139924434754401,
+        "by_teacher_seed": {
+          "43": 0.01675311928537008,
+          "44": 0.015884802844612515
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.013898823703381177,
+        "sample_sd": 0.0006629500288656898,
+        "by_teacher_seed": {
+          "43": 0.014367600164379924,
+          "44": 0.01343004724238243
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0,
+        "sample_sd": 0.0,
+        "by_teacher_seed": {
+          "43": 0.0,
+          "44": 0.0
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 12.771427205759672,
+        "sample_sd": 0.03807123657056604,
+        "by_teacher_seed": {
+          "43": 12.744506776212466,
+          "44": 12.798347635306875
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 24.53302693464898,
+        "sample_sd": 0.23908847785087806,
+        "by_teacher_seed": {
+          "43": 24.702088018640904,
+          "44": 24.363965850657053
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.259858243723584,
+        "sample_sd": 0.00015404377834336527,
+        "by_teacher_seed": {
+          "43": 2.25996716912385,
+          "44": 2.2597493183233177
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 5.118752028985433,
+        "sample_sd": 0.02124311977033854,
+        "by_teacher_seed": {
+          "43": 5.103730874942269,
+          "44": 5.133773183028598
+        }
+      }
+    },
+    "c100_epoch100": {
+      "coarse_accuracy": {
+        "mean": 82.28025477707007,
+        "sample_sd": 0.01801545939329097,
+        "by_teacher_seed": {
+          "43": 82.26751592356688,
+          "44": 82.29299363057325
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.951170814193631,
+        "sample_sd": 0.00023727500409447883,
+        "by_teacher_seed": {
+          "43": 0.9510030354292298,
+          "44": 0.9513385929580324
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9658049607722574,
+        "sample_sd": 0.00012997097085196404,
+        "by_teacher_seed": {
+          "43": 0.9657130574174106,
+          "44": 0.9658968641271043
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.013237928703834764,
+        "sample_sd": 0.00010994933539907538,
+        "by_teacher_seed": {
+          "43": 0.013160182783187124,
+          "44": 0.013315674624482405
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.008009945146531975,
+        "sample_sd": 6.970672717508019e-05,
+        "by_teacher_seed": {
+          "43": 0.008059235246011794,
+          "44": 0.007960655047052154
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0008917197452229298,
+        "sample_sd": 0.0001801545939328783,
+        "by_teacher_seed": {
+          "43": 0.001019108280254777,
+          "44": 0.0007643312101910828
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 56.46502368847659,
+        "sample_sd": 0.7583551461289959,
+        "by_teacher_seed": {
+          "43": 57.001261754852116,
+          "44": 55.92878562210106
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 106.59924055801383,
+        "sample_sd": 1.8113677720548838,
+        "by_teacher_seed": {
+          "43": 107.88007099285662,
+          "44": 105.31841012317106
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.2928125677594715,
+        "sample_sd": 3.125558742924369e-05,
+        "by_teacher_seed": {
+          "43": 2.2928346687972927,
+          "44": 2.2927904667216503
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 2.643185320645312,
+        "sample_sd": 0.0031973732411356244,
+        "by_teacher_seed": {
+          "43": 2.6409244363445206,
+          "44": 2.6454462049461034
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_all": {
+        "mean": 0.021285819915967247,
+        "sample_sd": 0.0005077880575918916,
+        "by_teacher_seed": {
+          "43": 0.02164488029489602,
+          "44": 0.020926759537038476
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_coarse_correct": {
+        "mean": 0.015961321270899616,
+        "sample_sd": 0.0003957523002903593,
+        "by_teacher_seed": {
+          "43": 0.016241160406105102,
+          "44": 0.015681482135694126
+        }
+      },
+      "within_parent_top_subhead_cam.mean_valid_pair_fraction": {
+        "mean": 1.0,
+        "sample_sd": 0.0,
+        "by_teacher_seed": {
+          "43": 1.0,
+          "44": 1.0
+        }
+      }
+    },
+    "c1_epoch150": {
+      "coarse_accuracy": {
+        "mean": 87.49044585987261,
+        "sample_sd": 0.14412367514630767,
+        "by_teacher_seed": {
+          "43": 87.38853503184713,
+          "44": 87.59235668789809
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9160816250248791,
+        "sample_sd": 0.003667451788998809,
+        "by_teacher_seed": {
+          "43": 0.9134883449952033,
+          "44": 0.9186749050545548
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9270539533830575,
+        "sample_sd": 0.002593101156907935,
+        "by_teacher_seed": {
+          "43": 0.9252203539707052,
+          "44": 0.9288875527954098
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.018127101757817052,
+        "sample_sd": 0.0005634032925902516,
+        "by_teacher_seed": {
+          "43": 0.018525488046550447,
+          "44": 0.017728715469083656
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.015095690100140766,
+        "sample_sd": 0.0002541177473695416,
+        "by_teacher_seed": {
+          "43": 0.01527537848252562,
+          "44": 0.014916001717755914
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.00012738853503184712,
+        "sample_sd": 0.00018015459393287833,
+        "by_teacher_seed": {
+          "43": 0.00025477707006369424,
+          "44": 0.0
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 9.991106835022888,
+        "sample_sd": 0.1561496082170113,
+        "by_teacher_seed": {
+          "43": 9.880692388173017,
+          "44": 10.10152128187276
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 20.055232017884812,
+        "sample_sd": 0.0029210459781592733,
+        "by_teacher_seed": {
+          "43": 20.053166526465496,
+          "44": 20.057297509304124
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.2536789575807608,
+        "sample_sd": 0.0003355283442686424,
+        "by_teacher_seed": {
+          "43": 2.2539162119482734,
+          "44": 2.253441703213248
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 5.426548159271471,
+        "sample_sd": 0.045663872249968325,
+        "by_teacher_seed": {
+          "43": 5.394258925548282,
+          "44": 5.45883739299466
+        }
+      }
+    },
+    "c100_epoch150": {
+      "coarse_accuracy": {
+        "mean": 79.85987261146497,
+        "sample_sd": 0.05404637817986287,
+        "by_teacher_seed": {
+          "43": 79.82165605095541,
+          "44": 79.89808917197452
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9500655827476433,
+        "sample_sd": 0.0003146392256482185,
+        "by_teacher_seed": {
+          "43": 0.9502880662777264,
+          "44": 0.9498430992175602
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9650074407326471,
+        "sample_sd": 0.00028644077234288095,
+        "by_teacher_seed": {
+          "43": 0.9648048965201151,
+          "44": 0.9652099849451791
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.01402611030707669,
+        "sample_sd": 0.0002551494343576571,
+        "by_teacher_seed": {
+          "43": 0.013845692411826479,
+          "44": 0.014206528202326901
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.00857047883663764,
+        "sample_sd": 9.919346404614894e-05,
+        "by_teacher_seed": {
+          "43": 0.008640619207714056,
+          "44": 0.008500338465561225
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0011464968152866241,
+        "sample_sd": 0.00018015459393287835,
+        "by_teacher_seed": {
+          "43": 0.0012738853503184713,
+          "44": 0.001019108280254777
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 55.8702641601115,
+        "sample_sd": 1.3676967455732871,
+        "by_teacher_seed": {
+          "43": 54.903156516709856,
+          "44": 56.83737180351314
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 107.24315232789685,
+        "sample_sd": 0.7468734467384718,
+        "by_teacher_seed": {
+          "43": 106.71503304901991,
+          "44": 107.7712716067738
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.291782644903584,
+        "sample_sd": 0.0011069206042481627,
+        "by_teacher_seed": {
+          "43": 2.290999933838085,
+          "44": 2.292565355969083
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 2.7783086340155245,
+        "sample_sd": 0.14193013297045945,
+        "by_teacher_seed": {
+          "43": 2.8786683934936446,
+          "44": 2.677948874537404
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_all": {
+        "mean": 0.02388594083283314,
+        "sample_sd": 0.00044291948191100443,
+        "by_teacher_seed": {
+          "43": 0.023572749463654237,
+          "44": 0.024199132202012044
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_coarse_correct": {
+        "mean": 0.0181606277787571,
+        "sample_sd": 0.00019720044104493733,
+        "by_teacher_seed": {
+          "43": 0.018021186009641248,
+          "44": 0.018300069547872954
+        }
+      },
+      "within_parent_top_subhead_cam.mean_valid_pair_fraction": {
+        "mean": 1.0,
+        "sample_sd": 0.0,
+        "by_teacher_seed": {
+          "43": 1.0,
+          "44": 1.0
+        }
+      }
+    },
+    "c1_epoch200": {
+      "coarse_accuracy": {
+        "mean": 86.5859872611465,
+        "sample_sd": 1.1349739417771303,
+        "by_teacher_seed": {
+          "43": 85.78343949044586,
+          "44": 87.38853503184713
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9113787862714449,
+        "sample_sd": 0.003822866063225282,
+        "by_teacher_seed": {
+          "43": 0.9086756117545703,
+          "44": 0.9140819607883194
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9220783679201716,
+        "sample_sd": 0.0027202782361857797,
+        "by_teacher_seed": {
+          "43": 0.9201548407326504,
+          "44": 0.9240018951076927
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.01846703325703892,
+        "sample_sd": 0.0006247786631136472,
+        "by_teacher_seed": {
+          "43": 0.018908818486467242,
+          "44": 0.01802524802761059
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.01557604753322642,
+        "sample_sd": 0.00040469147760981996,
+        "by_teacher_seed": {
+          "43": 0.015862207621332728,
+          "44": 0.015289887445120113
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.00025477707006369424,
+        "sample_sd": 0.0,
+        "by_teacher_seed": {
+          "43": 0.00025477707006369424,
+          "44": 0.00025477707006369424
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 10.29471174668372,
+        "sample_sd": 0.48874774942052845,
+        "by_teacher_seed": {
+          "43": 9.9491148987788,
+          "44": 10.640308594588639
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 20.76112739309103,
+        "sample_sd": 0.9756711304899702,
+        "by_teacher_seed": {
+          "43": 20.071223720513625,
+          "44": 21.45103106566843
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.255178053789078,
+        "sample_sd": 0.006289393224176249,
+        "by_teacher_seed": {
+          "43": 2.2507307811907142,
+          "44": 2.2596253263874417
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 5.368811213402632,
+        "sample_sd": 0.25690793587364336,
+        "by_teacher_seed": {
+          "43": 5.550472556999523,
+          "44": 5.187149869805739
+        }
+      }
+    },
+    "c100_epoch200": {
+      "coarse_accuracy": {
+        "mean": 79.27388535031847,
+        "sample_sd": 0.3062628096858862,
+        "by_teacher_seed": {
+          "43": 79.49044585987261,
+          "44": 79.05732484076434
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9473146807948936,
+        "sample_sd": 0.0013881688097420162,
+        "by_teacher_seed": {
+          "43": 0.9482962643736937,
+          "44": 0.9463330972160933
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9626372961860246,
+        "sample_sd": 0.0005831526022589309,
+        "by_teacher_seed": {
+          "43": 0.9630496473455484,
+          "44": 0.9622249450265007
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.014388041668631654,
+        "sample_sd": 0.0004296650722029273,
+        "by_teacher_seed": {
+          "43": 0.014084222582437956,
+          "44": 0.01469186075482535
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.009213506445564894,
+        "sample_sd": 8.937562086873269e-05,
+        "by_teacher_seed": {
+          "43": 0.009150308337975855,
+          "44": 0.009276704553153933
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0007643312101910827,
+        "sample_sd": 0.00036030918786575665,
+        "by_teacher_seed": {
+          "43": 0.0005095541401273885,
+          "44": 0.001019108280254777
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 70.35444394462412,
+        "sample_sd": 3.501239527324089,
+        "by_teacher_seed": {
+          "43": 72.83019415695337,
+          "44": 67.87869373229488
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 131.2264849276205,
+        "sample_sd": 3.804595536403829,
+        "by_teacher_seed": {
+          "43": 133.91674023108374,
+          "44": 128.5362296241573
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.2928626693434015,
+        "sample_sd": 0.0005890020039169057,
+        "by_teacher_seed": {
+          "43": 2.2932791566545037,
+          "44": 2.2924461820322994
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 2.6348333687436316,
+        "sample_sd": 0.07351465827563379,
+        "by_teacher_seed": {
+          "43": 2.5828506553603194,
+          "44": 2.6868160821269442
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_all": {
+        "mean": 0.03160376138368363,
+        "sample_sd": 0.0005487735787653426,
+        "by_teacher_seed": {
+          "43": 0.03199180290256461,
+          "44": 0.031215719864802646
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_coarse_correct": {
+        "mean": 0.024847437646053055,
+        "sample_sd": 0.0007521786773826299,
+        "by_teacher_seed": {
+          "43": 0.02537930828949424,
+          "44": 0.02431556700261187
+        }
+      },
+      "within_parent_top_subhead_cam.mean_valid_pair_fraction": {
+        "mean": 1.0,
+        "sample_sd": 0.0,
+        "by_teacher_seed": {
+          "43": 1.0,
+          "44": 1.0
+        }
+      }
+    },
+    "c1_epoch250": {
+      "coarse_accuracy": {
+        "mean": 89.88535031847134,
+        "sample_sd": 0.46840194422548487,
+        "by_teacher_seed": {
+          "43": 90.21656050955414,
+          "44": 89.55414012738854
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.919369396793785,
+        "sample_sd": 0.0028961929178409184,
+        "by_teacher_seed": {
+          "43": 0.9173214791419553,
+          "44": 0.9214173144456148
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9284968053270362,
+        "sample_sd": 0.0033628788782615786,
+        "by_teacher_seed": {
+          "43": 0.9261188908679083,
+          "44": 0.9308747197861639
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.017213914109908676,
+        "sample_sd": 0.0005867789498613248,
+        "by_teacher_seed": {
+          "43": 0.01762882948441314,
+          "44": 0.016798998735404212
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.014784785226217824,
+        "sample_sd": 0.0006551825252814681,
+        "by_teacher_seed": {
+          "43": 0.015248069232759277,
+          "44": 0.014321501219676371
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.00012738853503184712,
+        "sample_sd": 0.00018015459393287833,
+        "by_teacher_seed": {
+          "43": 0.00025477707006369424,
+          "44": 0.0
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 12.22083645205278,
+        "sample_sd": 0.305608868227193,
+        "by_teacher_seed": {
+          "43": 12.004738348938586,
+          "44": 12.436934555166975
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 23.717429898622065,
+        "sample_sd": 0.11551709706530519,
+        "by_teacher_seed": {
+          "43": 23.635746975944205,
+          "44": 23.79911282129993
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.2402420474313627,
+        "sample_sd": 0.0022361883803106116,
+        "by_teacher_seed": {
+          "43": 2.241823271399091,
+          "44": 2.2386608234636345
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 6.053576412873076,
+        "sample_sd": 0.12686686422387888,
+        "by_teacher_seed": {
+          "43": 5.963867992872498,
+          "44": 6.143284832873653
+        }
+      }
+    },
+    "c100_epoch250": {
+      "coarse_accuracy": {
+        "mean": 79.77070063694268,
+        "sample_sd": 0.03603091878657189,
+        "by_teacher_seed": {
+          "43": 79.7452229299363,
+          "44": 79.79617834394904
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9500632466850771,
+        "sample_sd": 0.00010862865660864214,
+        "by_teacher_seed": {
+          "43": 0.9501400587447962,
+          "44": 0.9499864346253579
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9652103112712682,
+        "sample_sd": 0.0005872769150967136,
+        "by_teacher_seed": {
+          "43": 0.9656255787603674,
+          "44": 0.964795043782169
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.014484399836832798,
+        "sample_sd": 7.363445424942584e-05,
+        "by_teacher_seed": {
+          "43": 0.014536467258761537,
+          "44": 0.014432332414904058
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.009312788042300488,
+        "sample_sd": 7.86854670936362e-05,
+        "by_teacher_seed": {
+          "43": 0.009257149014937746,
+          "44": 0.009368427069663229
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0006369426751592356,
+        "sample_sd": 0.00018015459393287835,
+        "by_teacher_seed": {
+          "43": 0.0007643312101910828,
+          "44": 0.0005095541401273885
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 84.99158760465296,
+        "sample_sd": 1.4222452453907313,
+        "by_teacher_seed": {
+          "43": 85.99726686217907,
+          "44": 83.98590834712685
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 155.15310867752393,
+        "sample_sd": 1.3494716875270805,
+        "by_teacher_seed": {
+          "43": 156.10732925879358,
+          "44": 154.19888809625428
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.2925784759460743,
+        "sample_sd": 0.0005939150056727214,
+        "by_teacher_seed": {
+          "43": 2.2929984372740337,
+          "44": 2.2921585146181145
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 2.675633682284859,
+        "sample_sd": 0.06573431708886074,
+        "by_teacher_seed": {
+          "43": 2.629152500914659,
+          "44": 2.7221148636550594
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_all": {
+        "mean": 0.03382809669372024,
+        "sample_sd": 0.0004563487451369258,
+        "by_teacher_seed": {
+          "43": 0.034150783985992535,
+          "44": 0.03350540940144795
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_coarse_correct": {
+        "mean": 0.026934326708757943,
+        "sample_sd": 0.00030124511507419915,
+        "by_teacher_seed": {
+          "43": 0.027147339172426233,
+          "44": 0.026721314245089656
+        }
+      },
+      "within_parent_top_subhead_cam.mean_valid_pair_fraction": {
+        "mean": 1.0,
+        "sample_sd": 0.0,
+        "by_teacher_seed": {
+          "43": 1.0,
+          "44": 1.0
+        }
+      }
+    },
+    "c1_epoch300": {
+      "coarse_accuracy": {
+        "mean": 91.15923566878982,
+        "sample_sd": 0.18015459393287958,
+        "by_teacher_seed": {
+          "43": 91.28662420382166,
+          "44": 91.03184713375796
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9250973120257724,
+        "sample_sd": 0.0019413642274036624,
+        "by_teacher_seed": {
+          "43": 0.9237245602158223,
+          "44": 0.9264700638357225
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9335434756946055,
+        "sample_sd": 0.0016978662570803222,
+        "by_teacher_seed": {
+          "43": 0.9323429029506761,
+          "44": 0.9347440484385348
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.01615917071853853,
+        "sample_sd": 0.0003480577811320051,
+        "by_teacher_seed": {
+          "43": 0.016405284735821715,
+          "44": 0.015913056701255347
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.013726497917580984,
+        "sample_sd": 0.0002991348055050192,
+        "by_teacher_seed": {
+          "43": 0.013938018167042501,
+          "44": 0.013514977668119465
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.00012738853503184712,
+        "sample_sd": 0.00018015459393287833,
+        "by_teacher_seed": {
+          "43": 0.00025477707006369424,
+          "44": 0.0
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 14.290912735660363,
+        "sample_sd": 0.27620003738169663,
+        "by_teacher_seed": {
+          "43": 14.095609816263787,
+          "44": 14.486215655056938
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 27.497983960999974,
+        "sample_sd": 0.05308499656165097,
+        "by_teacher_seed": {
+          "43": 27.53552072204798,
+          "44": 27.460447199951965
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.237792877254972,
+        "sample_sd": 0.0009584956826772074,
+        "by_teacher_seed": {
+          "43": 2.238470636051931,
+          "44": 2.237115118458013
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 6.142835646931733,
+        "sample_sd": 0.05050763653562025,
+        "by_teacher_seed": {
+          "43": 6.10712135463569,
+          "44": 6.178549939227775
+        }
+      }
+    },
+    "c100_epoch300": {
+      "coarse_accuracy": {
+        "mean": 80.5859872611465,
+        "sample_sd": 0.14412367514630767,
+        "by_teacher_seed": {
+          "43": 80.68789808917198,
+          "44": 80.48407643312102
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.9516646491165076,
+        "sample_sd": 0.0005117104691693506,
+        "by_teacher_seed": {
+          "43": 0.9520264830592614,
+          "44": 0.9513028151737538
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.9670235767734943,
+        "sample_sd": 6.648463301689228e-05,
+        "by_teacher_seed": {
+          "43": 0.9670705885083452,
+          "44": 0.9669765650386433
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.014268966514248582,
+        "sample_sd": 0.00014059831965780183,
+        "by_teacher_seed": {
+          "43": 0.014169548488995116,
+          "44": 0.014368384539502047
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": 0.009103067347110333,
+        "sample_sd": 4.86698098340897e-05,
+        "by_teacher_seed": {
+          "43": 0.00906865259453759,
+          "44": 0.009137482099683078
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0006369426751592356,
+        "sample_sd": 0.00018015459393287835,
+        "by_teacher_seed": {
+          "43": 0.0005095541401273885,
+          "44": 0.0007643312101910828
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 93.6013373399432,
+        "sample_sd": 0.4005800982772234,
+        "by_teacher_seed": {
+          "43": 93.31808443604301,
+          "44": 93.8845902438434
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 166.34487515385376,
+        "sample_sd": 0.12700692287584242,
+        "by_teacher_seed": {
+          "43": 166.2550676974306,
+          "44": 166.4346826102769
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 2.2932866311528883,
+        "sample_sd": 0.00018544948371970057,
+        "by_teacher_seed": {
+          "43": 2.2931554985653824,
+          "44": 2.293417763740394
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": 2.586294605406189,
+        "sample_sd": 0.027362228714418835,
+        "by_teacher_seed": {
+          "43": 2.605642622878532,
+          "44": 2.5669465879338462
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_all": {
+        "mean": 0.034535620401520244,
+        "sample_sd": 0.00016662101960361836,
+        "by_teacher_seed": {
+          "43": 0.03465343925437018,
+          "44": 0.03441780154867031
+        }
+      },
+      "within_parent_top_subhead_cam.mean_pairwise_js_coarse_correct": {
+        "mean": 0.027583826688112306,
+        "sample_sd": 0.0004565607904549293,
+        "by_teacher_seed": {
+          "43": 0.027906663919066876,
+          "44": 0.027260989457157735
+        }
+      },
+      "within_parent_top_subhead_cam.mean_valid_pair_fraction": {
+        "mean": 1.0,
+        "sample_sd": 0.0,
+        "by_teacher_seed": {
+          "43": 1.0,
+          "44": 1.0
+        }
+      }
+    }
+  },
+  "paired_c100_minus_c1": {
+    "epoch008_c100_minus_c1": {
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.005594345387299304,
+        "sample_sd": 0.010760025818143915,
+        "by_teacher_seed": {
+          "43": 0.013202832609051196,
+          "44": -0.0020141418344525874
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.011908549286462289,
+        "sample_sd": 0.0015637215593898447,
+        "by_teacher_seed": {
+          "43": 0.01301426740499445,
+          "44": 0.010802831167930127
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.004486650637870284,
+        "sample_sd": 0.0019482673942945708,
+        "by_teacher_seed": {
+          "43": 0.003109017551799948,
+          "44": 0.005864283723940621
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": -0.0019753725688656815,
+        "sample_sd": 0.00038310729420332093,
+        "by_teacher_seed": {
+          "43": -0.0017044748032124836,
+          "44": -0.0022462703345188795
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.007898089171974522,
+        "sample_sd": 0.0010809275635972702,
+        "by_teacher_seed": {
+          "43": 0.008662420382165605,
+          "44": 0.0071337579617834395
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": -2.2604444736262463,
+        "sample_sd": 0.5795931098336177,
+        "by_teacher_seed": {
+          "43": -1.850610255333896,
+          "44": -2.670278691918597
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": -5.264355596464743,
+        "sample_sd": 0.5896868881240414,
+        "by_teacher_seed": {
+          "43": -4.84738399909544,
+          "44": -5.681327193834045
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 0.005506136948895346,
+        "sample_sd": 0.0007269739272019171,
+        "by_teacher_seed": {
+          "43": 0.006020185142565637,
+          "44": 0.004992088755225055
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": -1.094345319816535,
+        "sample_sd": 0.1237177957482956,
+        "by_teacher_seed": {
+          "43": -1.181827012143607,
+          "44": -1.006863627489463
+        }
+      },
+      "downstream_T20": {
+        "real_delta": -12.952229326090237,
+        "c1_synthetic_delta": -13.09235672009219,
+        "equal_source_average_delta": -13.022293023091214
+      }
+    },
+    "epoch016_c100_minus_c1": {
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.002491627619471193,
+        "sample_sd": 0.006762078589028706,
+        "by_teacher_seed": {
+          "43": -0.002289884005747367,
+          "44": 0.0072731392446897525
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.017514849939635757,
+        "sample_sd": 0.003605914328341723,
+        "by_teacher_seed": {
+          "43": 0.020064616413583924,
+          "44": 0.01496508346568759
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": 0.0042330586606657995,
+        "sample_sd": 0.0031900961935631554,
+        "by_teacher_seed": {
+          "43": 0.0064887973117717,
+          "44": 0.001977320009559899
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": -0.0021357716227821556,
+        "sample_sd": 0.00040407689002900304,
+        "by_teacher_seed": {
+          "43": -0.0018500461137218767,
+          "44": -0.0024214971318424344
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.005605095541401274,
+        "sample_sd": 0.0018015459393287837,
+        "by_teacher_seed": {
+          "43": 0.004331210191082803,
+          "44": 0.006878980891719746
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 5.5807410677055564,
+        "sample_sd": 1.5171788660848617,
+        "by_teacher_seed": {
+          "43": 6.653548532187079,
+          "44": 4.507933603224034
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 9.880496194442525,
+        "sample_sd": 2.2158064246977416,
+        "by_teacher_seed": {
+          "43": 11.447307943143018,
+          "44": 8.313684445742034
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 0.011672127565760526,
+        "sample_sd": 0.002008915177497679,
+        "by_teacher_seed": {
+          "43": 0.013092645110597712,
+          "44": 0.01025161002092334
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": -1.58746647435152,
+        "sample_sd": 0.12295058632304247,
+        "by_teacher_seed": {
+          "43": -1.6744056676914054,
+          "44": -1.5005272810116348
+        }
+      },
+      "downstream_T20": {
+        "real_delta": -4.1528662499348865,
+        "c1_synthetic_delta": -3.7229299496693233,
+        "equal_source_average_delta": -3.937898099802105
+      }
+    },
+    "epoch032_c100_minus_c1": {
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.022976343527580545,
+        "sample_sd": 0.003621244218755735,
+        "by_teacher_seed": {
+          "43": 0.025536949870995307,
+          "44": 0.020415737184165783
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.027579949045537067,
+        "sample_sd": 0.006369210857574001,
+        "by_teacher_seed": {
+          "43": 0.03208366123373463,
+          "44": 0.023076236857339505
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": -0.0013538591390387187,
+        "sample_sd": 0.00017436588358135048,
+        "by_teacher_seed": {
+          "43": -0.0012305638403507617,
+          "44": -0.0014771544377266757
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": -0.004219626006250008,
+        "sample_sd": 0.0007266307444890711,
+        "by_teacher_seed": {
+          "43": -0.00473343153309686,
+          "44": -0.0037058204794031564
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0016560509554140127,
+        "sample_sd": 0.0009007729696643917,
+        "by_teacher_seed": {
+          "43": 0.001019108280254777,
+          "44": 0.0022929936305732482
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 22.013858266059653,
+        "sample_sd": 0.5959497712040509,
+        "by_teacher_seed": {
+          "43": 22.43525839052461,
+          "44": 21.592458141594697
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 39.122783479621425,
+        "sample_sd": 0.9206572215752385,
+        "by_teacher_seed": {
+          "43": 39.77378644414564,
+          "44": 38.47178051509721
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 0.0200215907461323,
+        "sample_sd": 0.004012015550276508,
+        "by_teacher_seed": {
+          "43": 0.017184667344305904,
+          "44": 0.022858514147958697
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": -1.9170256483108774,
+        "sample_sd": 0.15974700416577928,
+        "by_teacher_seed": {
+          "43": -1.8040674583910192,
+          "44": -2.0299838382307356
+        }
+      },
+      "downstream_T20": {
+        "real_delta": -0.621019119214095,
+        "c1_synthetic_delta": 0.18789807094890065,
+        "equal_source_average_delta": -0.2165605241325972
+      }
+    },
+    "epoch064_c100_minus_c1": {
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.026236350810702525,
+        "sample_sd": 0.002980834156502469,
+        "by_teacher_seed": {
+          "43": 0.028344118856357903,
+          "44": 0.024128582765047146
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.032177751789368436,
+        "sample_sd": 0.003379492422326379,
+        "by_teacher_seed": {
+          "43": 0.03456741379816397,
+          "44": 0.0297880897805729
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": -0.0029157854318478185,
+        "sample_sd": 0.00036934655513264715,
+        "by_teacher_seed": {
+          "43": -0.0031769528855900044,
+          "44": -0.0026546179781056327
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": -0.005883771693963879,
+        "sample_sd": 0.0003179563700256016,
+        "by_teacher_seed": {
+          "43": -0.006108600799330441,
+          "44": -0.005658942588597317
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0011464968152866241,
+        "sample_sd": 0.00018015459393287835,
+        "by_teacher_seed": {
+          "43": 0.0012738853503184713,
+          "44": 0.001019108280254777
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 37.23844832436452,
+        "sample_sd": 1.313071179748508,
+        "by_teacher_seed": {
+          "43": 38.16692985974531,
+          "44": 36.30996678898373
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 71.12013625531235,
+        "sample_sd": 2.4188316622461197,
+        "by_teacher_seed": {
+          "43": 72.8305085262353,
+          "44": 69.40976398438939
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 0.02823203594061985,
+        "sample_sd": 0.0015925870401521625,
+        "by_teacher_seed": {
+          "43": 0.029358165036341255,
+          "44": 0.027105906844898442
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": -2.248476696904123,
+        "sample_sd": 0.07580476293918816,
+        "by_teacher_seed": {
+          "43": -2.3020787588246616,
+          "44": -2.1948746349835844
+        }
+      },
+      "downstream_T20": {
+        "real_delta": 2.745222909283486,
+        "c1_synthetic_delta": 3.573248405213569,
+        "equal_source_average_delta": 3.1592356572485274
+      }
+    },
+    "epoch100_c100_minus_c1": {
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.026996353528457806,
+        "sample_sd": 0.0026629251743502586,
+        "by_teacher_seed": {
+          "43": 0.028879325977033243,
+          "44": 0.02511338107988237
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.03251073237393204,
+        "sample_sd": 0.002550791589793898,
+        "by_teacher_seed": {
+          "43": 0.03431441440446892,
+          "44": 0.03070705034339516
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": -0.0030810323611565327,
+        "sample_sd": 0.0007239417788745155,
+        "by_teacher_seed": {
+          "43": -0.0035929365021829546,
+          "44": -0.0025691282201301107
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": -0.005888878556849203,
+        "sample_sd": 0.0005932433016906097,
+        "by_teacher_seed": {
+          "43": -0.00630836491836813,
+          "44": -0.005469392195330276
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0008917197452229298,
+        "sample_sd": 0.0001801545939328783,
+        "by_teacher_seed": {
+          "43": 0.001019108280254777,
+          "44": 0.0007643312101910828
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 43.69359648271691,
+        "sample_sd": 0.7964263826995607,
+        "by_teacher_seed": {
+          "43": 44.25675497863965,
+          "44": 43.130437986794185
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 82.06621362336486,
+        "sample_sd": 1.5722792942040034,
+        "by_teacher_seed": {
+          "43": 83.17798297421571,
+          "44": 80.95444427251401
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 0.032954324035887606,
+        "sample_sd": 0.0001227881909141216,
+        "by_teacher_seed": {
+          "43": 0.0328674996734426,
+          "44": 0.03304114839833261
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": -2.475566708340122,
+        "sample_sd": 0.01804574652920292,
+        "by_teacher_seed": {
+          "43": -2.462806438597749,
+          "44": -2.488326978082495
+        }
+      },
+      "downstream_T20": {
+        "real_delta": 3.133757927159593,
+        "c1_synthetic_delta": 4.312101877419051,
+        "equal_source_average_delta": 3.722929902289322
+      }
+    },
+    "epoch150_c100_minus_c1": {
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.033983957722764246,
+        "sample_sd": 0.003982091014647027,
+        "by_teacher_seed": {
+          "43": 0.03679972128252318,
+          "44": 0.031168194163005314
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.03795348734958959,
+        "sample_sd": 0.002306660384565054,
+        "by_teacher_seed": {
+          "43": 0.03958454254940991,
+          "44": 0.03632243214976927
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": -0.004100991450740362,
+        "sample_sd": 0.0008185527269479086,
+        "by_teacher_seed": {
+          "43": -0.004679795634723968,
+          "44": -0.003522187266756755
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": -0.006525211263503126,
+        "sample_sd": 0.0001549242833233927,
+        "by_teacher_seed": {
+          "43": -0.006634759274811563,
+          "44": -0.006415663252194689
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.001019108280254777,
+        "sample_sd": 0.0,
+        "by_teacher_seed": {
+          "43": 0.001019108280254777,
+          "44": 0.001019108280254777
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 45.87915732508861,
+        "sample_sd": 1.2115471373562783,
+        "by_teacher_seed": {
+          "43": 45.02246412853684,
+          "44": 46.73585052164039
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 87.18792031001205,
+        "sample_sd": 0.74395240076031,
+        "by_teacher_seed": {
+          "43": 86.66186652255442,
+          "44": 87.71397409746967
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 0.0381036873228231,
+        "sample_sd": 0.001442448948516805,
+        "by_teacher_seed": {
+          "43": 0.03708372188981146,
+          "44": 0.03912365275583474
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": -2.6482395252559465,
+        "sample_sd": 0.18759400522042777,
+        "by_teacher_seed": {
+          "43": -2.5155905320546377,
+          "44": -2.780888518457256
+        }
+      },
+      "downstream_T20": {
+        "real_delta": 2.792993645151711,
+        "c1_synthetic_delta": 3.7961783652092986,
+        "equal_source_average_delta": 3.2945860051805047
+      }
+    },
+    "epoch200_c100_minus_c1": {
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.03593589452344864,
+        "sample_sd": 0.005211034872967299,
+        "by_teacher_seed": {
+          "43": 0.0396206526191234,
+          "44": 0.032251136427773885
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.040558928265853,
+        "sample_sd": 0.003303430838444711,
+        "by_teacher_seed": {
+          "43": 0.04289480661289802,
+          "44": 0.03822304991880798
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": -0.004078991588407264,
+        "sample_sd": 0.0010544437353165745,
+        "by_teacher_seed": {
+          "43": -0.004824595904029286,
+          "44": -0.0033333872727852407
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": -0.006362541087661527,
+        "sample_sd": 0.0004940670984785526,
+        "by_teacher_seed": {
+          "43": -0.006711899283356873,
+          "44": -0.00601318289196618
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0005095541401273885,
+        "sample_sd": 0.0003603091878657566,
+        "by_teacher_seed": {
+          "43": 0.00025477707006369424,
+          "44": 0.0007643312101910827
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 60.059732197940406,
+        "sample_sd": 3.989987276744616,
+        "by_teacher_seed": {
+          "43": 62.881079258174566,
+          "44": 57.23838513770624
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 110.46535753452949,
+        "sample_sd": 4.780266666893796,
+        "by_teacher_seed": {
+          "43": 113.8455165105701,
+          "44": 107.08519855848887
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 0.037684615554323564,
+        "sample_sd": 0.006878395228093155,
+        "by_teacher_seed": {
+          "43": 0.04254837546378942,
+          "44": 0.032820855644857705
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": -2.733977844658999,
+        "sample_sd": 0.3304225941492771,
+        "by_teacher_seed": {
+          "43": -2.9676219016392036,
+          "44": -2.500333787678795
+        }
+      },
+      "downstream_T20": {
+        "real_delta": 2.550955387892998,
+        "c1_synthetic_delta": 3.894904443412832,
+        "equal_source_average_delta": 3.222929915652915
+      }
+    },
+    "epoch250_c100_minus_c1": {
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.030693849891292035,
+        "sample_sd": 0.003004821574449561,
+        "by_teacher_seed": {
+          "43": 0.03281857960284096,
+          "44": 0.028569120179743113
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.03671350594423206,
+        "sample_sd": 0.003950155793358293,
+        "by_teacher_seed": {
+          "43": 0.039506687892459036,
+          "44": 0.033920323996005086
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": -0.0027295142730758785,
+        "sample_sd": 0.000513144495611899,
+        "by_teacher_seed": {
+          "43": -0.003092362225651603,
+          "44": -0.002366666320500154
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": -0.005471997183917336,
+        "sample_sd": 0.0007338679923751043,
+        "by_teacher_seed": {
+          "43": -0.00599092021782153,
+          "44": -0.0049530741500131426
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0005095541401273886,
+        "sample_sd": 7.666467083416871e-20,
+        "by_teacher_seed": {
+          "43": 0.0005095541401273886,
+          "44": 0.0005095541401273885
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 72.77075115260018,
+        "sample_sd": 1.7278541136179204,
+        "by_teacher_seed": {
+          "43": 73.99252851324049,
+          "44": 71.54897379195988
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 131.43567877890186,
+        "sample_sd": 1.4649887845923781,
+        "by_teacher_seed": {
+          "43": 132.47158228284937,
+          "44": 130.39977527495435
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 0.05233642851471143,
+        "sample_sd": 0.0016422733746378905,
+        "by_teacher_seed": {
+          "43": 0.05117516587494286,
+          "44": 0.05349769115448
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": -3.377942730588216,
+        "sample_sd": 0.06113254713501815,
+        "by_teacher_seed": {
+          "43": -3.3347154919578386,
+          "44": -3.4211699692185937
+        }
+      },
+      "downstream_T20": {
+        "real_delta": 2.5732483973169042,
+        "c1_synthetic_delta": 4.50955412554893,
+        "equal_source_average_delta": 3.541401261432917
+      }
+    },
+    "epoch300_c100_minus_c1": {
+      "parent_cam.normalized_spatial_entropy_all": {
+        "mean": 0.02656733709073522,
+        "sample_sd": 0.0024530746965730128,
+        "by_teacher_seed": {
+          "43": 0.02830192284343913,
+          "44": 0.02483275133803131
+        }
+      },
+      "parent_cam.normalized_spatial_entropy_coarse_correct": {
+        "mean": 0.03348010107888877,
+        "sample_sd": 0.0017643508900972147,
+        "by_teacher_seed": {
+          "43": 0.03472768555766903,
+          "44": 0.03223251660010851
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_all": {
+        "mean": -0.00189020420428995,
+        "sample_sd": 0.0004886561007898069,
+        "by_teacher_seed": {
+          "43": -0.0022357362468265994,
+          "44": -0.0015446721617533004
+        }
+      },
+      "parent_cam.within_parent_centroid_variance_coarse_correct": {
+        "mean": -0.0046234305704706494,
+        "sample_sd": 0.0003478046153391089,
+        "by_teacher_seed": {
+          "43": -0.004869365572504912,
+          "44": -0.004377495568436387
+        }
+      },
+      "parent_cam.zero_cam_fraction": {
+        "mean": 0.0005095541401273885,
+        "sample_sd": 0.0003603091878657567,
+        "by_teacher_seed": {
+          "43": 0.00025477707006369424,
+          "44": 0.0007643312101910828
+        }
+      },
+      "penultimate_features.centered_covariance_participation_rank": {
+        "mean": 79.31042460428284,
+        "sample_sd": 0.124380060895528,
+        "by_teacher_seed": {
+          "43": 79.22247461977922,
+          "44": 79.39837458878647
+        }
+      },
+      "penultimate_features.centered_covariance_entropy_effective_rank": {
+        "mean": 138.84689119285378,
+        "sample_sd": 0.18009191943748587,
+        "by_teacher_seed": {
+          "43": 138.71954697538263,
+          "44": 138.97423541032492
+        }
+      },
+      "marginal_labels_T20.mean_entropy": {
+        "mean": 0.05549375389791611,
+        "sample_sd": 0.001143945166396908,
+        "by_teacher_seed": {
+          "43": 0.05468486251345128,
+          "44": 0.056302645282380936
+        }
+      },
+      "marginal_labels_T20.centered_equivalent_logit_sd": {
+        "mean": -3.556541041525543,
+        "sample_sd": 0.0778698652500391,
+        "by_teacher_seed": {
+          "43": -3.501478731757158,
+          "44": -3.6116033512939287
+        }
+      },
+      "downstream_T20": {
+        "real_delta": 4.33121021416537,
+        "c1_synthetic_delta": 6.203821646939419,
+        "equal_source_average_delta": 5.267515930552395
+      }
+    }
+  },
+  "subhead_entropy_artifact_test": {
+    "epoch008": {
+      "c1_parent_entropy": {
+        "mean": 0.9054270124029219,
+        "sample_sd": 0.008554216181611224,
+        "by_teacher_seed": {
+          "43": 0.8993782681331689,
+          "44": 0.9114757566726749
+        }
+      },
+      "c100_parent_entropy": {
+        "mean": 0.9110213577902212,
+        "sample_sd": 0.0022058096365326907,
+        "by_teacher_seed": {
+          "43": 0.9125811007422201,
+          "44": 0.9094616148382223
+        }
+      },
+      "c100_top1_subhead_entropy": {
+        "mean": 0.9616492735807516,
+        "sample_sd": 0.0008023400592299594,
+        "by_teacher_seed": {
+          "43": 0.9610819334840525,
+          "44": 0.9622166136774507
+        }
+      },
+      "c100_mean_top5_individual_entropy": {
+        "mean": 0.9562701504435718,
+        "sample_sd": 0.0012126035572700478,
+        "by_teacher_seed": {
+          "43": 0.9554127102453351,
+          "44": 0.9571275906418083
+        }
+      },
+      "aggregation_uplift_parent_minus_top1": {
+        "mean": -0.05062791579053039,
+        "sample_sd": 0.00300814969576265,
+        "by_teacher_seed": {
+          "43": -0.04850083274183237,
+          "44": -0.052754998839228406
+        }
+      },
+      "intrinsic_top1_subhead_minus_c1_parent": {
+        "mean": 0.05622226117782969,
+        "sample_sd": 0.007751876122381265,
+        "by_teacher_seed": {
+          "43": 0.06170366535088356,
+          "44": 0.05074085700477582
+        }
+      },
+      "intrinsic_mean_top5_minus_c1_parent": {
+        "mean": 0.05084313804064983,
+        "sample_sd": 0.007341612624341177,
+        "by_teacher_seed": {
+          "43": 0.05603444211216624,
+          "44": 0.045651833969133415
+        }
+      },
+      "coarse_correct": {
+        "c1_parent_entropy": {
+          "mean": 0.939287945932365,
+          "sample_sd": 0.0005156647663534417,
+          "by_teacher_seed": {
+            "43": 0.9389233158792575,
+            "44": 0.9396525759854725
+          }
+        },
+        "c100_parent_entropy": {
+          "mean": 0.9511964952188272,
+          "sample_sd": 0.001048056793036403,
+          "by_teacher_seed": {
+            "43": 0.9519375832842519,
+            "44": 0.9504554071534026
+          }
+        },
+        "c100_top1_subhead_entropy": {
+          "mean": 0.9659490262342771,
+          "sample_sd": 0.0005447011446574132,
+          "by_teacher_seed": {
+            "43": 0.9663341881073845,
+            "44": 0.9655638643611698
+          }
+        },
+        "c100_mean_top5_individual_entropy": {
+          "mean": 0.963757427022863,
+          "sample_sd": 0.00011316581144028761,
+          "by_teacher_seed": {
+            "43": 0.963837447335531,
+            "44": 0.9636774067101952
+          }
+        },
+        "aggregation_uplift_parent_minus_top1": {
+          "mean": -0.014752531015449877,
+          "sample_sd": 0.0005033556483789899,
+          "by_teacher_seed": {
+            "43": -0.014396604823132542,
+            "44": -0.015108457207767212
+          }
+        },
+        "intrinsic_top1_subhead_minus_c1_parent": {
+          "mean": 0.026661080301912166,
+          "sample_sd": 0.0010603659110108548,
+          "by_teacher_seed": {
+            "43": 0.027410872228126992,
+            "44": 0.02591128837569734
+          }
+        },
+        "intrinsic_mean_top5_minus_c1_parent": {
+          "mean": 0.024469481090498124,
+          "sample_sd": 0.0006288305777937293,
+          "by_teacher_seed": {
+            "43": 0.024914131456273525,
+            "44": 0.024024830724722723
+          }
+        }
+      }
+    },
+    "epoch016": {
+      "c1_parent_entropy": {
+        "mean": 0.9117730622120317,
+        "sample_sd": 0.002616384785697634,
+        "by_teacher_seed": {
+          "43": 0.9099229987878715,
+          "44": 0.9136231256361917
+        }
+      },
+      "c100_parent_entropy": {
+        "mean": 0.9142646898315028,
+        "sample_sd": 0.00937846337472634,
+        "by_teacher_seed": {
+          "43": 0.9076331147821242,
+          "44": 0.9208962648808815
+        }
+      },
+      "c100_top1_subhead_entropy": {
+        "mean": 0.9636851438601437,
+        "sample_sd": 0.00030723590808229257,
+        "by_teacher_seed": {
+          "43": 0.9634678952661148,
+          "44": 0.9639023924541728
+        }
+      },
+      "c100_mean_top5_individual_entropy": {
+        "mean": 0.9587823404089555,
+        "sample_sd": 0.0012104471976179126,
+        "by_teacher_seed": {
+          "43": 0.9579264249872516,
+          "44": 0.9596382558306593
+        }
+      },
+      "aggregation_uplift_parent_minus_top1": {
+        "mean": -0.049420454028640926,
+        "sample_sd": 0.009071227466644047,
+        "by_teacher_seed": {
+          "43": -0.0558347804839906,
+          "44": -0.04300612757329125
+        }
+      },
+      "intrinsic_top1_subhead_minus_c1_parent": {
+        "mean": 0.05191208164811212,
+        "sample_sd": 0.002309148877615341,
+        "by_teacher_seed": {
+          "43": 0.05354489647824323,
+          "44": 0.050279266817981005
+        }
+      },
+      "intrinsic_mean_top5_minus_c1_parent": {
+        "mean": 0.0470092781969238,
+        "sample_sd": 0.0014059375880797215,
+        "by_teacher_seed": {
+          "43": 0.04800342619938003,
+          "44": 0.04601513019446757
+        }
+      },
+      "coarse_correct": {
+        "c1_parent_entropy": {
+          "mean": 0.9318163123415572,
+          "sample_sd": 0.0020828005376841794,
+          "by_teacher_seed": {
+            "43": 0.9303435499575017,
+            "44": 0.9332890747256126
+          }
+        },
+        "c100_parent_entropy": {
+          "mean": 0.9493311622811929,
+          "sample_sd": 0.001523113790657544,
+          "by_teacher_seed": {
+            "43": 0.9504081663710856,
+            "44": 0.9482541581913002
+          }
+        },
+        "c100_top1_subhead_entropy": {
+          "mean": 0.9669280905776996,
+          "sample_sd": 0.0019200324150050324,
+          "by_teacher_seed": {
+            "43": 0.9682857585184477,
+            "44": 0.9655704226369516
+          }
+        },
+        "c100_mean_top5_individual_entropy": {
+          "mean": 0.964334656198327,
+          "sample_sd": 0.0017668987645874626,
+          "by_teacher_seed": {
+            "43": 0.9655840422964369,
+            "44": 0.963085270100217
+          }
+        },
+        "aggregation_uplift_parent_minus_top1": {
+          "mean": -0.01759692829650672,
+          "sample_sd": 0.00039691862434748843,
+          "by_teacher_seed": {
+            "43": -0.017877592147362065,
+            "44": -0.017316264445651375
+          }
+        },
+        "intrinsic_top1_subhead_minus_c1_parent": {
+          "mean": 0.03511177823614248,
+          "sample_sd": 0.004002832952689212,
+          "by_teacher_seed": {
+            "43": 0.03794220856094599,
+            "44": 0.032281347911338965
+          }
+        },
+        "intrinsic_mean_top5_minus_c1_parent": {
+          "mean": 0.03251834385676983,
+          "sample_sd": 0.003849699302271642,
+          "by_teacher_seed": {
+            "43": 0.035240492338935225,
+            "44": 0.02979619537460443
+          }
+        }
+      }
+    },
+    "epoch032": {
+      "c1_parent_entropy": {
+        "mean": 0.9093892420109397,
+        "sample_sd": 0.004547952342502806,
+        "by_teacher_seed": {
+          "43": 0.9061733540690428,
+          "44": 0.9126051299528367
+        }
+      },
+      "c100_parent_entropy": {
+        "mean": 0.9323655855385202,
+        "sample_sd": 0.0009267081237470705,
+        "by_teacher_seed": {
+          "43": 0.9317103039400381,
+          "44": 0.9330208671370025
+        }
+      },
+      "c100_top1_subhead_entropy": {
+        "mean": 0.969177873543879,
+        "sample_sd": 2.8826822342012812e-05,
+        "by_teacher_seed": {
+          "43": 0.9691982571854371,
+          "44": 0.9691574899023209
+        }
+      },
+      "c100_mean_top5_individual_entropy": {
+        "mean": 0.9655717943655688,
+        "sample_sd": 0.00027870209589610093,
+        "by_teacher_seed": {
+          "43": 0.9657688665075078,
+          "44": 0.9653747222236297
+        }
+      },
+      "aggregation_uplift_parent_minus_top1": {
+        "mean": -0.036812288005358684,
+        "sample_sd": 0.0009555349460890833,
+        "by_teacher_seed": {
+          "43": -0.037487953245399,
+          "44": -0.03613662276531837
+        }
+      },
+      "intrinsic_top1_subhead_minus_c1_parent": {
+        "mean": 0.05978863153293923,
+        "sample_sd": 0.004576779164844819,
+        "by_teacher_seed": {
+          "43": 0.0630249031163943,
+          "44": 0.056552359949484154
+        }
+      },
+      "intrinsic_mean_top5_minus_c1_parent": {
+        "mean": 0.056182552354629045,
+        "sample_sd": 0.004826654438398907,
+        "by_teacher_seed": {
+          "43": 0.05959551243846506,
+          "44": 0.05276959227079303
+        }
+      },
+      "coarse_correct": {
+        "c1_parent_entropy": {
+          "mean": 0.9262397699043654,
+          "sample_sd": 0.006131385554564674,
+          "by_teacher_seed": {
+            "43": 0.9219042256006634,
+            "44": 0.9305753142080673
+          }
+        },
+        "c100_parent_entropy": {
+          "mean": 0.9538197189499025,
+          "sample_sd": 0.00023782530300932655,
+          "by_teacher_seed": {
+            "43": 0.9539878868343981,
+            "44": 0.9536515510654068
+          }
+        },
+        "c100_top1_subhead_entropy": {
+          "mean": 0.9710141405722237,
+          "sample_sd": 0.00011655242610853479,
+          "by_teacher_seed": {
+            "43": 0.9709317255613585,
+            "44": 0.9710965555830887
+          }
+        },
+        "c100_mean_top5_individual_entropy": {
+          "mean": 0.9686222397630397,
+          "sample_sd": 0.0002089250502566268,
+          "by_teacher_seed": {
+            "43": 0.9687699720828359,
+            "44": 0.9684745074432435
+          }
+        },
+        "aggregation_uplift_parent_minus_top1": {
+          "mean": -0.01719442162232121,
+          "sample_sd": 0.00035437772911786137,
+          "by_teacher_seed": {
+            "43": -0.01694383872696048,
+            "44": -0.01744500451768194
+          }
+        },
+        "intrinsic_top1_subhead_minus_c1_parent": {
+          "mean": 0.044774370667858276,
+          "sample_sd": 0.00601483312845614,
+          "by_teacher_seed": {
+            "43": 0.04902749996069511,
+            "44": 0.040521241375021444
+          }
+        },
+        "intrinsic_mean_top5_minus_c1_parent": {
+          "mean": 0.04238246985867433,
+          "sample_sd": 0.006340310604821301,
+          "by_teacher_seed": {
+            "43": 0.046865746482172455,
+            "44": 0.03789919323517621
+          }
+        }
+      }
+    },
+    "epoch064": {
+      "c1_parent_entropy": {
+        "mean": 0.920068013509049,
+        "sample_sd": 0.004153039927164756,
+        "by_teacher_seed": {
+          "43": 0.9171313708140123,
+          "44": 0.9230046562040857
+        }
+      },
+      "c100_parent_entropy": {
+        "mean": 0.9463043643197515,
+        "sample_sd": 0.0011722057706622868,
+        "by_teacher_seed": {
+          "43": 0.9454754896703702,
+          "44": 0.9471332389691328
+        }
+      },
+      "c100_top1_subhead_entropy": {
+        "mean": 0.9727248621689137,
+        "sample_sd": 0.00011551786405781006,
+        "by_teacher_seed": {
+          "43": 0.9726431787038903,
+          "44": 0.9728065456339372
+        }
+      },
+      "c100_mean_top5_individual_entropy": {
+        "mean": 0.9696025681562773,
+        "sample_sd": 0.00022292744854194847,
+        "by_teacher_seed": {
+          "43": 0.9694449346457007,
+          "44": 0.969760201666854
+        }
+      },
+      "aggregation_uplift_parent_minus_top1": {
+        "mean": -0.026420497849162228,
+        "sample_sd": 0.0010566879066044768,
+        "by_teacher_seed": {
+          "43": -0.02716768903352007,
+          "44": -0.025673306664804385
+        }
+      },
+      "intrinsic_top1_subhead_minus_c1_parent": {
+        "mean": 0.05265684865986475,
+        "sample_sd": 0.004037522063106946,
+        "by_teacher_seed": {
+          "43": 0.05551180788987797,
+          "44": 0.04980188942985153
+        }
+      },
+      "intrinsic_mean_top5_minus_c1_parent": {
+        "mean": 0.049534554647228335,
+        "sample_sd": 0.0039301124786228075,
+        "by_teacher_seed": {
+          "43": 0.05231356383168839,
+          "44": 0.04675554546276828
+        }
+      },
+      "coarse_correct": {
+        "c1_parent_entropy": {
+          "mean": 0.9303379034334697,
+          "sample_sd": 0.003478915703585908,
+          "by_teacher_seed": {
+            "43": 0.9278779385482877,
+            "44": 0.9327978683186516
+          }
+        },
+        "c100_parent_entropy": {
+          "mean": 0.9625156552228381,
+          "sample_sd": 9.942328125952846e-05,
+          "by_teacher_seed": {
+            "43": 0.9624453523464517,
+            "44": 0.9625859580992245
+          }
+        },
+        "c100_top1_subhead_entropy": {
+          "mean": 0.9742083895366747,
+          "sample_sd": 0.0002145230884819723,
+          "by_teacher_seed": {
+            "43": 0.9740566988060879,
+            "44": 0.9743600802672613
+          }
+        },
+        "c100_mean_top5_individual_entropy": {
+          "mean": 0.9720693229781534,
+          "sample_sd": 0.00021227433796322824,
+          "by_teacher_seed": {
+            "43": 0.9719192223543077,
+            "44": 0.9722194236019991
+          }
+        },
+        "aggregation_uplift_parent_minus_top1": {
+          "mean": -0.011692734313836495,
+          "sample_sd": 0.00011509980722244385,
+          "by_teacher_seed": {
+            "43": -0.01161134645963624,
+            "44": -0.01177412216803675
+          }
+        },
+        "intrinsic_top1_subhead_minus_c1_parent": {
+          "mean": 0.04387048610320493,
+          "sample_sd": 0.0032643926151039353,
+          "by_teacher_seed": {
+            "43": 0.04617876025780021,
+            "44": 0.04156221194860965
+          }
+        },
+        "intrinsic_mean_top5_minus_c1_parent": {
+          "mean": 0.041731419544683734,
+          "sample_sd": 0.0032666413656226795,
+          "by_teacher_seed": {
+            "43": 0.044041283806020015,
+            "44": 0.039421555283347454
+          }
+        }
+      }
+    },
+    "epoch100": {
+      "c1_parent_entropy": {
+        "mean": 0.9241744606651733,
+        "sample_sd": 0.0029002001784447376,
+        "by_teacher_seed": {
+          "43": 0.9221237094521966,
+          "44": 0.92622521187815
+        }
+      },
+      "c100_parent_entropy": {
+        "mean": 0.951170814193631,
+        "sample_sd": 0.00023727500409447883,
+        "by_teacher_seed": {
+          "43": 0.9510030354292298,
+          "44": 0.9513385929580324
+        }
+      },
+      "c100_top1_subhead_entropy": {
+        "mean": 0.9742261639105161,
+        "sample_sd": 3.7810994483500247e-06,
+        "by_teacher_seed": {
+          "43": 0.9742234902694559,
+          "44": 0.9742288375515764
+        }
+      },
+      "c100_mean_top5_individual_entropy": {
+        "mean": 0.9713016118051393,
+        "sample_sd": 0.0001840610508225165,
+        "by_teacher_seed": {
+          "43": 0.9711714609879504,
+          "44": 0.9714317626223282
+        }
+      },
+      "aggregation_uplift_parent_minus_top1": {
+        "mean": -0.023055349716885054,
+        "sample_sd": 0.00023349390464612882,
+        "by_teacher_seed": {
+          "43": -0.023220454840226057,
+          "44": -0.02289024459354405
+        }
+      },
+      "intrinsic_top1_subhead_minus_c1_parent": {
+        "mean": 0.05005170324534286,
+        "sample_sd": 0.002896419078996388,
+        "by_teacher_seed": {
+          "43": 0.0520997808172593,
+          "44": 0.04800362567342642
+        }
+      },
+      "intrinsic_mean_top5_minus_c1_parent": {
+        "mean": 0.04712715113996602,
+        "sample_sd": 0.002716139127622221,
+        "by_teacher_seed": {
+          "43": 0.0490477515357538,
+          "44": 0.04520655074417823
+        }
+      },
+      "coarse_correct": {
+        "c1_parent_entropy": {
+          "mean": 0.9332942283983254,
+          "sample_sd": 0.002680762560645862,
+          "by_teacher_seed": {
+            "43": 0.9313986430129417,
+            "44": 0.9351898137837091
+          }
+        },
+        "c100_parent_entropy": {
+          "mean": 0.9658049607722574,
+          "sample_sd": 0.00012997097085196404,
+          "by_teacher_seed": {
+            "43": 0.9657130574174106,
+            "44": 0.9658968641271043
+          }
+        },
+        "c100_top1_subhead_entropy": {
+          "mean": 0.9757550459731483,
+          "sample_sd": 4.809987555667148e-05,
+          "by_teacher_seed": {
+            "43": 0.9757890577213286,
+            "44": 0.9757210342249679
+          }
+        },
+        "c100_mean_top5_individual_entropy": {
+          "mean": 0.9737077105997993,
+          "sample_sd": 0.00018314319872214538,
+          "by_teacher_seed": {
+            "43": 0.9735782088020547,
+            "44": 0.973837212397544
+          }
+        },
+        "aggregation_uplift_parent_minus_top1": {
+          "mean": -0.009950085200890801,
+          "sample_sd": 0.00017807084640863552,
+          "by_teacher_seed": {
+            "43": -0.010076000303917976,
+            "44": -0.009824170097863627
+          }
+        },
+        "intrinsic_top1_subhead_minus_c1_parent": {
+          "mean": 0.04246081757482284,
+          "sample_sd": 0.0027288624362025336,
+          "by_teacher_seed": {
+            "43": 0.044390414708386894,
+            "44": 0.040531220441258786
+          }
+        },
+        "intrinsic_mean_top5_minus_c1_parent": {
+          "mean": 0.040413482201473894,
+          "sample_sd": 0.0024976193619237167,
+          "by_teacher_seed": {
+            "43": 0.04217956578911297,
+            "44": 0.038647398613834816
+          }
+        }
+      }
+    },
+    "epoch150": {
+      "c1_parent_entropy": {
+        "mean": 0.9160816250248791,
+        "sample_sd": 0.003667451788998809,
+        "by_teacher_seed": {
+          "43": 0.9134883449952033,
+          "44": 0.9186749050545548
+        }
+      },
+      "c100_parent_entropy": {
+        "mean": 0.9500655827476433,
+        "sample_sd": 0.0003146392256482185,
+        "by_teacher_seed": {
+          "43": 0.9502880662777264,
+          "44": 0.9498430992175602
+        }
+      },
+      "c100_top1_subhead_entropy": {
+        "mean": 0.9732616291850351,
+        "sample_sd": 0.0001599061044345576,
+        "by_teacher_seed": {
+          "43": 0.9731485584942363,
+          "44": 0.9733746998758339
+        }
+      },
+      "c100_mean_top5_individual_entropy": {
+        "mean": 0.9702366511393654,
+        "sample_sd": 0.0003322875512211408,
+        "by_teacher_seed": {
+          "43": 0.970001688358593,
+          "44": 0.9704716139201377
+        }
+      },
+      "aggregation_uplift_parent_minus_top1": {
+        "mean": -0.023196046437391815,
+        "sample_sd": 0.0004745453300827761,
+        "by_teacher_seed": {
+          "43": -0.022860492216509876,
+          "44": -0.023531600658273755
+        }
+      },
+      "intrinsic_top1_subhead_minus_c1_parent": {
+        "mean": 0.05718000416015606,
+        "sample_sd": 0.003507545684564251,
+        "by_teacher_seed": {
+          "43": 0.059660213499033055,
+          "44": 0.05469979482127907
+        }
+      },
+      "intrinsic_mean_top5_minus_c1_parent": {
+        "mean": 0.054155026114486304,
+        "sample_sd": 0.003335164237777668,
+        "by_teacher_seed": {
+          "43": 0.056513343363389756,
+          "44": 0.05179670886558285
+        }
+      },
+      "coarse_correct": {
+        "c1_parent_entropy": {
+          "mean": 0.9270539533830575,
+          "sample_sd": 0.002593101156907935,
+          "by_teacher_seed": {
+            "43": 0.9252203539707052,
+            "44": 0.9288875527954098
+          }
+        },
+        "c100_parent_entropy": {
+          "mean": 0.9650074407326471,
+          "sample_sd": 0.00028644077234288095,
+          "by_teacher_seed": {
+            "43": 0.9648048965201151,
+            "44": 0.9652099849451791
+          }
+        },
+        "c100_top1_subhead_entropy": {
+          "mean": 0.9748215023652123,
+          "sample_sd": 8.497173842002772e-05,
+          "by_teacher_seed": {
+            "43": 0.9747614182727663,
+            "44": 0.9748815864576583
+          }
+        },
+        "c100_mean_top5_individual_entropy": {
+          "mean": 0.9725990266149145,
+          "sample_sd": 0.0002369643482418917,
+          "by_teacher_seed": {
+            "43": 0.9724314675173732,
+            "44": 0.9727665857124558
+          }
+        },
+        "aggregation_uplift_parent_minus_top1": {
+          "mean": -0.009814061632565207,
+          "sample_sd": 0.00020146903392285323,
+          "by_teacher_seed": {
+            "43": -0.00995652175265116,
+            "44": -0.009671601512479255
+          }
+        },
+        "intrinsic_top1_subhead_minus_c1_parent": {
+          "mean": 0.047767548982154795,
+          "sample_sd": 0.0025081294184879075,
+          "by_teacher_seed": {
+            "43": 0.049541064302061066,
+            "44": 0.045994033662248524
+          }
+        },
+        "intrinsic_mean_top5_minus_c1_parent": {
+          "mean": 0.04554507323185697,
+          "sample_sd": 0.0023561368086660434,
+          "by_teacher_seed": {
+            "43": 0.04721111354666796,
+            "44": 0.04387903291704598
+          }
+        }
+      }
+    },
+    "epoch200": {
+      "c1_parent_entropy": {
+        "mean": 0.9113787862714449,
+        "sample_sd": 0.003822866063225282,
+        "by_teacher_seed": {
+          "43": 0.9086756117545703,
+          "44": 0.9140819607883194
+        }
+      },
+      "c100_parent_entropy": {
+        "mean": 0.9473146807948936,
+        "sample_sd": 0.0013881688097420162,
+        "by_teacher_seed": {
+          "43": 0.9482962643736937,
+          "44": 0.9463330972160933
+        }
+      },
+      "c100_top1_subhead_entropy": {
+        "mean": 0.9709688287415148,
+        "sample_sd": 4.826892756658758e-05,
+        "by_teacher_seed": {
+          "43": 0.9710029600275177,
+          "44": 0.9709346974555119
+        }
+      },
+      "c100_mean_top5_individual_entropy": {
+        "mean": 0.9675120102290429,
+        "sample_sd": 9.509534261790825e-06,
+        "by_teacher_seed": {
+          "43": 0.9675187344852053,
+          "44": 0.9675052859728804
+        }
+      },
+      "aggregation_uplift_parent_minus_top1": {
+        "mean": -0.023654147946621296,
+        "sample_sd": 0.0013398998821754287,
+        "by_teacher_seed": {
+          "43": -0.022706695653823994,
+          "44": -0.024601600239418597
+        }
+      },
+      "intrinsic_top1_subhead_minus_c1_parent": {
+        "mean": 0.05959004247006994,
+        "sample_sd": 0.00387113499079187,
+        "by_teacher_seed": {
+          "43": 0.06232734827294739,
+          "44": 0.05685273666719248
+        }
+      },
+      "intrinsic_mean_top5_minus_c1_parent": {
+        "mean": 0.05613322395759801,
+        "sample_sd": 0.003832375597487073,
+        "by_teacher_seed": {
+          "43": 0.05884312273063497,
+          "44": 0.053423325184561055
+        }
+      },
+      "coarse_correct": {
+        "c1_parent_entropy": {
+          "mean": 0.9220783679201716,
+          "sample_sd": 0.0027202782361857797,
+          "by_teacher_seed": {
+            "43": 0.9201548407326504,
+            "44": 0.9240018951076927
+          }
+        },
+        "c100_parent_entropy": {
+          "mean": 0.9626372961860246,
+          "sample_sd": 0.0005831526022589309,
+          "by_teacher_seed": {
+            "43": 0.9630496473455484,
+            "44": 0.9622249450265007
+          }
+        },
+        "c100_top1_subhead_entropy": {
+          "mean": 0.9724940851371728,
+          "sample_sd": 0.00016910868903821752,
+          "by_teacher_seed": {
+            "43": 0.9726136630379494,
+            "44": 0.9723745072363964
+          }
+        },
+        "c100_mean_top5_individual_entropy": {
+          "mean": 0.969955883357542,
+          "sample_sd": 7.75357290364332e-05,
+          "by_teacher_seed": {
+            "43": 0.9700107093973279,
+            "44": 0.9699010573177561
+          }
+        },
+        "aggregation_uplift_parent_minus_top1": {
+          "mean": -0.009856788951148332,
+          "sample_sd": 0.0004140439132207133,
+          "by_teacher_seed": {
+            "43": -0.009564015692400951,
+            "44": -0.010149562209895713
+          }
+        },
+        "intrinsic_top1_subhead_minus_c1_parent": {
+          "mean": 0.05041571721700133,
+          "sample_sd": 0.0028893869252239975,
+          "by_teacher_seed": {
+            "43": 0.05245882230529897,
+            "44": 0.048372612128703696
+          }
+        },
+        "intrinsic_mean_top5_minus_c1_parent": {
+          "mean": 0.047877515437370455,
+          "sample_sd": 0.002797813965222213,
+          "by_teacher_seed": {
+            "43": 0.049855868664677505,
+            "44": 0.045899162210063404
+          }
+        }
+      }
+    },
+    "epoch250": {
+      "c1_parent_entropy": {
+        "mean": 0.919369396793785,
+        "sample_sd": 0.0028961929178409184,
+        "by_teacher_seed": {
+          "43": 0.9173214791419553,
+          "44": 0.9214173144456148
+        }
+      },
+      "c100_parent_entropy": {
+        "mean": 0.9500632466850771,
+        "sample_sd": 0.00010862865660864214,
+        "by_teacher_seed": {
+          "43": 0.9501400587447962,
+          "44": 0.9499864346253579
+        }
+      },
+      "c100_top1_subhead_entropy": {
+        "mean": 0.9729027857078165,
+        "sample_sd": 0.00015761244468784577,
+        "by_teacher_seed": {
+          "43": 0.9730142345362547,
+          "44": 0.9727913368793784
+        }
+      },
+      "c100_mean_top5_individual_entropy": {
+        "mean": 0.9689712806055488,
+        "sample_sd": 9.8294614867951e-06,
+        "by_teacher_seed": {
+          "43": 0.968964330126676,
+          "44": 0.9689782310844215
+        }
+      },
+      "aggregation_uplift_parent_minus_top1": {
+        "mean": -0.02283953902273944,
+        "sample_sd": 4.898378807920365e-05,
+        "by_teacher_seed": {
+          "43": -0.02287417579145845,
+          "44": -0.02280490225402043
+        }
+      },
+      "intrinsic_top1_subhead_minus_c1_parent": {
+        "mean": 0.05353338891403148,
+        "sample_sd": 0.0030538053625287645,
+        "by_teacher_seed": {
+          "43": 0.05569275539429941,
+          "44": 0.051374022433763544
+        }
+      },
+      "intrinsic_mean_top5_minus_c1_parent": {
+        "mean": 0.049601883811763725,
+        "sample_sd": 0.002886363456354123,
+        "by_teacher_seed": {
+          "43": 0.05164285098472077,
+          "44": 0.04756091663880668
+        }
+      },
+      "coarse_correct": {
+        "c1_parent_entropy": {
+          "mean": 0.9284968053270362,
+          "sample_sd": 0.0033628788782615786,
+          "by_teacher_seed": {
+            "43": 0.9261188908679083,
+            "44": 0.9308747197861639
+          }
+        },
+        "c100_parent_entropy": {
+          "mean": 0.9652103112712682,
+          "sample_sd": 0.0005872769150967136,
+          "by_teacher_seed": {
+            "43": 0.9656255787603674,
+            "44": 0.964795043782169
+          }
+        },
+        "c100_top1_subhead_entropy": {
+          "mean": 0.9743940856736479,
+          "sample_sd": 0.0003773653303328219,
+          "by_teacher_seed": {
+            "43": 0.9746609232577109,
+            "44": 0.9741272480895848
+          }
+        },
+        "c100_mean_top5_individual_entropy": {
+          "mean": 0.9714973586307893,
+          "sample_sd": 0.0002553281135029792,
+          "by_teacher_seed": {
+            "43": 0.9716779028712749,
+            "44": 0.9713168143903038
+          }
+        },
+        "aggregation_uplift_parent_minus_top1": {
+          "mean": -0.009183774402379719,
+          "sample_sd": 0.00020991158476389173,
+          "by_teacher_seed": {
+            "43": -0.009035344497343556,
+            "44": -0.009332204307415881
+          }
+        },
+        "intrinsic_top1_subhead_minus_c1_parent": {
+          "mean": 0.04589728034661178,
+          "sample_sd": 0.0037402442085944,
+          "by_teacher_seed": {
+            "43": 0.04854203238980259,
+            "44": 0.04325252830342097
+          }
+        },
+        "intrinsic_mean_top5_minus_c1_parent": {
+          "mean": 0.04300055330375324,
+          "sample_sd": 0.0036182069917645577,
+          "by_teacher_seed": {
+            "43": 0.04555901200336654,
+            "44": 0.040442094604139944
+          }
+        }
+      }
+    },
+    "epoch300": {
+      "c1_parent_entropy": {
+        "mean": 0.9250973120257724,
+        "sample_sd": 0.0019413642274036624,
+        "by_teacher_seed": {
+          "43": 0.9237245602158223,
+          "44": 0.9264700638357225
+        }
+      },
+      "c100_parent_entropy": {
+        "mean": 0.9516646491165076,
+        "sample_sd": 0.0005117104691693506,
+        "by_teacher_seed": {
+          "43": 0.9520264830592614,
+          "44": 0.9513028151737538
+        }
+      },
+      "c100_top1_subhead_entropy": {
+        "mean": 0.9743995614088103,
+        "sample_sd": 0.00012252244576531064,
+        "by_teacher_seed": {
+          "43": 0.9743129249565622,
+          "44": 0.9744861978610586
+        }
+      },
+      "c100_mean_top5_individual_entropy": {
+        "mean": 0.970397319015841,
+        "sample_sd": 0.00026146172104129074,
+        "by_teacher_seed": {
+          "43": 0.9702124376598721,
+          "44": 0.9705822003718101
+        }
+      },
+      "aggregation_uplift_parent_minus_top1": {
+        "mean": -0.02273491229230279,
+        "sample_sd": 0.0006342329149346612,
+        "by_teacher_seed": {
+          "43": -0.02228644189730078,
+          "44": -0.0231833826873048
+        }
+      },
+      "intrinsic_top1_subhead_minus_c1_parent": {
+        "mean": 0.04930224938303801,
+        "sample_sd": 0.0018188417816383518,
+        "by_teacher_seed": {
+          "43": 0.05058836474073991,
+          "44": 0.04801613402533611
+        }
+      },
+      "intrinsic_mean_top5_minus_c1_parent": {
+        "mean": 0.0453000069900687,
+        "sample_sd": 0.0016799025063623716,
+        "by_teacher_seed": {
+          "43": 0.04648787744404981,
+          "44": 0.04411213653608759
+        }
+      },
+      "coarse_correct": {
+        "c1_parent_entropy": {
+          "mean": 0.9335434756946055,
+          "sample_sd": 0.0016978662570803222,
+          "by_teacher_seed": {
+            "43": 0.9323429029506761,
+            "44": 0.9347440484385348
+          }
+        },
+        "c100_parent_entropy": {
+          "mean": 0.9670235767734943,
+          "sample_sd": 6.648463301689228e-05,
+          "by_teacher_seed": {
+            "43": 0.9670705885083452,
+            "44": 0.9669765650386433
+          }
+        },
+        "c100_top1_subhead_entropy": {
+          "mean": 0.9759720402003358,
+          "sample_sd": 0.00020358437012684688,
+          "by_teacher_seed": {
+            "43": 0.9758280843116756,
+            "44": 0.9761159960889961
+          }
+        },
+        "c100_mean_top5_individual_entropy": {
+          "mean": 0.9730347080988809,
+          "sample_sd": 0.00025071933485487646,
+          "by_teacher_seed": {
+            "43": 0.9728574227570305,
+            "44": 0.9732119934407314
+          }
+        },
+        "aggregation_uplift_parent_minus_top1": {
+          "mean": -0.008948463426841635,
+          "sample_sd": 0.0002700690031437391,
+          "by_teacher_seed": {
+            "43": -0.008757495803330406,
+            "44": -0.009139431050352864
+          }
+        },
+        "intrinsic_top1_subhead_minus_c1_parent": {
+          "mean": 0.042428564505730404,
+          "sample_sd": 0.0014942818869534754,
+          "by_teacher_seed": {
+            "43": 0.043485181360999436,
+            "44": 0.04137194765046137
+          }
+        },
+        "intrinsic_mean_top5_minus_c1_parent": {
+          "mean": 0.03949123240427549,
+          "sample_sd": 0.0014471469222254458,
+          "by_teacher_seed": {
+            "43": 0.04051451980635434,
+            "44": 0.038467945002196635
+          }
+        }
+      }
+    }
+  },
+  "preregistered_epochs": {
+    "16": {
+      "downstream_delta": -3.937898099802105,
+      "parent_cam_entropy_delta": 0.002491627619471193,
+      "parent_cam_centroid_variance_delta": 0.0042330586606657995,
+      "penultimate_participation_rank_delta": 5.5807410677055564,
+      "c100_subhead_js": 0.023913525509321347
+    },
+    "64": {
+      "downstream_delta": 3.1592356572485274,
+      "parent_cam_entropy_delta": 0.026236350810702525,
+      "parent_cam_centroid_variance_delta": -0.0029157854318478185,
+      "penultimate_participation_rank_delta": 37.23844832436452,
+      "c100_subhead_js": 0.02130572781401846
+    },
+    "100": {
+      "downstream_delta": 3.722929902289322,
+      "parent_cam_entropy_delta": 0.026996353528457806,
+      "parent_cam_centroid_variance_delta": -0.0030810323611565327,
+      "penultimate_participation_rank_delta": 43.69359648271691,
+      "c100_subhead_js": 0.021285819915967247
+    }
+  }
+}

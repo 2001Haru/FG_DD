@@ -52,6 +52,7 @@ def main():
         "marginal_labels_T20.centered_equivalent_logit_sd",
     )
     rows, summaries, paired = [], {}, {}
+    subhead_entropy_artifact_test = {}
     for epoch in EPOCHS:
         for c in (1, 100):
             key = f"c{c}_epoch{epoch:03d}"
@@ -93,6 +94,94 @@ def main():
             "c1_synthetic_delta": dd_syn,
             "equal_source_average_delta": (dd_real + dd_syn) / 2.0,
         }
+        c1_parent_entropy = [
+            nested(
+                data[(seed, 1, epoch)],
+                "parent_cam.normalized_spatial_entropy_all",
+            ) for seed in SEEDS
+        ]
+        c100_parent_entropy = [
+            nested(
+                data[(seed, 100, epoch)],
+                "parent_cam.normalized_spatial_entropy_all",
+            ) for seed in SEEDS
+        ]
+        c100_top1_entropy = [
+            nested(
+                data[(seed, 100, epoch)],
+                "within_parent_top_subhead_cam.top1_subhead_normalized_spatial_entropy_all",
+            ) for seed in SEEDS
+        ]
+        c100_topk_entropy = [
+            nested(
+                data[(seed, 100, epoch)],
+                "within_parent_top_subhead_cam.mean_topk_individual_normalized_spatial_entropy_all",
+            ) for seed in SEEDS
+        ]
+        c1_parent_entropy_correct = [
+            nested(
+                data[(seed, 1, epoch)],
+                "parent_cam.normalized_spatial_entropy_coarse_correct",
+            ) for seed in SEEDS
+        ]
+        c100_parent_entropy_correct = [
+            nested(
+                data[(seed, 100, epoch)],
+                "parent_cam.normalized_spatial_entropy_coarse_correct",
+            ) for seed in SEEDS
+        ]
+        c100_top1_entropy_correct = [
+            nested(
+                data[(seed, 100, epoch)],
+                "within_parent_top_subhead_cam.top1_subhead_normalized_spatial_entropy_coarse_correct",
+            ) for seed in SEEDS
+        ]
+        c100_topk_entropy_correct = [
+            nested(
+                data[(seed, 100, epoch)],
+                "within_parent_top_subhead_cam.mean_topk_individual_normalized_spatial_entropy_coarse_correct",
+            ) for seed in SEEDS
+        ]
+        artifact_key = f"epoch{epoch:03d}"
+        subhead_entropy_artifact_test[artifact_key] = {
+            "c1_parent_entropy": mean_sd(c1_parent_entropy),
+            "c100_parent_entropy": mean_sd(c100_parent_entropy),
+            "c100_top1_subhead_entropy": mean_sd(c100_top1_entropy),
+            "c100_mean_top5_individual_entropy": mean_sd(c100_topk_entropy),
+            "aggregation_uplift_parent_minus_top1": mean_sd([
+                parent - child
+                for parent, child in zip(c100_parent_entropy, c100_top1_entropy)
+            ]),
+            "intrinsic_top1_subhead_minus_c1_parent": mean_sd([
+                child - baseline
+                for child, baseline in zip(c100_top1_entropy, c1_parent_entropy)
+            ]),
+            "intrinsic_mean_top5_minus_c1_parent": mean_sd([
+                child - baseline
+                for child, baseline in zip(c100_topk_entropy, c1_parent_entropy)
+            ]),
+            "coarse_correct": {
+                "c1_parent_entropy": mean_sd(c1_parent_entropy_correct),
+                "c100_parent_entropy": mean_sd(c100_parent_entropy_correct),
+                "c100_top1_subhead_entropy": mean_sd(c100_top1_entropy_correct),
+                "c100_mean_top5_individual_entropy": mean_sd(c100_topk_entropy_correct),
+                "aggregation_uplift_parent_minus_top1": mean_sd([
+                    parent - child for parent, child in zip(
+                        c100_parent_entropy_correct, c100_top1_entropy_correct
+                    )
+                ]),
+                "intrinsic_top1_subhead_minus_c1_parent": mean_sd([
+                    child - baseline for child, baseline in zip(
+                        c100_top1_entropy_correct, c1_parent_entropy_correct
+                    )
+                ]),
+                "intrinsic_mean_top5_minus_c1_parent": mean_sd([
+                    child - baseline for child, baseline in zip(
+                        c100_topk_entropy_correct, c1_parent_entropy_correct
+                    )
+                ]),
+            },
+        }
         c100 = data[(43, 100, epoch)]
         row = {
             "epoch": epoch,
@@ -101,6 +190,14 @@ def main():
                 nested(data[(seed, 100, epoch)], "within_parent_top_subhead_cam.mean_pairwise_js_all")
                 for seed in SEEDS
             ]),
+            "c100_top1_subhead_entropy": statistics.fmean(c100_top1_entropy),
+            "c100_mean_top5_individual_entropy": statistics.fmean(c100_topk_entropy),
+            "aggregation_entropy_uplift": subhead_entropy_artifact_test[
+                artifact_key
+            ]["aggregation_uplift_parent_minus_top1"]["mean"],
+            "intrinsic_subhead_entropy_delta": subhead_entropy_artifact_test[
+                artifact_key
+            ]["intrinsic_top1_subhead_minus_c1_parent"]["mean"],
         }
         for path in metric_paths:
             short = path.replace(".", "_")
@@ -137,6 +234,7 @@ def main():
         "training_epochs": list(EPOCHS),
         "summaries": summaries,
         "paired_c100_minus_c1": paired,
+        "subhead_entropy_artifact_test": subhead_entropy_artifact_test,
         "preregistered_epochs": preregistered,
     }
     output = Path(args.output)

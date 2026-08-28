@@ -149,6 +149,10 @@ def analyze_checkpoint(model, loader, subclasses, temperature, top_subheads):
     parents, coarse_corrects, features_all = [], [], []
     marginal_entropies, marginal_logits_centered = [], []
     subhead_js_values, subhead_valid_fractions = [], []
+    subhead_entropy_by_rank = (
+        [[] for _ in range(min(top_subheads, subclasses))]
+        if subclasses > 1 else []
+    )
     total = coarse_correct = zero_parent_cam = 0
     for images, targets in loader:
         images = images.cuda(non_blocking=True)
@@ -198,6 +202,17 @@ def analyze_checkpoint(model, loader, subclasses, temperature, top_subheads):
                     retain_graph=rank < selected_heads.shape[1] - 1,
                 )
                 distribution, valid = cam_distribution(cam)
+                child_entropy = torch.full(
+                    (cam.shape[0],), float("nan"), dtype=torch.float64,
+                    device=cam.device,
+                )
+                child_entropy[valid] = -(
+                    distribution[valid]
+                    * distribution[valid].clamp_min(1e-30).log()
+                ).sum(1) / math.log(cam.shape[-2] * cam.shape[-1])
+                subhead_entropy_by_rank[rank].append(
+                    child_entropy.detach().cpu()
+                )
                 distributions.append(distribution)
                 valid_masks.append(valid)
             js, valid_fraction = pairwise_js(distributions, valid_masks)
@@ -206,6 +221,7 @@ def analyze_checkpoint(model, loader, subclasses, temperature, top_subheads):
             del (
                 distributions, valid_masks, js, valid_fraction, selected_heads,
                 within_parent, batch_index, score, cam, distribution, valid,
+                child_entropy,
             )
         # Explicitly release all graph-owning references before Python starts
         # evaluating the next forward pass. Assignment to the next batch only
@@ -255,12 +271,32 @@ def analyze_checkpoint(model, loader, subclasses, temperature, top_subheads):
     if subclasses > 1:
         js = torch.cat(subhead_js_values)
         valid_fraction = torch.cat(subhead_valid_fractions)
+        rank_entropies = [torch.cat(values) for values in subhead_entropy_by_rank]
+        stacked_subhead_entropy = torch.stack(rank_entropies, 1)
         result["within_parent_top_subhead_cam"] = {
             "selected_heads": min(top_subheads, subclasses),
             "selection": "top logits within the ground-truth parent for each image",
             "mean_pairwise_js_all": nanmean(js),
             "mean_pairwise_js_coarse_correct": nanmean(js[correct]),
             "mean_valid_pair_fraction": float(valid_fraction.mean()),
+            "top1_subhead_normalized_spatial_entropy_all": nanmean(
+                rank_entropies[0]
+            ),
+            "top1_subhead_normalized_spatial_entropy_coarse_correct": nanmean(
+                rank_entropies[0][correct]
+            ),
+            "mean_topk_individual_normalized_spatial_entropy_all": nanmean(
+                stacked_subhead_entropy
+            ),
+            "mean_topk_individual_normalized_spatial_entropy_coarse_correct": nanmean(
+                stacked_subhead_entropy[correct]
+            ),
+            "individual_entropy_by_rank_all": [
+                nanmean(values) for values in rank_entropies
+            ],
+            "individual_entropy_by_rank_coarse_correct": [
+                nanmean(values[correct]) for values in rank_entropies
+            ],
         }
     return result
 
@@ -303,7 +339,12 @@ def main():
         output_path = per_checkpoint / f"epoch_{training_epoch:03d}.json"
         if output_path.is_file():
             payload = json.loads(output_path.read_text(encoding="utf-8"))
-            if payload.get("images") == 3925:
+            has_current_schema = (
+                args.C == 1
+                or "top1_subhead_normalized_spatial_entropy_all"
+                in payload.get("within_parent_top_subhead_cam", {})
+            )
+            if payload.get("images") == 3925 and has_current_schema:
                 rows.append(payload)
                 continue
         checkpoint_index = training_epoch - 1
@@ -313,6 +354,7 @@ def main():
             model, loader, args.C, args.temperature, args.top_subheads
         )
         payload.update({
+            "audit_schema_version": 2,
             "teacher_seed": args.teacher_seed,
             "C": args.C,
             "training_epoch": training_epoch,

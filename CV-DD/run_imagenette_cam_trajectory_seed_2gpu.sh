@@ -30,6 +30,11 @@ wait_pair "$p1" "$p2" || fail numeric_audit
     || fail missing_summary
 
 echo "[2/2] Paired money-figure panels at epochs16/64/100/300"
+if [[ "${SKIP_VISUALIZATION:-0}" == 1 ]]; then
+    echo "Skipping unchanged visualization panels"
+    echo "CAM trajectory complete: Teacher seed=$TEACHER_SEED"
+    exit 0
+fi
 CUDA_VISIBLE_DEVICES="$GPU0" PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
 python -u "$ROOT/class_in_class/visualize_imagenette_paired_cam_checkpoints.py" \
     --trajectory-root "$TRAJECTORY_ROOT" --test-root "$TEST_ROOT" \

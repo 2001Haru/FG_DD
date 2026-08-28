@@ -92,9 +92,10 @@ def main():
                 ratio[(seed, c, int(row["training_epoch"]))] = row
 
     def soft_path(seed, c, epoch, source, mode, recovery, student):
+        checkpoint_index = epoch - 1
         return (
             downstream_root / f"tseed{seed}" / "per_class"
-            / f"{source}__c{c}_e{epoch:03d}_{mode}_rseed{recovery}_sseed{student}.json"
+            / f"{source}__c{c}_e{epoch:03d}_e{checkpoint_index:03d}_{mode}_rseed{recovery}_sseed{student}.json"
         )
 
     def hard_path(seed, source, recovery, student):

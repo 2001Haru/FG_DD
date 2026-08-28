@@ -152,9 +152,34 @@ def main():
                     "R_within_over_between"
                 ] for row in t20_rows
             ]
+            w_values = [
+                row["temperatures"]["T20"]["probability_vectors"][
+                    "within_trace"
+                ] for row in t20_rows
+            ]
+            b_values = [
+                row["temperatures"]["T20"]["probability_vectors"][
+                    "between_trace"
+                ] for row in t20_rows
+            ]
+            total_values = [
+                row["temperatures"]["T20"]["probability_vectors"][
+                    "total_trace"
+                ] for row in t20_rows
+            ]
             r_pred_values = [
                 row["temperatures"]["predicted"]["probability_vectors"][
                     "R_within_over_between"
+                ] for row in t20_rows
+            ]
+            w_pred_values = [
+                row["temperatures"]["predicted"]["probability_vectors"][
+                    "within_trace"
+                ] for row in t20_rows
+            ]
+            b_pred_values = [
+                row["temperatures"]["predicted"]["probability_vectors"][
+                    "between_trace"
                 ] for row in t20_rows
             ]
             r_logit_values = [
@@ -166,18 +191,33 @@ def main():
             utility = utility_summaries[f"c{c}_epoch{epoch:03d}_ref"][
                 "equal_source_average"
             ]["grand_mean"]
+            mean_w = float(np.mean(w_values))
+            mean_b = float(np.mean(b_values))
+            mean_w_pred = float(np.mean(w_pred_values))
+            mean_b_pred = float(np.mean(b_pred_values))
+            aggregate_r = mean_w / max(mean_b, 1e-30)
+            aggregate_r_pred = mean_w_pred / max(mean_b_pred, 1e-30)
             aggregate_rows.append({
                 "family": "C1" if c == 1 else "C100",
                 "family_indicator": 0 if c == 1 else 1,
                 "C": c, "epoch": epoch,
                 "dd_utility": utility,
                 "A_val_accuracy": float(np.mean(accuracy_values)),
-                "R_T20": float(np.mean(r_values)),
-                "log_R_T20": math.log(max(float(np.mean(r_values)), 1e-30)),
-                "R_predicted_temperature": float(np.mean(r_pred_values)),
+                "R_T20": aggregate_r,
+                "log_R_T20": math.log(max(aggregate_r, 1e-30)),
+                "mean_of_seed_level_R_T20": float(np.mean(r_values)),
+                "W_T20": mean_w,
+                "B_T20": mean_b,
+                "total_trace_T20": float(np.mean(total_values)),
+                "log_W_T20": math.log(max(float(np.mean(w_values)), 1e-30)),
+                "log_B_T20": math.log(max(float(np.mean(b_values)), 1e-30)),
+                "R_predicted_temperature": aggregate_r_pred,
+                "mean_of_seed_level_R_predicted_temperature": float(np.mean(r_pred_values)),
+                "W_predicted_temperature": mean_w_pred,
+                "B_predicted_temperature": mean_b_pred,
                 "R_centered_logits_T20": float(np.mean(r_logit_values)),
                 "relative_R_temperature_change": (
-                    float(np.mean(r_pred_values)) / max(float(np.mean(r_values)), 1e-30) - 1.0
+                    aggregate_r_pred / max(aggregate_r, 1e-30) - 1.0
                 ),
             })
             for seed, ratio_row in zip(SEEDS, t20_rows):
@@ -197,11 +237,34 @@ def main():
                     "A_val_accuracy": ratio_row["trajectory_val_accuracy"],
                     "R_T20": r_seed,
                     "log_R_T20": math.log(max(r_seed, 1e-30)),
+                    "W_T20": ratio_row["temperatures"]["T20"][
+                        "probability_vectors"
+                    ]["within_trace"],
+                    "B_T20": ratio_row["temperatures"]["T20"][
+                        "probability_vectors"
+                    ]["between_trace"],
+                    "log_W_T20": math.log(max(
+                        ratio_row["temperatures"]["T20"]["probability_vectors"][
+                            "within_trace"
+                        ], 1e-30
+                    )),
+                    "log_B_T20": math.log(max(
+                        ratio_row["temperatures"]["T20"]["probability_vectors"][
+                            "between_trace"
+                        ], 1e-30
+                    )),
                 })
 
     primary = fit_ols(aggregate_rows, ["A_val_accuracy", "log_R_T20"])
     family_adjusted = fit_ols(
         aggregate_rows, ["A_val_accuracy", "log_R_T20", "family_indicator"]
+    )
+    decomposed = fit_ols(
+        aggregate_rows, ["A_val_accuracy", "log_B_T20", "log_W_T20"]
+    )
+    decomposed_family_adjusted = fit_ols(
+        aggregate_rows,
+        ["A_val_accuracy", "log_B_T20", "log_W_T20", "family_indicator"],
     )
     seed_fits = {
         str(seed): fit_ols(
@@ -247,6 +310,44 @@ def main():
     figure.savefig(output / "dd_utility_vs_variance_ratio.png", dpi=200)
     plt.close(figure)
 
+    figure, axis = plt.subplots(figsize=(7.5, 6.2))
+    utility_values = [row["dd_utility"] for row in aggregate_rows]
+    normalization = plt.Normalize(min(utility_values), max(utility_values))
+    for family, color, marker in (
+        ("C1", "#31688e", "o"), ("C100", "#d1495b", "s")
+    ):
+        selected = [row for row in aggregate_rows if row["family"] == family]
+        axis.plot(
+            [row["B_T20"] for row in selected],
+            [row["W_T20"] for row in selected],
+            color=color, linewidth=1.4, alpha=0.75,
+        )
+        scatter = axis.scatter(
+            [row["B_T20"] for row in selected],
+            [row["W_T20"] for row in selected],
+            c=[row["dd_utility"] for row in selected], cmap="viridis",
+            norm=normalization,
+            marker=marker, s=75, edgecolors=color, linewidths=1.0,
+            label=family,
+        )
+        for row in selected:
+            axis.annotate(
+                f'e{row["epoch"]}', (row["B_T20"], row["W_T20"]),
+                fontsize=8, xytext=(4, 3), textcoords="offset points",
+            )
+    axis.set_xscale("log"); axis.set_yscale("log")
+    axis.set_xlabel("B = trace(between-class covariance)")
+    axis.set_ylabel("W = trace(within-class covariance)")
+    axis.set_title("Absolute soft-label signal plane")
+    axis.legend()
+    colorbar = figure.colorbar(
+        plt.cm.ScalarMappable(norm=normalization, cmap="viridis"), ax=axis
+    )
+    colorbar.set_label("DD utility: Soft − Hard Top-1")
+    figure.tight_layout()
+    figure.savefig(output / "softlabel_B_W_plane.png", dpi=200)
+    plt.close(figure)
+
     result = {
         "definition": {
             "R": "trace(within-class covariance) / trace(between-class covariance)",
@@ -263,6 +364,8 @@ def main():
         "regression": {
             "primary": primary,
             "family_adjusted": family_adjusted,
+            "decomposed_B_W": decomposed,
+            "decomposed_B_W_family_adjusted": decomposed_family_adjusted,
             "by_teacher_seed": seed_fits,
             "correlation_A_logR": correlation_A_logR,
         },

@@ -161,15 +161,17 @@ def analyze_checkpoint(model, loader, subclasses, temperature, top_subheads):
         parent_cam = grad_cam(
             target_score, activations, retain_graph=subclasses > 1
         )
-        _, parent_valid, entropy, cx, cy = cam_statistics(parent_cam)
+        parent_distribution, parent_valid, entropy, cx, cy = cam_statistics(parent_cam)
         predicted = parent_logits.argmax(1)
         correct = predicted.eq(targets)
         coarse_correct += correct.sum().item()
         total += images.shape[0]
         zero_parent_cam += (~parent_valid).sum().item()
-        parent_entropies.append(entropy.cpu())
-        centroid_xs.append(cx.cpu())
-        centroid_ys.append(cy.cpu())
+        # Detach every stored statistic. A plain `.cpu()` preserves grad_fn
+        # and would retain the full ResNet graph for every processed batch.
+        parent_entropies.append(entropy.detach().cpu())
+        centroid_xs.append(cx.detach().cpu())
+        centroid_ys.append(cy.detach().cpu())
         parents.append(targets.cpu())
         coarse_corrects.append(correct.cpu())
         features_all.append(features.detach().cpu())
@@ -199,9 +201,21 @@ def analyze_checkpoint(model, loader, subclasses, temperature, top_subheads):
                 distributions.append(distribution)
                 valid_masks.append(valid)
             js, valid_fraction = pairwise_js(distributions, valid_masks)
-            subhead_js_values.append(js.cpu())
-            subhead_valid_fractions.append(valid_fraction.cpu())
-        del logits, activations, features, images
+            subhead_js_values.append(js.detach().cpu())
+            subhead_valid_fractions.append(valid_fraction.detach().cpu())
+            del (
+                distributions, valid_masks, js, valid_fraction, selected_heads,
+                within_parent, batch_index, score, cam, distribution, valid,
+            )
+        # Explicitly release all graph-owning references before Python starts
+        # evaluating the next forward pass. Assignment to the next batch only
+        # rebinds names after its RHS has already allocated memory.
+        del (
+            logits, activations, features, images, grouped, parent_logits,
+            parent_probabilities, target_score, parent_cam, parent_valid,
+            parent_distribution, entropy, cx, cy, predicted, correct, centered,
+            targets,
+        )
 
     entropy = torch.cat(parent_entropies)
     cx, cy = torch.cat(centroid_xs), torch.cat(centroid_ys)
@@ -258,7 +272,7 @@ def main():
     parser.add_argument("--teacher-seed", type=int, required=True)
     parser.add_argument("--C", type=int, choices=(1, 100), required=True)
     parser.add_argument("--output-dir", required=True)
-    parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--temperature", type=float, default=20.0)
     parser.add_argument("--top-subheads", type=int, default=5)

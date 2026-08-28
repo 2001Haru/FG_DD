@@ -18,7 +18,7 @@ audit_one(){
     python -u "$ROOT/class_in_class/audit_imagenette_cam_trajectory.py" \
         --trajectory-root "$TRAJECTORY_ROOT" --test-root "$TEST_ROOT" \
         --teacher-seed "$TEACHER_SEED" --C "$c" \
-        --output-dir "$EXP_ROOT/c${c}" --batch-size 64 --workers "$WORKERS" \
+        --output-dir "$EXP_ROOT/c${c}" --batch-size 16 --workers "$WORKERS" \
         --temperature 20 --top-subheads 5 > "$LOG_ROOT/audit_c${c}.log" 2>&1
 }
 

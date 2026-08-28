@@ -9,7 +9,7 @@ TEACHER_SEEDS = (43, 44)
 RECOVERY_SEEDS = (41, 42)
 STUDENT_SEEDS = (42, 43)
 SOURCES = ("real", "c1")
-MODES = ("ref", "pred")
+MODES = ("ref", "pred", "t8", "t46", "t100", "t200")
 TRAINING_EPOCHS = (8, 16, 32, 64, 100, 150, 200, 250, 300)
 LABELS = tuple(f"e{epoch:03d}" for epoch in TRAINING_EPOCHS)
 
@@ -114,11 +114,20 @@ def main():
     result = {
         "protocol": (
             "ImageNette IPC10 fixed-epoch Teacher trajectory experiment; native "
-            "FP16 FKD, T20 and sd(z)-predicted temperature, Real/C1-synthetic sources"
+            "FP16 FKD, T20, sd(z)-predicted T, and fixed T=8/46/100/200; "
+            "Real/C1-synthetic sources"
         ),
         "teacher_seeds": list(TEACHER_SEEDS),
         "recovery_seeds": list(RECOVERY_SEEDS),
         "student_seeds": list(STUDENT_SEEDS),
+        "temperature_modes": {
+            "ref": 20,
+            "pred": "checkpoint-specific sd(z) prediction",
+            "t8": 8,
+            "t46": 46,
+            "t100": 100,
+            "t200": 200,
+        },
         "checkpoint_table": checkpoint_table,
         "training_epochs": list(TRAINING_EPOCHS),
         "arms": arms,

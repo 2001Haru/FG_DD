@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 
 
-TRAINING_EPOCHS = (8, 16, 32, 64, 100, 150, 200, 250, 300)
+TRAINING_EPOCHS = (4, 8, 16, 32, 64, 100, 150, 200, 250, 300)
 BASE_OPTIMAL_TEMPERATURE = {1: 800.0, 100: 200.0}
 
 

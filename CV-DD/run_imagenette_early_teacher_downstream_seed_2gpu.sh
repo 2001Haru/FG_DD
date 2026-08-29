@@ -26,8 +26,8 @@ python -u "$ROOT/class_in_class/select_imagenette_early_teacher_checkpoints.py" 
     --teacher-seed "$TEACHER_SEED" --output-root "$EXP_ROOT" \
     > "$LOG_ROOT/selection.log" 2>&1 || fail selection
 PLAN="$SEED_ROOT/selection_early.tsv"
-[[ "$(wc -l < "$PLAN")" == 18 ]] \
-    || fail "selection plan must contain nine fixed epochs for both C1 and C100"
+[[ "$(wc -l < "$PLAN")" == 20 ]] \
+    || fail "selection plan must contain ten fixed epochs for both C1 and C100"
 
 source_for(){
     local source="$1" rseed="$2"
@@ -80,10 +80,11 @@ relabel_one(){
     [[ "$(find "$final" -type f -name 'batch_*.tar' | wc -l)" == 3000 ]]
 }
 
-echo "[2/4] Relabel C1/C100 at nine fixed epochs x two temperatures x two sources"
+echo "[2/4] Relabel C1/C100 at ten fixed epochs x two temperatures x two sources"
 pids=(); task=0
 while IFS=$'\t' read -r c label epoch actual_val sd_z predicted teacher_view; do
     for source in real c1; do for mode in ref pred; do for rseed in "${RSEEDS[@]}"; do
+        [[ "$label" == e004 && "$mode" == pred ]] && continue
         gpu="$GPU0"; (( task % 2 )) && gpu="$GPU1"; task=$((task + 1))
         relabel_one "$c" "$label" "$epoch" "$predicted" "$teacher_view" "$source" "$mode" "$rseed" "$gpu" & pids+=("$!")
         if (( ${#pids[@]} == 2 )); then wait_jobs "${pids[@]}" || fail relabel; pids=(); fi
@@ -116,6 +117,7 @@ echo "[3/4] Post-eval with two processes per A100"
 pids=(); task=0
 while IFS=$'\t' read -r c label epoch actual_val sd_z predicted teacher_view; do
     for source in real c1; do for mode in ref pred; do for rseed in "${RSEEDS[@]}"; do for sseed in "${SSEEDS[@]}"; do
+        [[ "$label" == e004 && "$mode" == pred ]] && continue
         gpu="$GPU0"; (( task % 2 )) && gpu="$GPU1"; task=$((task + 1))
         post_one "$c" "$label" "$epoch" "$predicted" "$source" "$mode" "$rseed" "$sseed" "$gpu" & pids+=("$!")
         if (( ${#pids[@]} == 4 )); then wait_jobs "${pids[@]}" || fail post; pids=(); fi

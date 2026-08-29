@@ -10,8 +10,16 @@ RECOVERY_SEEDS = (41, 42)
 STUDENT_SEEDS = (42, 43)
 SOURCES = ("real", "c1")
 MODES = ("ref", "pred", "t8", "t46", "t100", "t200")
-TRAINING_EPOCHS = (8, 16, 32, 64, 100, 150, 200, 250, 300)
+TRAINING_EPOCHS = (4, 8, 16, 32, 64, 100, 150, 200, 250, 300)
 LABELS = tuple(f"e{epoch:03d}" for epoch in TRAINING_EPOCHS)
+
+
+def modes_for_label(label):
+    # Epoch 4 was added after the Tpred analysis and is intentionally evaluated
+    # only at the five fixed temperatures used by the heatmaps.
+    if label == "e004":
+        return tuple(mode for mode in MODES if mode != "pred")
+    return MODES
 
 
 def load_best(path):
@@ -50,7 +58,7 @@ def main():
     for c in (1, 100):
         for label in LABELS:
             for source in SOURCES:
-                for mode in MODES:
+                for mode in modes_for_label(label):
                     current = {}
                     for teacher in TEACHER_SEEDS:
                         for recovery in RECOVERY_SEEDS:
@@ -70,7 +78,7 @@ def main():
     comparisons = {}
     for label in LABELS:
         for source in SOURCES:
-            for mode in MODES:
+            for mode in modes_for_label(label):
                 delta = {
                     key: (
                         values[(100, label, source, mode)][key]

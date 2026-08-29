@@ -5,7 +5,12 @@ source "$ROOT/config.sh"
 TEACHER_SEED="${TEACHER_SEED:?set TEACHER_SEED to 43 or 44}"
 GPU0="${GPU0:-0}"; GPU1="${GPU1:-1}"; WORKERS="${WORKERS:-8}"
 RSEEDS=(41 42); SSEEDS=(42 43)
-MODES=(t8 t46 t100 t200)
+if [[ -n "${MODES_OVERRIDE:-}" ]]; then
+    read -r -a MODES <<< "$MODES_OVERRIDE"
+else
+    MODES=(t8 t46 t100 t200)
+fi
+EPOCHS_ONLY="${EPOCHS_ONLY:-}"
 TRAJECTORY_ROOT="$Main_Data_Path/class_in_class/imagenette_early_teacher_trajectories"
 EXISTING_ROOT="$Main_Data_Path/class_in_class/imagenette_cic_t_official_split_lr0p1_tseeds43_44"
 FACTORIAL_ROOT="$Main_Data_Path/class_in_class/imagenette_labeler_factorial_c100"
@@ -18,10 +23,26 @@ VAL_DIR="$val_dir/imagenet-nette/test"
 mkdir -p "$FKD_ROOT" "$RESULT_ROOT" "$POST_ROOT" "$LOG_ROOT"
 fail(){ echo "Early Teacher fixed-temperature grid failed: $*" >&2; exit 1; }
 wait_jobs(){ local status=0 pid; for pid in "$@"; do wait "$pid" || status=1; done; return "$status"; }
-[[ -f "$PLAN" && "$(wc -l < "$PLAN")" == 18 ]] || fail "missing 18-checkpoint selection plan"
+
+python -u "$ROOT/class_in_class/select_imagenette_early_teacher_checkpoints.py" \
+    --trajectory-root "$TRAJECTORY_ROOT" --existing-teacher-root "$EXISTING_ROOT" \
+    --teacher-seed "$TEACHER_SEED" --output-root "$EXP_ROOT" \
+    > "$LOG_ROOT/selection.log" 2>&1 || fail selection
+[[ -f "$PLAN" && "$(wc -l < "$PLAN")" == 20 ]] || fail "missing 20-checkpoint selection plan"
 
 temperature_for(){
-    case "$1" in t8) echo 8 ;; t46) echo 46 ;; t100) echo 100 ;; t200) echo 200 ;; *) return 1 ;; esac
+    case "$1" in
+        ref) echo 20 ;;
+        t8) echo 8 ;;
+        t46) echo 46 ;;
+        t100) echo 100 ;;
+        t200) echo 200 ;;
+        *) return 1 ;;
+    esac
+}
+label_selected(){
+    local training_epoch=$((10#${1#e}))
+    [[ -z "$EPOCHS_ONLY" || " $EPOCHS_ONLY " == *" $training_epoch "* ]]
 }
 source_for(){
     local source="$1" rseed="$2"
@@ -57,9 +78,14 @@ relabel_one(){
     [[ "$(find "$final" -type f -name 'batch_*.tar' | wc -l)" == 3000 ]]
 }
 
-echo "[1/2] Relabel 18 checkpoints at T=8/46/100/200"
+for mode in "${MODES[@]}"; do
+    temperature_for "$mode" >/dev/null || fail "unsupported mode=$mode"
+done
+
+echo "[1/2] Relabel selected checkpoints at modes: ${MODES[*]}"
 pids=(); task=0
 while IFS=$'\t' read -r c label epoch actual_val sd_z predicted teacher_view; do
+    label_selected "$label" || continue
     for source in real c1; do for mode in "${MODES[@]}"; do for rseed in "${RSEEDS[@]}"; do
         gpu="$GPU0"; (( task % 2 )) && gpu="$GPU1"; task=$((task + 1))
         relabel_one "$c" "$label" "$epoch" "$teacher_view" "$source" "$mode" "$rseed" "$gpu" & pids+=("$!")
@@ -93,6 +119,7 @@ post_one(){
 echo "[2/2] Post-eval with two processes per A100"
 pids=(); task=0
 while IFS=$'\t' read -r c label epoch actual_val sd_z predicted teacher_view; do
+    label_selected "$label" || continue
     for source in real c1; do for mode in "${MODES[@]}"; do for rseed in "${RSEEDS[@]}"; do for sseed in "${SSEEDS[@]}"; do
         gpu="$GPU0"; (( task % 2 )) && gpu="$GPU1"; task=$((task + 1))
         post_one "$c" "$label" "$epoch" "$source" "$mode" "$rseed" "$sseed" "$gpu" & pids+=("$!")

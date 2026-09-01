@@ -12,7 +12,7 @@ from torchvision import datasets, models, transforms
 
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
-SPECS = {
+DEFAULT_SPECS = {
     "c1": {"C": 1, "training_epoch": 16, "temperature": 200.0},
     "c100": {"C": 100, "training_epoch": 100, "temperature": 46.0},
 }
@@ -83,9 +83,21 @@ def collect(args):
         loader_options["prefetch_factor"] = 4
     loader = DataLoader(dataset, **loader_options)
     trajectory = Path(args.trajectory_root) / f"tseed{args.teacher_seed}" / "models"
+    specs = {
+        "c1": {
+            "C": 1,
+            "training_epoch": args.c1_training_epoch,
+            "temperature": args.c1_temperature,
+        },
+        "c100": {
+            "C": 100,
+            "training_epoch": args.c100_training_epoch,
+            "temperature": args.c100_temperature,
+        },
+    }
     loaded = {}
     spec_payload = {}
-    for family, spec in SPECS.items():
+    for family, spec in specs.items():
         c = spec["C"]
         checkpoint = (
             trajectory / f"c{c}_tseed{args.teacher_seed}" / "checkpoints"
@@ -96,11 +108,11 @@ def collect(args):
         loaded[family] = load_model(checkpoint, 10 * c, device)
         spec_payload[family] = {**spec, "checkpoint": str(checkpoint)}
 
-    probabilities = {family: [] for family in SPECS}
+    probabilities = {family: [] for family in specs}
     targets_all = []
     for images, targets in loader:
         images = images.to(device, non_blocking=True)
-        for family, spec in SPECS.items():
+        for family, spec in specs.items():
             logits = loaded[family](images)
             probabilities[family].append(
                 marginalized_probabilities(
@@ -112,8 +124,9 @@ def collect(args):
         "audit_schema_version": 1,
         "definition": (
             "Deterministic center-crop soft labels on the same complete ImageNette "
-            "test images; C1=e16/T200 and Random-C100=e100/T46."
+            "test images; checkpoint/temperature choice is recorded in specs."
         ),
+        "selection_label": args.selection_label,
         "teacher_seed": args.teacher_seed,
         "images": len(dataset),
         "class_names": list(dataset.classes),
@@ -445,6 +458,16 @@ def analyze(args):
         for seed in (43, 44)
     }
     reference = payloads[43]
+    def comparable_specs(payload):
+        return {
+            family: {
+                "C": int(spec["C"]),
+                "training_epoch": int(spec["training_epoch"]),
+                "temperature": float(spec["temperature"]),
+            }
+            for family, spec in payload["specs"].items()
+        }
+    selected_specs = comparable_specs(reference)
     targets = reference["targets"].long()
     class_names = reference["class_names"]
     for seed, payload in payloads.items():
@@ -454,6 +477,10 @@ def analyze(args):
             raise ValueError(f"sample order differs for seed {seed}")
         if not torch.equal(payload["targets"].long(), targets):
             raise ValueError(f"targets differ for seed {seed}")
+        if comparable_specs(payload) != selected_specs:
+            raise ValueError(f"checkpoint/temperature specs differ for seed {seed}")
+        if payload.get("selection_label") != reference.get("selection_label"):
+            raise ValueError(f"selection labels differ for seed {seed}")
     models = {}
     for seed, payload in payloads.items():
         for family in ("c1", "c100"):
@@ -504,14 +531,15 @@ def analyze(args):
     result = {
         "audit_schema_version": 1,
         "question": (
-            "Do C1-e16/T200 and Random-C100-e100/T46 soft labels use the same "
+            "Do the selected C1 and Random-C100 soft labels use the same "
             "information channel, after accounting for ordinary Teacher-seed variation?"
         ),
         "protocol": {
             "dataset": "complete 3925-image ImageNette test split",
             "preprocessing": "Resize(256)+CenterCrop(224)+ImageNet normalization",
-            "C1": SPECS["c1"],
-            "Random_C100": SPECS["c100"],
+            "selection_label": reference.get("selection_label"),
+            "C1": selected_specs["c1"],
+            "Random_C100": selected_specs["c100"],
             "teacher_seeds": [43, 44],
             "primary_pairs": ["c1_s43 vs c100_s43", "c1_s44 vs c100_s44"],
             "seed_variation_controls": ["c1_s43 vs c1_s44", "c100_s43 vs c100_s44"],
@@ -616,6 +644,25 @@ def main():
     collect_parser.add_argument("--device", default="cuda:0")
     collect_parser.add_argument("--batch-size", type=int, default=256)
     collect_parser.add_argument("--workers", type=int, default=8)
+    collect_parser.add_argument(
+        "--c1-training-epoch", type=int,
+        default=DEFAULT_SPECS["c1"]["training_epoch"],
+    )
+    collect_parser.add_argument(
+        "--c1-temperature", type=float,
+        default=DEFAULT_SPECS["c1"]["temperature"],
+    )
+    collect_parser.add_argument(
+        "--c100-training-epoch", type=int,
+        default=DEFAULT_SPECS["c100"]["training_epoch"],
+    )
+    collect_parser.add_argument(
+        "--c100-temperature", type=float,
+        default=DEFAULT_SPECS["c100"]["temperature"],
+    )
+    collect_parser.add_argument(
+        "--selection-label", default="source-average best",
+    )
     analyze_parser = subparsers.add_parser("analyze")
     analyze_parser.add_argument("--input-dir", required=True)
     analyze_parser.add_argument("--output", required=True)

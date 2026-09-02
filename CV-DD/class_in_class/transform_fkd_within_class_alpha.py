@@ -69,9 +69,28 @@ def main():
     parser.add_argument("--output-base", required=True)
     parser.add_argument("--alphas", type=float, nargs="+", required=True)
     parser.add_argument("--source-temperature", type=float, default=20.0)
+    parser.add_argument(
+        "--student-temperature",
+        type=float,
+        default=1.0,
+        help=(
+            "temperature used by train_fkd.py. The stored-logit scale is chosen "
+            "so alpha=1 replays the source Teacher distribution at this temperature"
+        ),
+    )
+    parser.add_argument(
+        "--constant-total-trace",
+        action="store_true",
+        help=(
+            "multiply every alpha arm by sqrt((B+W)/(B+alpha^2 W)), keeping "
+            "the total centered-logit trace S=B+W equal to its alpha=1 value"
+        ),
+    )
     parser.add_argument("--classes", type=int, default=10)
     parser.add_argument("--output-dtype", choices=("fp16", "fp32"), default="fp16")
     args = parser.parse_args()
+    if args.source_temperature <= 0 or args.student_temperature <= 0:
+        raise ValueError("source and student temperatures must be positive")
     input_root = Path(args.input_root)
     output_base = Path(args.output_base)
     output_base.mkdir(parents=True, exist_ok=True)
@@ -112,7 +131,11 @@ def main():
         class_sum / scale,
         counts,
     )
-    sigma = scale / args.source_temperature
+    # If train_fkd consumes the stored logits at T_student, alpha=1 must satisfy
+    # softmax(saved / T_student) == softmax(source / T_source).  Since row-wise
+    # constants vanish under softmax, the required stored-logit multiplier is
+    # scale * T_student / T_source.
+    output_scale = scale * args.student_temperature / args.source_temperature
     output_dtype = torch.float16 if args.output_dtype == "fp16" else torch.float32
     roots = {
         alpha: output_base / f"alpha_{alpha_tag(alpha)}"
@@ -131,7 +154,18 @@ def main():
         means = normalized_class_means[labels]
         relative = path.relative_to(input_root)
         for alpha, root in roots.items():
-            transformed = sigma * (means + alpha * (normalized - means))
+            between = normalized_decomposition["between_trace"]
+            within = normalized_decomposition["within_trace"]
+            trace_factor = 1.0
+            if args.constant_total_trace:
+                trace_factor = math.sqrt(
+                    (between + within) / (between + alpha * alpha * within)
+                )
+            transformed = (
+                output_scale
+                * trace_factor
+                * (means + alpha * (normalized - means))
+            )
             output_path = root / relative
             if output_path.is_file():
                 saved = torch.load(
@@ -144,7 +178,9 @@ def main():
                 atomic_torch_save(output_config, output_path)
             if abs(alpha - 1.0) < 1e-12:
                 original_q = torch.softmax(logits / args.source_temperature, dim=1)
-                replay_q = torch.softmax(saved.double(), dim=1)
+                replay_q = torch.softmax(
+                    saved.double() / args.student_temperature, dim=1
+                )
                 difference = (original_q - replay_q).abs()
                 softmax_error_sum += difference.sum().item()
                 softmax_error_max = max(softmax_error_max, difference.max().item())
@@ -160,17 +196,34 @@ def main():
                 f"{output_files}/{len(paths)}"
             )
         before = normalized_decomposition
+        between = before["between_trace"]
+        within = before["within_trace"]
+        trace_factor = 1.0
+        if args.constant_total_trace:
+            trace_factor = math.sqrt(
+                (between + within) / (between + alpha * alpha * within)
+            )
         after = {
-            "within_trace": sigma * sigma * alpha * alpha * before["within_trace"],
-            "between_trace": sigma * sigma * before["between_trace"],
+            "within_trace": (
+                output_scale * output_scale * trace_factor * trace_factor
+                * alpha * alpha * before["within_trace"]
+            ),
+            "between_trace": (
+                output_scale * output_scale * trace_factor * trace_factor
+                * before["between_trace"]
+            ),
             "R_within_over_between": alpha * alpha * before["R_within_over_between"],
         }
+        after["total_trace"] = after["within_trace"] + after["between_trace"]
+        alpha1_total_trace = output_scale * output_scale * (between + within)
         row = {
             "alpha": alpha,
             "tag": alpha_tag(alpha),
             "output_root": str(root),
             "batch_files": output_files,
+            "total_trace_renormalization_factor": trace_factor,
             "expected_decomposition_after_transform": after,
+            "total_trace_ratio_to_alpha1": after["total_trace"] / alpha1_total_trace,
             "R_ratio_observed_by_algebra": (
                 after["R_within_over_between"]
                 / before["R_within_over_between"]
@@ -183,7 +236,14 @@ def main():
         "definition": {
             "class_assignment": "fixed argmax parent class before alpha transform",
             "normalization": "one scalar SD over all stored crops and 10 parent logits",
-            "sigma_policy": "sigma=s/source_temperature, so alpha=1 replays original q at student T=1",
+            "stored_logit_scale_policy": (
+                "output_scale=s*student_temperature/source_temperature, so alpha=1 "
+                "replays original q under the configured student temperature"
+            ),
+            "total_trace_policy": (
+                "constant S=B+W via sqrt((B+W)/(B+alpha^2 W))"
+                if args.constant_total_trace else "unconstrained S=B+alpha^2 W"
+            ),
             "alpha_operation": "mu_argmax + alpha*(normalized_logit-mu_argmax)",
         },
         "input_root": str(input_root),
@@ -192,8 +252,12 @@ def main():
         "label_rows": samples,
         "batch_size": batch_size,
         "source_temperature": args.source_temperature,
+        "student_temperature": args.student_temperature,
         "global_centered_logit_sd": scale,
-        "sigma": sigma,
+        "output_scale": output_scale,
+        # Backward-compatible alias used by the first alpha-intervention audit.
+        "sigma": output_scale,
+        "constant_total_trace": args.constant_total_trace,
         "argmax_class_counts": counts.tolist(),
         "base_normalized_decomposition": normalized_decomposition,
         "alpha_rows": alpha_rows,

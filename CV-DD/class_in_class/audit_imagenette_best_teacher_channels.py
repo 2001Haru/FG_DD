@@ -372,7 +372,18 @@ def model_summary(probabilities, targets):
     return result
 
 
-def pair_report(left_name, right_name, relation, models, targets, class_names):
+def geometric_model_summary(vectors, targets):
+    vectors = vectors.double()
+    result = variance_summary(vectors, targets)
+    result["population_sd"] = vectors.std(unbiased=False).item()
+    result["mean_row_l2_norm"] = vectors.norm(dim=1).mean().item()
+    return result
+
+
+def pair_report(
+    left_name, right_name, relation, models, targets, class_names,
+    include_agreement=True,
+):
     left = models[left_name]
     right = models[right_name]
     left_means, left_within = class_means_and_within(left, targets)
@@ -402,11 +413,10 @@ def pair_report(left_name, right_name, relation, models, targets, class_names):
     centered_right_similarity = cosine_matrix(
         simplex_tangent_coordinates(centered_right_means)
     )
-    return {
+    result = {
         "left": left_name,
         "right": right_name,
         "relation": relation,
-        "agreement": agreement_metrics(left, right, targets),
         "linear_CKA": {
             "globally_centered_labels": linear_cka(left, right),
             "within_class_centered_labels": linear_cka(left_within, right_within),
@@ -438,6 +448,9 @@ def pair_report(left_name, right_name, relation, models, targets, class_names):
             },
         },
     }
+    if include_agreement:
+        result["agreement"] = agreement_metrics(left, right, targets)
+    return result
 
 
 def mean_and_sample_sd(values):
@@ -494,12 +507,33 @@ def analyze(args):
                 raise ValueError(f"probabilities do not sum to one: {family} seed={seed}")
             models[f"{family}_s{seed}"] = probabilities
 
+    logit_models = {}
+    for name, probabilities in models.items():
+        family = name.split("_s", 1)[0]
+        temperature = float(selected_specs[family]["temperature"])
+        equivalent_logits = temperature * probabilities.clamp_min(1e-30).log()
+        equivalent_logits = equivalent_logits - equivalent_logits.mean(
+            1, keepdim=True
+        )
+        logit_models[name] = equivalent_logits
+
     model_summaries = {
         name: model_summary(probabilities, targets)
         for name, probabilities in models.items()
     }
     pair_reports = [
         pair_report(left, right, relation, models, targets, class_names)
+        for left, right, relation in PAIR_SPECS
+    ]
+    logit_model_summaries = {
+        name: geometric_model_summary(vectors, targets)
+        for name, vectors in logit_models.items()
+    }
+    logit_pair_reports = [
+        pair_report(
+            left, right, relation, logit_models, targets, class_names,
+            include_agreement=False,
+        )
         for left, right, relation in PAIR_SPECS
     ]
     paired_cross = [
@@ -528,6 +562,54 @@ def analyze(args):
         mean_and_sample_sd([row[index] for row in cca_rows])
         for index in range(common)
     ]
+    paired_logit_cross = [
+        report for report in logit_pair_reports
+        if report["relation"] == "cross_family_same_seed"
+    ]
+    logit_aggregate = {}
+    logit_scalar_paths = {
+        "global_linear_CKA": lambda row: row["linear_CKA"]["globally_centered_labels"],
+        "within_linear_CKA": lambda row: row["linear_CKA"]["within_class_centered_labels"],
+        "between_prototype_linear_CKA": lambda row: row["linear_CKA"]["between_class_prototypes"],
+        "within_top1_direction_angle": lambda row: row["within_class_covariance_principal_angles"]["pooled_within_class_residuals"]["top_eigenvector_angle_degrees"],
+        "raw_interclass_similarity_pearson": lambda row: row["interclass_similarity"]["raw_probability_cosine"]["comparison"]["upper_triangle_pearson"],
+        "centered_interclass_similarity_pearson": lambda row: row["interclass_similarity"]["globally_centered_prototype_cosine"]["comparison"]["upper_triangle_pearson"],
+    }
+    for name, getter in logit_scalar_paths.items():
+        logit_aggregate[name] = mean_and_sample_sd(
+            [getter(row) for row in paired_logit_cross]
+        )
+    logit_cca_rows = [
+        row["CCA"]["within_class_centered_labels"]["canonical_correlations"]
+        for row in paired_logit_cross
+    ]
+    logit_common = min(map(len, logit_cca_rows))
+    logit_aggregate["within_class_CCA_spectrum"] = [
+        mean_and_sample_sd([row[index] for row in logit_cca_rows])
+        for index in range(logit_common)
+    ]
+
+    def corrected_within_cka(reports):
+        within_c1 = next(
+            row for row in reports if row["relation"] == "within_c1"
+        )["linear_CKA"]["within_class_centered_labels"]
+        within_c100 = next(
+            row for row in reports if row["relation"] == "within_c100"
+        )["linear_CKA"]["within_class_centered_labels"]
+        cross_values = [
+            row["linear_CKA"]["within_class_centered_labels"]
+            for row in reports if row["relation"] == "cross_family_same_seed"
+        ]
+        cross_mean = sum(cross_values) / len(cross_values)
+        ceiling = math.sqrt(within_c1 * within_c100)
+        return {
+            "within_c1_cross_seed_CKA": within_c1,
+            "within_c100_cross_seed_CKA": within_c100,
+            "cross_family_same_seed_CKA_values": cross_values,
+            "cross_family_same_seed_CKA_mean": cross_mean,
+            "geometric_mean_reliability_ceiling": ceiling,
+            "deattenuated_shared_fraction": cross_mean / max(ceiling, 1e-30),
+        }
     result = {
         "audit_schema_version": 1,
         "question": (
@@ -543,11 +625,22 @@ def analyze(args):
             "teacher_seeds": [43, 44],
             "primary_pairs": ["c1_s43 vs c100_s43", "c1_s44 vs c100_s44"],
             "seed_variation_controls": ["c1_s43 vs c1_s44", "c100_s43 vs c100_s44"],
+            "primary_geometry_space": (
+                "equivalent centered logits z=T*log(q)-row_mean; probability "
+                "geometry is retained as an audit"
+            ),
         },
         "class_names": class_names,
         "model_summaries": model_summaries,
+        "logit_model_summaries": logit_model_summaries,
         "paired_cross_family_aggregate": aggregate,
+        "logit_paired_cross_family_aggregate": logit_aggregate,
+        "reliability_corrected_within_CKA": {
+            "probability_space": corrected_within_cka(pair_reports),
+            "equivalent_logit_space": corrected_within_cka(logit_pair_reports),
+        },
         "pair_reports": pair_reports,
+        "logit_pair_reports": logit_pair_reports,
     }
     output = Path(args.output)
     atomic_json_dump(result, output)
@@ -622,11 +715,36 @@ def analyze(args):
                         "component": component,
                         "canonical_correlation": correlation,
                     })
+    logit_csv = output.with_name("logit_pair_scalar_summary.csv")
+    with logit_csv.open("w", newline="", encoding="utf-8") as handle:
+        fields = [
+            "left", "right", "relation", "global_CKA", "within_CKA",
+            "between_CKA", "top1_within_direction_angle_degrees",
+            "within_CCA_sum_rho2", "within_CCA_dims_ge_0p9",
+            "raw_interclass_pearson", "centered_interclass_pearson",
+        ]
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        for row in logit_pair_reports:
+            writer.writerow({
+                "left": row["left"],
+                "right": row["right"],
+                "relation": row["relation"],
+                "global_CKA": row["linear_CKA"]["globally_centered_labels"],
+                "within_CKA": row["linear_CKA"]["within_class_centered_labels"],
+                "between_CKA": row["linear_CKA"]["between_class_prototypes"],
+                "top1_within_direction_angle_degrees": row["within_class_covariance_principal_angles"]["pooled_within_class_residuals"]["top_eigenvector_angle_degrees"],
+                "within_CCA_sum_rho2": row["CCA"]["within_class_centered_labels"]["sum_squared_canonical_correlations"],
+                "within_CCA_dims_ge_0p9": row["CCA"]["within_class_centered_labels"]["shared_dimensions_rho_ge_0p9"],
+                "raw_interclass_pearson": row["interclass_similarity"]["raw_probability_cosine"]["comparison"]["upper_triangle_pearson"],
+                "centered_interclass_pearson": row["interclass_similarity"]["globally_centered_prototype_cosine"]["comparison"]["upper_triangle_pearson"],
+            })
     print(json.dumps({
         "output": str(output),
         "pair_csv": str(csv_path),
         "principal_angle_csv": str(angle_csv),
         "cca_csv": str(cca_csv),
+        "logit_pair_csv": str(logit_csv),
         "models": list(models),
         "pairs": len(pair_reports),
         "paired_cross_family_aggregate": aggregate,

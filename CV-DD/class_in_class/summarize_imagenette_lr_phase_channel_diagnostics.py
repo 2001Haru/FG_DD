@@ -17,12 +17,13 @@ def load(path, expected_epoch):
     return payload
 
 
-def row_for_pair(phase, report):
+def row_for_pair(phase, report, space):
     angles = report["within_class_covariance_principal_angles"][
         "pooled_within_class_residuals"
     ]
     return {
         "phase": phase,
+        "space": space,
         "left": report["left"],
         "right": report["right"],
         "relation": report["relation"],
@@ -38,8 +39,8 @@ def row_for_pair(phase, report):
         "within_top1_direction_angle_degrees": angles[
             "top_eigenvector_angle_degrees"
         ],
-        "top1_agreement": report["agreement"]["top1_agreement_fraction"],
-        "top5_overlap": report["agreement"]["mean_top5_overlap_count"],
+        "top1_agreement": report.get("agreement", {}).get("top1_agreement_fraction"),
+        "top5_overlap": report.get("agreement", {}).get("mean_top5_overlap_count"),
         "centered_interclass_similarity_pearson": report[
             "interclass_similarity"
         ]["globally_centered_prototype_cosine"]["comparison"][
@@ -60,22 +61,35 @@ def main():
         "e300": load(args.e300, 300),
     }
     rows = [
-        row_for_pair(phase, report)
+        row_for_pair(phase, report, "probability")
         for phase, payload in payloads.items()
         for report in payload["pair_reports"]
     ]
+    rows.extend(
+        row_for_pair(phase, report, "equivalent_logit")
+        for phase, payload in payloads.items()
+        for report in payload["logit_pair_reports"]
+    )
     result = {
         "audit_schema_version": 1,
         "question": (
             "Cross-family soft-label channel comparison at LR-phase-matched "
-            "e100/e100 and e300/e300, with both families evaluated at T20."
+            "e100/e100 and e300/e300, with both families evaluated at T20; "
+            "equivalent-logit geometry is primary and probability geometry is audit."
         ),
         "phases": {
             phase: {
                 "protocol": payload["protocol"],
                 "model_summaries": payload["model_summaries"],
+                "logit_model_summaries": payload["logit_model_summaries"],
                 "paired_cross_family_aggregate": payload[
                     "paired_cross_family_aggregate"
+                ],
+                "logit_paired_cross_family_aggregate": payload[
+                    "logit_paired_cross_family_aggregate"
+                ],
+                "reliability_corrected_within_CKA": payload[
+                    "reliability_corrected_within_CKA"
                 ],
             }
             for phase, payload in payloads.items()

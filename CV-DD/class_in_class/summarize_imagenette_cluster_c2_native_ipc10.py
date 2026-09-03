@@ -54,16 +54,6 @@ def main():
     new_hard, new_soft = load_arm(
         root / "per_class", "hard_sseed{seed}.json", "c1_soft_sseed{seed}.json"
     )
-    c1_hard, c1_soft = load_arm(
-        Path(args.c1_root) / "tseed43",
-        "hard_per_class/c1_rseed41_sseed{seed}.json",
-        "per_class/c1_rseed41_sseed{seed}.json",
-    )
-    c10_hard, c10_soft = load_arm(
-        Path(args.c10_native_root) / "tseed43" / "per_class",
-        "hard_rseed41_sseed{seed}.json",
-        "c1_soft_rseed41_sseed{seed}.json",
-    )
 
     def arm(hard, soft):
         return {
@@ -71,6 +61,41 @@ def main():
             "c1_soft": summarize(soft),
             "c1_soft_minus_hard": paired(soft, hard),
         }
+
+    references = {}
+    reference_specs = {
+        "c1_coarse_recovery": (
+            Path(args.c1_root) / "tseed43",
+            "hard_per_class/c1_rseed41_sseed{seed}.json",
+            "per_class/c1_rseed41_sseed{seed}.json",
+        ),
+        "c10_native_recovery": (
+            Path(args.c10_native_root) / "tseed43" / "per_class",
+            "hard_rseed41_sseed{seed}.json",
+            "c1_soft_rseed41_sseed{seed}.json",
+        ),
+    }
+    for name, (reference_root, hard_pattern, soft_pattern) in reference_specs.items():
+        try:
+            hard, soft = load_arm(reference_root, hard_pattern, soft_pattern)
+        except Exception as error:
+            references[name] = {
+                "available": False,
+                "error_type": type(error).__name__,
+                "error": str(error),
+                "root": str(reference_root),
+                "hard_pattern": hard_pattern,
+                "soft_pattern": soft_pattern,
+            }
+        else:
+            references[name] = {
+                "available": True,
+                **arm(hard, soft),
+                "c2_native_minus_reference": {
+                    "hard": paired(new_hard, hard),
+                    "c1_soft": paired(new_soft, soft),
+                },
+            }
 
     result = {
         "audit_schema_version": 1,
@@ -84,22 +109,7 @@ def main():
         "recovery_seed": 41,
         "student_seeds": list(STUDENT_SEEDS),
         "new_c2_native_recovery": arm(new_hard, new_soft),
-        "strict_same_seed_references": {
-            "c1_coarse_recovery": {
-                **arm(c1_hard, c1_soft),
-                "c2_native_minus_reference": {
-                    "hard": paired(new_hard, c1_hard),
-                    "c1_soft": paired(new_soft, c1_soft),
-                },
-            },
-            "c10_native_recovery": {
-                **arm(c10_hard, c10_soft),
-                "c2_native_minus_reference": {
-                    "hard": paired(new_hard, c10_hard),
-                    "c1_soft": paired(new_soft, c10_soft),
-                },
-            },
-        },
+        "strict_same_seed_references": references,
         "historical_18_cell_grand_means": {
             "random_c2_coarse_recovery": {"hard": 43.71, "matched_soft": 64.81},
             "cluster_c2_coarse_recovery": {"hard": 42.73, "matched_soft": 61.91},

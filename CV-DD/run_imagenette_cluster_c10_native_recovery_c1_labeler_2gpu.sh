@@ -17,12 +17,14 @@ COARSE_CLASSES=10
 RECOVERY_ITERATIONS=4000
 RECOVERY_LR=0.1
 RECOVERY_R_BN=0.01
+RECOVERY_BATCH_SIZE="${RECOVERY_BATCH_SIZE:-10}"
 FKD_BATCH_SIZE=10
 TEMPERATURE=20
 
 CLUSTER_ROOT="$Main_Data_Path/class_in_class/imagenette_cic_t_dinov2_cluster_seed42"
 C1_ROOT="$Main_Data_Path/class_in_class/imagenette_cic_t_official_split_lr0p1_tseeds43_44"
-EXP_ROOT="$Main_Data_Path/class_in_class/imagenette_cluster_c10_native_recovery_c1_labeler"
+EXP_ROOT="${EXP_ROOT:-$Main_Data_Path/class_in_class/imagenette_cluster_c10_native_recovery_c1_labeler}"
+PATCH_ASSET_ROOT="${PATCH_ASSET_ROOT:-$EXP_ROOT}"
 LOG_ROOT="${LOG_ROOT:-$ROOT/logs/imagenette_cluster_c10_native_recovery_c1_labeler}"
 VAL_DIR="$val_dir/imagenet-nette/test"
 mkdir -p "$EXP_ROOT/analysis" "$LOG_ROOT"
@@ -43,6 +45,8 @@ c1_teacher(){
 }
 
 echo "[0/6] Strict asset and protocol preflight"
+[[ "$RECOVERY_BATCH_SIZE" == 10 || "$RECOVERY_BATCH_SIZE" == 100 ]] \
+    || fail "RECOVERY_BATCH_SIZE must be 10 or 100"
 partition="$(partition_dir)"
 [[ -f "$partition/hierarchy.json" ]] || fail "missing DINO Cluster C10 hierarchy"
 partition_valid="$(python -c "import json; q=json.load(open('$partition/hierarchy.json')); m=q.get('fine_to_coarse',{}); print(q.get('kind')=='imagenette_balanced_dinov2_clusters' and int(q.get('subclasses_per_coarse',-1))==10 and int(q.get('num_pseudo_classes',-1))==100 and len(m)==100 and all(int(m[str(i)])==i//10 for i in range(100)))")"
@@ -62,9 +66,9 @@ patch_one(){
     local teacher_seed="$1" gpu="$2"
     local teacher patch_root output count archive
     teacher="$(cluster_teacher "$teacher_seed")"
-    patch_root="$EXP_ROOT/tseed${teacher_seed}/patches/cluster_c10_native100"
+    patch_root="$PATCH_ASSET_ROOT/tseed${teacher_seed}/patches/cluster_c10_native100"
     output="$patch_root/medium"
-    mkdir -p "$EXP_ROOT/tseed${teacher_seed}"
+    mkdir -p "$PATCH_ASSET_ROOT/tseed${teacher_seed}"
     count=0
     [[ -d "$output" ]] && count="$(find "$output" -type f -name '*.jpg' | wc -l)"
     if (( count == NATIVE_CLASSES )) && python "$ROOT/class_in_class/validate_cvdd_patch_tree.py" \
@@ -100,13 +104,13 @@ recover_one(){
     local teacher_seed="$1" recovery_seed="$2" gpu="$3"
     local teacher patch_root seed_root output exp_name marker expected count patch_hash archive
     teacher="$(cluster_teacher "$teacher_seed")"
-    patch_root="$EXP_ROOT/tseed${teacher_seed}/patches/cluster_c10_native100"
+    patch_root="$PATCH_ASSET_ROOT/tseed${teacher_seed}/patches/cluster_c10_native100"
     seed_root="$EXP_ROOT/tseed${teacher_seed}/native_synthetic"
     exp_name="cluster_c10_native100_rseed${recovery_seed}"
     output="$seed_root/$exp_name"
     marker="$output/.protocol"
     patch_hash="$(find "$patch_root/medium" -type f -name '*.jpg' -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
-    expected="native100:tseed=$teacher_seed:rseed=$recovery_seed:teacher=$(sha256sum "$teacher"|awk '{print $1}'):hierarchy=$(sha256sum "$partition/hierarchy.json"|awk '{print $1}'):patch=$patch_hash:iter=$RECOVERY_ITERATIONS:lr=$RECOVERY_LR:r_bn=$RECOVERY_R_BN"
+    expected="native100:tseed=$teacher_seed:rseed=$recovery_seed:teacher=$(sha256sum "$teacher"|awk '{print $1}'):hierarchy=$(sha256sum "$partition/hierarchy.json"|awk '{print $1}'):patch=$patch_hash:batch=$RECOVERY_BATCH_SIZE:iter=$RECOVERY_ITERATIONS:lr=$RECOVERY_LR:r_bn=$RECOVERY_R_BN"
     count=0
     [[ -d "$output" ]] && count="$(find "$output" -type f -name '*.jpg' | wc -l)"
     if [[ -f "$marker" && "$(tr -d '[:space:]' < "$marker")" == "$expected" && "$count" == 100 ]]; then
@@ -124,7 +128,7 @@ recover_one(){
     python -u "$ROOT/recover/recover.py" \
         --exp-name "$exp_name" --apply-data-augmentation \
         --dataset-name imagenet-nette --recovery-num-classes 100 \
-        --teacher-num-classes 100 --batch-size 10 --syn-data-path "$seed_root" \
+        --teacher-num-classes 100 --batch-size "$RECOVERY_BATCH_SIZE" --syn-data-path "$seed_root" \
         --patch-dir "$patch_root" --model-pool-dir "$(dirname "$teacher")" \
         --pretrained-model-type offline --model-setting 0 --sre2l-model ResNet18 \
         --voter-type equal --selected-size 1 --lr "$RECOVERY_LR" \
@@ -143,7 +147,7 @@ recovery_stream(){
     done
 }
 
-echo "[2/6] Native-100 recovery: 100 targets x one image, no marginalization"
+echo "[2/6] Native-100 recovery: 100 targets x one image, no marginalization, BS=$RECOVERY_BATCH_SIZE"
 recovery_stream 43 "$GPU0" & recovery43=$!
 recovery_stream 44 "$GPU1" & recovery44=$!
 wait_jobs "$recovery43" "$recovery44" || fail recovery
@@ -276,7 +280,7 @@ done
 
 echo "[6/6] Strict paired summary"
 python -u "$ROOT/class_in_class/summarize_imagenette_native100_recovery_c1_labeler.py" \
-    --experiment-root "$EXP_ROOT" \
+    --experiment-root "$EXP_ROOT" --recovery-batch-size "$RECOVERY_BATCH_SIZE" \
     --output "$EXP_ROOT/analysis/summary.json" \
     > "$LOG_ROOT/summarize.log" 2>&1 || fail summarize
 

@@ -69,6 +69,7 @@ def summarize(values):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment-root", required=True)
+    parser.add_argument("--recovery-batch-size", type=int, required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
     root = Path(args.experiment_root)
@@ -112,13 +113,15 @@ def main():
         "audit_schema_version": 1,
         "protocol": (
             "ImageNette IPC10 ResNet18; DINOv2 Cluster C10 native-100 recovery "
-            "with one image per subclass (100 total), no recovery marginalization; "
+            f"with one image per subclass (100 total), recovery batch "
+            f"size {args.recovery_batch_size}, no recovery marginalization; "
             "collapsed coarse10 downstream source; Hard versus paired C1-Teacher "
             "CutMix FKD soft labels at T20; full 3925-image test split"
         ),
         "teacher_seeds": list(TEACHER_SEEDS),
         "recovery_seeds": list(RECOVERY_SEEDS),
         "student_seeds": list(STUDENT_SEEDS),
+        "recovery_batch_size": args.recovery_batch_size,
         "arms": arms,
         "paired_c1_soft_minus_hard": summarize(paired_values),
     }

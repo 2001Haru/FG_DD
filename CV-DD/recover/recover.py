@@ -243,6 +243,9 @@ def parse_args():
                         help='required when pretrained model type is offline')
     parser.add_argument('--teacher-num-classes', type=int, default=None,
                         help='Teacher output dimension when different from recovery target classes')
+    parser.add_argument('--recovery-num-classes', type=int, default=None,
+                        help=('override the recovery target dimension after dataset defaults; '
+                              'for example, ImageNette C=10 native subclass recovery uses 100'))
     parser.add_argument('--teacher-mapping', type=str, default=None,
                         help='fine_to_coarse mapping for probability marginalization in recovery CE')
     parser.add_argument('--patch-dir', type=str, default=None,
@@ -350,6 +353,11 @@ def parse_args():
         
     else:
         raise ValueError('dataset not supported')
+
+    if args.recovery_num_classes is not None:
+        if args.recovery_num_classes <= 0:
+            raise ValueError('--recovery-num-classes must be positive')
+        args.ncls = args.recovery_num_classes
     
     # Sre2l++ setting
     if args.model_setting == 0:
